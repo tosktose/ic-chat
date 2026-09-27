@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
+import { unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 const __dirname = import.meta.dirname
@@ -63,6 +64,42 @@ app.whenReady().then(() => {
       symbolColor: theme === 'dark' ? '#cbd5e1' : '#475569',
       height: 48
     })
+  })
+
+  // Relatórios em PDF: renderiza o HTML numa janela invisível e imprime em A4
+  ipcMain.handle('pdf:export', async (event, { html, fileName }: { html: string; fileName: string }) => {
+    const parent = BrowserWindow.fromWebContents(event.sender) ?? undefined
+    const choice = await dialog.showSaveDialog(parent!, {
+      title: 'Salvar relatório em PDF',
+      defaultPath: join(app.getPath('documents'), fileName),
+      filters: [{ name: 'PDF', extensions: ['pdf'] }]
+    })
+    if (choice.canceled || !choice.filePath) return { ok: false, canceled: true }
+
+    const tmp = join(app.getPath('temp'), `icchat-relatorio-${Date.now()}.html`)
+    const win = new BrowserWindow({ show: false, webPreferences: { javascript: false, sandbox: true } })
+    try {
+      await writeFile(tmp, html, 'utf8')
+      await win.loadFile(tmp)
+      const pdf = await win.webContents.printToPDF({
+        // Margens vêm do CSS (@page): a capa encosta no topo e as demais páginas têm respiro
+        preferCSSPageSize: true,
+        printBackground: true,
+        displayHeaderFooter: true,
+        headerTemplate: '<div></div>',
+        footerTemplate: `<div style="width:100%;padding:0 14mm;display:flex;justify-content:space-between;font-family:Segoe UI,Arial,sans-serif;font-size:7.5px;color:#94a3b8">
+          <span>IC Chat · Powered by itaCondo · Relatório confidencial</span>
+          <span>Página <span class="pageNumber"></span> de <span class="totalPages"></span></span></div>`
+      })
+      await writeFile(choice.filePath, pdf)
+      void shell.openPath(choice.filePath)
+      return { ok: true, path: choice.filePath }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    } finally {
+      win.destroy()
+      void unlink(tmp).catch(() => undefined)
+    }
   })
 
   ipcMain.on('window:flash', (event) => {

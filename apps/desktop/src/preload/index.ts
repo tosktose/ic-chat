@@ -5,7 +5,12 @@ const api = {
   platform: process.platform,
   setTitleBarTheme: (theme: 'light' | 'dark') => ipcRenderer.send('titlebar:theme', theme),
   /** Pisca o ícone na barra de tarefas até a janela receber foco */
-  flashFrame: () => ipcRenderer.send('window:flash')
+  flashFrame: () => ipcRenderer.send('window:flash'),
+  /** Gera PDF (A4) do HTML, pergunta onde salvar e abre o arquivo */
+  exportPdf: (html: string, fileName: string) =>
+    ipcRenderer.invoke('pdf:export', { html, fileName }) as Promise<
+      { ok: true; path?: string } | { ok: false; canceled?: boolean; error?: string }
+    >
 }
 
 contextBridge.exposeInMainWorld('icchat', api)

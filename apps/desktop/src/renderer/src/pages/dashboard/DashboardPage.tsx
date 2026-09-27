@@ -7,35 +7,13 @@ import { Avatar, Card, CardHeader, Progress, Segmented } from '@/components/ui/m
 import { useAppState } from '@/lib/app-state'
 import { brl, cn } from '@/lib/utils'
 import { professionals, users } from '@/data/mock'
-
-type Period = 'semana' | 'quinzena' | 'mes'
-
-const DATA: Record<Period, { kpis: { conv: number; convDelta: number; frt: string; frtDelta: number; done: number; doneDelta: number; noShow: number; noShowDelta: number }; daily: { d: string; v: number }[]; pros: number[]; revenue: number[] }> = {
-  semana: {
-    kpis: { conv: 312, convDelta: 12, frt: '2m 14s', frtDelta: -18, done: 86, doneDelta: 7, noShow: 4.6, noShowDelta: -1.2 },
-    daily: [
-      { d: 'Dom', v: 12 }, { d: 'Seg', v: 38 }, { d: 'Ter', v: 52 }, { d: 'Qua', v: 47 }, { d: 'Qui', v: 58 }, { d: 'Sex', v: 66 }, { d: 'Sáb', v: 39 }
-    ],
-    pros: [28, 22, 19, 17],
-    revenue: [4380, 1720, 5210, 2340]
-  },
-  quinzena: {
-    kpis: { conv: 604, convDelta: 9, frt: '2m 31s', frtDelta: -11, done: 171, doneDelta: 5, noShow: 5.1, noShowDelta: -0.4 },
-    daily: Array.from({ length: 15 }, (_, i) => ({ d: String(13 + i).padStart(2, '0'), v: [18, 41, 49, 44, 55, 61, 36, 12, 38, 52, 47, 58, 66, 39, 20][i] })),
-    pros: [55, 44, 39, 33],
-    revenue: [8710, 3450, 10120, 4700]
-  },
-  mes: {
-    kpis: { conv: 1248, convDelta: 15, frt: '2m 40s', frtDelta: -22, done: 352, doneDelta: 11, noShow: 5.4, noShowDelta: 0.3 },
-    daily: Array.from({ length: 30 }, (_, i) => ({ d: String(i + 1).padStart(2, '0'), v: Math.round(38 + 18 * Math.sin(i / 1.2) + (i % 7 === 0 ? -22 : 0) + i * 0.6) })),
-    pros: [112, 91, 80, 69],
-    revenue: [17890, 7120, 20870, 9650]
-  }
-}
+import { DASHBOARD_DATA as DATA, type Period } from '@/data/dashboard'
+import { ExportReportDialog } from './ExportReportDialog'
 
 export function DashboardPage() {
   const { resolveUser } = useAppState()
   const [period, setPeriod] = useState<Period>('semana')
+  const [exportOpen, setExportOpen] = useState(false)
   const d = DATA[period]
   const proRows = professionals
     .map((p, i) => ({ ...p, clients: d.pros[i], revenue: d.revenue[i] }))
@@ -59,8 +37,8 @@ export function DashboardPage() {
               { value: 'mes', label: 'Mês' }
             ]}
           />
-          <Button variant="outline" size="md">
-            <Download /> <span className="hidden sm:inline">Exportar</span>
+          <Button variant="outline" size="md" onClick={() => setExportOpen(true)} tooltip="Relatório em PDF">
+            <Download /> <span className="hidden sm:inline">Exportar PDF</span>
           </Button>
         </>
       }
@@ -221,6 +199,7 @@ export function DashboardPage() {
           </div>
         </div>
       </Card>
+      <ExportReportDialog open={exportOpen} onOpenChange={setExportOpen} initialPeriod={period} />
     </Page>
   )
 }
