@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { Bot, CalendarPlus, ChevronLeft, ChevronRight, Clock, Link2, UserRound } from 'lucide-react'
 import { GoogleSyncButton } from '@/components/GoogleCalendarDialog'
+import { useGoogle } from '@/lib/google'
 import { addDays, HISTORY } from '@/data/history'
 import { toast } from 'sonner'
 import { GoogleIcon } from '@/components/brand'
@@ -44,6 +45,10 @@ export function AgendaPage() {
   const professionals = allPros.filter((p) => p.active)
   const selectedPros = professionals.map((p) => p.id).filter((id) => !hiddenPros.includes(id))
   const [day, setDay] = useState(TODAY)
+  const google = useGoogle()
+  useEffect(() => {
+    void google.loadDay(day)
+  }, [day, google.connectedCount, google.config.direction, google.config.blockPersonal])
   const today = info.hours[weekdayOf(day)]
   // Dias passados mostram o histórico; hoje e dias futuros, os agendamentos marcados
   const appointments =
@@ -148,7 +153,7 @@ export function AgendaPage() {
 
       {effectiveView === 'dia' ? (
         today.open ? (
-          <DayGrid pros={pros} appointments={appointments} onOpen={setOpenAppt} hours={today} showNow={day === TODAY} />
+          <DayGrid pros={pros} appointments={appointments} onOpen={setOpenAppt} hours={today} showNow={day === TODAY} day={day} />
         ) : (
           <div className="flex flex-1 items-center justify-center p-6 text-center">
             <div>
@@ -171,9 +176,11 @@ function DayGrid({
   appointments,
   onOpen,
   hours: day,
-  showNow
+  showNow,
+  day: date
 }: {
   showNow: boolean
+  day: string
   pros: ProfessionalItem[]
   appointments: Appointment[]
   onOpen: (a: Appointment) => void
@@ -186,6 +193,7 @@ function DayGrid({
   const nowMin = 11 * 60 + 20 // hora "atual" da demonstração
   const nowTop = ((nowMin - START_H * 60) / 60) * HOUR_PX
   const lunch = day.lunchStart && day.lunchEnd ? [toMinutes(day.lunchStart), toMinutes(day.lunchEnd)] : null
+  const google = useGoogle()
 
   return (
     <div className="scroll-thin flex-1 overflow-auto">
@@ -233,6 +241,21 @@ function DayGrid({
                   Almoço
                 </div>
               )}
+              {/* Compromissos do Google Agenda do profissional (bloqueiam o horário) */}
+              {google.busy(p.id, date).map((ev) => {
+                const s0 = ev.allDay ? START_H * 60 : toMinutes(ev.start)
+                const e0 = ev.allDay ? END_H * 60 : toMinutes(ev.end)
+                return (
+                  <div
+                    key={ev.id}
+                    title={`Google Agenda: ${ev.summary}`}
+                    className="absolute inset-x-1.5 overflow-hidden rounded-lg border border-dashed border-border-strong bg-[repeating-linear-gradient(135deg,var(--surface-2)_0_6px,var(--surface)_6px_12px)] px-2.5 py-1.5 text-[11.5px] text-muted"
+                    style={{ top: ((s0 - START_H * 60) / 60) * HOUR_PX + 2, height: Math.max(26, ((e0 - s0) / 60) * HOUR_PX - 4) }}
+                  >
+                    <span className="font-semibold">Google</span> · {ev.summary}
+                  </div>
+                )
+              })}
               {appointments
                 .filter((a) => a.professionalId === p.id)
                 .map((a) => {
@@ -326,8 +349,12 @@ function ListView({ appts, onOpen }: { appts: Appointment[]; onOpen: (a: Appoint
 function AppointmentDialog({ appt, onClose }: { appt: Appointment | null; onClose: () => void }) {
   const { professionalById } = useCompany()
   const { setAppointmentStatus, openNewAppointment } = useAppState()
+  const google = useGoogle()
   if (!appt) return null
+  const dropFromGoogle = () =>
+    google.removeAppointment(appt).catch((e: Error) => toast.error('Não foi possível remover do Google Agenda', { description: e.message }))
   const act = (status: Appointment['status'] | 'cancelado', msg: string) => () => {
+    if (status === 'cancelado') void dropFromGoogle()
     setAppointmentStatus(appt.id, status)
     onClose()
     toast.success(msg)
@@ -346,6 +373,7 @@ function AppointmentDialog({ appt, onClose }: { appt: Appointment | null; onClos
           <Button
             variant="outline"
             onClick={() => {
+              void dropFromGoogle()
               setAppointmentStatus(appt.id, 'cancelado')
               onClose()
               openNewAppointment(appt.contactId)

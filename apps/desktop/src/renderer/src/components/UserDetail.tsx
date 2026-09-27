@@ -38,7 +38,16 @@ export interface DetailUser {
 const roleLabel = { gerente: 'Gerente', analista: 'Analista' }
 
 /** Ações rápidas visíveis (sem menu de três pontinhos) — usadas nas linhas das listas. */
-export function UserQuickActions({ user, className }: { user: DetailUser; className?: string }) {
+export function UserQuickActions({
+  user,
+  className,
+  onSetActive
+}: {
+  user: DetailUser
+  className?: string
+  /** Bloqueia/libera de verdade (quando a tela tem acesso aos dados) */
+  onSetActive?: (active: boolean) => void
+}) {
   return (
     <div className={cn('flex items-center gap-0.5', className)} onClick={(e) => e.stopPropagation()}>
       <Button variant="ghost" size="icon-sm" aria-label="Redefinir senha" onClick={() => toast.success('Link de nova senha enviado', { description: user.email })}>
@@ -48,11 +57,11 @@ export function UserQuickActions({ user, className }: { user: DetailUser; classN
         <LogOut />
       </Button>
       {user.active ? (
-        <Button variant="ghost" size="icon-sm" className="hover:text-danger" aria-label="Bloquear acesso" onClick={() => toast.success('Acesso bloqueado', { description: user.name })}>
+        <Button variant="ghost" size="icon-sm" className="hover:text-danger" aria-label="Bloquear acesso" onClick={() => { onSetActive?.(false); toast.success('Acesso bloqueado', { description: user.name }) }}>
           <Ban />
         </Button>
       ) : (
-        <Button variant="ghost" size="icon-sm" className="hover:text-success" aria-label="Desbloquear acesso" onClick={() => toast.success('Acesso liberado', { description: user.name })}>
+        <Button variant="ghost" size="icon-sm" className="hover:text-success" aria-label="Desbloquear acesso" onClick={() => { onSetActive?.(true); toast.success('Acesso liberado', { description: user.name }) }}>
           <RotateCcw />
         </Button>
       )}
@@ -61,15 +70,35 @@ export function UserQuickActions({ user, className }: { user: DetailUser; classN
 }
 
 /** Conteúdo da ficha do usuário (pode ficar dentro de outro painel, com "voltar"). */
-export function UserDetailView({ user, onBack }: { user: DetailUser; onBack?: () => void }) {
+export interface UserPatch {
+  name?: string
+  role?: DetailUser['role']
+  active?: boolean
+}
+
+export function UserDetailView({
+  user,
+  onBack,
+  onSave,
+  onRemove
+}: {
+  user: DetailUser
+  onBack?: () => void
+  onSave?: (patch: UserPatch) => void
+  onRemove?: () => void
+}) {
   const [tab, setTab] = useState<'perfil' | 'acesso' | 'atividade'>('perfil')
   const [role, setRole] = useState(user.role)
   const [active, setActive] = useState(user.active)
+  const [name, setName] = useState(user.name)
+  const [confirmRemove, setConfirmRemove] = useState(false)
 
   useEffect(() => {
     setTab('perfil')
     setRole(user.role)
     setActive(user.active)
+    setName(user.name)
+    setConfirmRemove(false)
   }, [user])
 
   const online = user.lastSeen === 'agora'
@@ -112,7 +141,7 @@ export function UserDetailView({ user, onBack }: { user: DetailUser; onBack?: ()
       <div className="scroll-thin flex-1 overflow-y-auto p-5">
         {tab === 'perfil' && (
           <div className="flex flex-col gap-4">
-            <Field label="Nome completo"><Input defaultValue={user.name} /></Field>
+            <Field label="Nome completo"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
             <Field label="Nome exibido ao cliente" hint="Aparece em negrito nas mensagens enviadas pelo WhatsApp da empresa">
               <Input defaultValue={user.name.split(' ')[0]} />
             </Field>
@@ -198,28 +227,78 @@ export function UserDetailView({ user, onBack }: { user: DetailUser; onBack?: ()
 
       {/* Ações sempre visíveis */}
       <div className="pb-safe flex flex-wrap items-center gap-2 border-t border-border p-4">
-        <Button variant="ghost" size="icon" className="text-danger" aria-label="Excluir usuário" onClick={() => toast.success('Usuário removido')}>
+        <Button variant="ghost" size="icon" className="text-danger" aria-label="Excluir usuário" onClick={() => setConfirmRemove(true)}>
             <Trash2 />
           </Button>
         <Button variant="outline" size="sm" onClick={() => toast.success('Link de nova senha enviado', { description: user.email })}>
           <KeyRound /> Redefinir senha
         </Button>
-        <Button variant="outline" size="sm" onClick={() => { setActive(!active); toast.success(active ? 'Acesso bloqueado' : 'Acesso liberado') }}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            onSave?.({ active: !active })
+            setActive(!active)
+            toast.success(active ? 'Acesso bloqueado' : 'Acesso liberado')
+          }}
+        >
           {active ? <Ban /> : <RotateCcw />} {active ? 'Bloquear' : 'Desbloquear'}
         </Button>
-        <Button size="sm" className="ml-auto" onClick={() => toast.success('Alterações salvas', { description: user.name })}>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!name.trim()}
+          onClick={() => {
+            onSave?.({ name: name.trim(), role, active })
+            toast.success('Alterações salvas', { description: name })
+          }}
+        >
           Salvar
         </Button>
       </div>
+      <Dialog
+        open={confirmRemove}
+        onOpenChange={setConfirmRemove}
+        title="Excluir usuário?"
+        description={`${user.name} perde o acesso imediatamente. As conversas atendidas continuam no histórico.`}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setConfirmRemove(false)}>Cancelar</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                onRemove?.()
+                setConfirmRemove(false)
+                toast.success('Usuário excluído', { description: user.name })
+                onBack?.()
+              }}
+            >
+              Excluir
+            </Button>
+          </>
+        }
+      >
+        <span />
+      </Dialog>
     </div>
   )
 }
 
 /** Ficha do usuário em painel lateral. */
-export function UserDetailSheet({ user, onClose }: { user: DetailUser | null; onClose: () => void }) {
+export function UserDetailSheet({
+  user,
+  onClose,
+  onSave,
+  onRemove
+}: {
+  user: DetailUser | null
+  onClose: () => void
+  onSave?: (patch: UserPatch) => void
+  onRemove?: () => void
+}) {
   return (
     <Sheet open={Boolean(user)} onOpenChange={(v) => !v && onClose()} title={user?.name ?? 'Usuário'} className="max-w-md">
-      {user && <UserDetailView user={user} />}
+      {user && <UserDetailView user={user} onSave={onSave} onRemove={() => { onRemove?.(); onClose() }} />}
     </Sheet>
   )
 }
@@ -230,14 +309,21 @@ export function NewUserDialog({
   onOpenChange,
   companies,
   fixedCompany,
-  defaultRole = 'analista'
+  defaultRole = 'analista',
+  onCreate
 }: {
+  onCreate?: (u: { company: string; name: string; displayName: string; email: string; role: DetailUser['role'] }) => void
   open: boolean
   onOpenChange: (v: boolean) => void
   companies?: string[]
   fixedCompany?: string
   defaultRole?: DetailUser['role']
 }) {
+  const [f, setF] = useState({ company: '', name: '', displayName: '', email: '', role: defaultRole })
+  useEffect(() => {
+    if (open) setF({ company: fixedCompany ?? companies?.[0] ?? '', name: '', displayName: '', email: '', role: defaultRole })
+  }, [open, fixedCompany, companies, defaultRole])
+  const valid = f.name.trim() && /^\S+@\S+\.\S+$/.test(f.email) && (fixedCompany || f.company)
   return (
     <Dialog
       open={open}
@@ -247,7 +333,16 @@ export function NewUserDialog({
       footer={
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={() => { onOpenChange(false); toast.success('Convite enviado') }}><UserPlus /> Criar e enviar convite</Button>
+          <Button
+            disabled={!valid}
+            onClick={() => {
+              onCreate?.({ ...f, name: f.name.trim(), displayName: f.displayName.trim() || f.name.trim().split(' ')[0] })
+              onOpenChange(false)
+              toast.success('Convite enviado', { description: f.email })
+            }}
+          >
+            <UserPlus /> Criar e enviar convite
+          </Button>
         </>
       }
     >
@@ -256,18 +351,18 @@ export function NewUserDialog({
           <Field label="Empresa" className="sm:col-span-2"><Input readOnly value={fixedCompany} /></Field>
         ) : (
           <Field label="Empresa" className="sm:col-span-2">
-            <Select>
+            <Select value={f.company} onChange={(e) => setF({ ...f, company: e.target.value })}>
               {(companies ?? []).map((c) => (
                 <option key={c}>{c}</option>
               ))}
             </Select>
           </Field>
         )}
-        <Field label="Nome"><Input placeholder="Nome completo" /></Field>
-        <Field label="Nome exibido ao cliente"><Input placeholder="Ex.: Juliana" /></Field>
-        <Field label="E-mail de login" className="sm:col-span-2"><Input type="email" placeholder="usuario@empresa.com" /></Field>
+        <Field label="Nome"><Input autoFocus placeholder="Nome completo" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
+        <Field label="Nome exibido ao cliente"><Input placeholder="Ex.: Juliana" value={f.displayName} onChange={(e) => setF({ ...f, displayName: e.target.value })} /></Field>
+        <Field label="E-mail de login" className="sm:col-span-2"><Input type="email" placeholder="usuario@empresa.com" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></Field>
         <Field label="Perfil" className="sm:col-span-2" hint="Gerente administra a empresa. Analista atende pelo WhatsApp da empresa.">
-          <Select defaultValue={defaultRole}>
+          <Select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value as DetailUser['role'] })}>
             <option value="gerente">Gerente</option>
             <option value="analista">Analista</option>
           </Select>

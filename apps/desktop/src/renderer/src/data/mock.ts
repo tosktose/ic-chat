@@ -53,7 +53,9 @@ export interface Message {
   imageTone?: string
   time: string
   day?: string
-  status?: 'sent' | 'delivered' | 'read'
+  status?: 'sent' | 'delivered' | 'read' | 'error'
+  /** ID da mensagem no WhatsApp (para confirmar entrega/leitura) */
+  waId?: string
 }
 
 export interface Conversation {
@@ -68,6 +70,8 @@ export interface Conversation {
   aiEnabled: boolean
   tags: string[]
   messages: Message[]
+  /** Endereço do chat no WhatsApp (definido quando a conversa passa pelo WhatsApp real) */
+  waJid?: string
 }
 
 export interface Appointment {
@@ -83,6 +87,8 @@ export interface Appointment {
   /** AAAA-MM-DD; sem data = hoje (demonstração) */
   date?: string
   notes?: string
+  /** Evento criado no Google Agenda do profissional */
+  googleEventId?: string
 }
 
 export interface Service {

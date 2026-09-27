@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useCompany } from '@/lib/company'
 import { useData } from '@/lib/data'
+import { useWhatsApp } from '@/lib/whatsapp'
 import { userById, users } from '@/data/mock'
 import { Composer } from './Composer'
 import { ContactPanel } from './ContactPanel'
@@ -115,8 +116,9 @@ function ChatPane({
   onTogglePanel: () => void
   panelVisible: boolean
 }) {
-  const { conversations, contactById, updateConversation, appendMessage } = useData()
+  const { conversations, contactById, updateConversation, appendMessage, updateMessage } = useData()
   const { info } = useCompany()
+  const wa = useWhatsApp()
   const conv = conversations.find((c) => c.id === convId)!
   const contact = contactById(conv.contactId)
   const { license, me, signature, myDisplayName, resolveUser } = useAppState()
@@ -184,26 +186,47 @@ function ChatPane({
     if (conv.status === 'resolvida' || conv.status === 'nova') updateConversation(conv.id, { status: 'aguardando' })
   }
 
+  // Entrega real pelo WhatsApp (app instalado e conectado). Sem conexão, a mensagem fica só registrada.
+  const viaWhatsApp = wa.available && conv.channel === 'whatsapp'
+  const deliver = (msgId: string, job: () => Promise<string>) => {
+    if (!viaWhatsApp) return
+    if (wa.state.status !== 'conectado') {
+      updateMessage(conv.id, msgId, { status: 'error' })
+      toast.error('WhatsApp desconectado', { description: 'Conecte em Canais para enviar. A mensagem ficou registrada aqui.' })
+      return
+    }
+    job()
+      .then((waId) => updateMessage(conv.id, msgId, { waId, status: 'sent' }))
+      .catch((e: Error) => {
+        updateMessage(conv.id, msgId, { status: 'error' })
+        toast.error('Mensagem não enviada', { description: e.message })
+      })
+  }
+
   const send = (text: string, note: boolean) => {
     // Quem responde sem ter assumido passa a ser o responsável
     if (!note) ensureOwner()
-    appendMessage(conv.id, { from: 'agent', author: myDisplayName, kind: note ? 'note' : 'text', text, status: 'sent' })
+    const id = appendMessage(conv.id, { from: 'agent', author: myDisplayName, kind: note ? 'note' : 'text', text, status: 'sent' })
+    // O número é um só; a assinatura mostra ao cliente quem está respondendo
+    if (!note) deliver(id, () => wa.sendText(conv, contact.phone, signature ? `*${myDisplayName}:*
+${text}` : text))
   }
 
   const sendFile = (file: File, caption?: string) => {
     ensureOwner()
     const src = URL.createObjectURL(file)
     const size = file.size > 1024 * 1024 ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(file.size / 1024))} KB`
-    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-      appendMessage(conv.id, { from: 'agent', author: myDisplayName, kind: 'image', src, mime: file.type, text: caption, fileName: file.name, status: 'sent' })
-    } else {
-      appendMessage(conv.id, { from: 'agent', author: myDisplayName, kind: 'document', src, mime: file.type, fileName: file.name, fileSize: size, status: 'sent' })
-    }
+    const visual = file.type.startsWith('image/') || file.type.startsWith('video/')
+    const id = visual
+      ? appendMessage(conv.id, { from: 'agent', author: myDisplayName, kind: 'image', src, mime: file.type, text: caption, fileName: file.name, status: 'sent' })
+      : appendMessage(conv.id, { from: 'agent', author: myDisplayName, kind: 'document', src, mime: file.type, fileName: file.name, fileSize: size, status: 'sent' })
+    const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'document'
+    deliver(id, () => wa.sendMedia(conv, contact.phone, { blob: file, mime: file.type || 'application/octet-stream', fileName: file.name, caption, kind }))
   }
 
   const sendAudio = (blob: Blob, seconds: number) => {
     ensureOwner()
-    appendMessage(conv.id, {
+    const id = appendMessage(conv.id, {
       from: 'agent',
       author: myDisplayName,
       kind: 'audio',
@@ -211,6 +234,7 @@ function ChatPane({
       duration: `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`,
       status: 'sent'
     })
+    deliver(id, () => wa.sendMedia(conv, contact.phone, { blob, mime: blob.type, kind: 'audio' }))
   }
 
   return (

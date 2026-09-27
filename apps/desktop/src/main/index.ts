@@ -1,5 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
 import { unlink, writeFile } from 'node:fs/promises'
+import * as gcal from './google'
+import * as wa from './whatsapp'
 import { join } from 'node:path'
 
 const __dirname = import.meta.dirname
@@ -119,16 +121,47 @@ app.whenReady().then(() => {
     }
   })
 
+  // ---------------- Integrações (WhatsApp e Google Agenda) ----------------
+  // Toda chamada devolve { ok, data } ou { ok: false, error } para a interface mostrar a mensagem
+  const handle = (name: string, fn: (...args: never[]) => unknown) =>
+    ipcMain.handle(name, async (_e, ...args) => {
+      try {
+        return { ok: true, data: await (fn as (...a: unknown[]) => unknown)(...args) }
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    })
+  handle('wa:start', () => wa.start())
+  handle('wa:state', () => wa.getState())
+  handle('wa:logout', () => wa.logout())
+  handle('wa:pair', (phone: string) => wa.pairingCode(phone))
+  handle('wa:check', (phone: string) => wa.checkNumber(phone))
+  handle('wa:sendText', (to: string, text: string) => wa.sendText(to, text))
+  handle('wa:sendMedia', (to: string, media: wa.OutMedia) => wa.sendMedia(to, media))
+  handle('gcal:status', () => gcal.status())
+  handle('gcal:setCredentials', (id: string, secret: string) => gcal.setCredentials(id, secret))
+  handle('gcal:connect', (proId: string) => gcal.connect(proId))
+  handle('gcal:disconnect', (proId: string) => gcal.disconnect(proId))
+  handle('gcal:createEvent', (proId: string, ev: gcal.NewEvent) => gcal.createEvent(proId, ev))
+  handle('gcal:deleteEvent', (proId: string, id: string) => gcal.deleteEvent(proId, id))
+  handle('gcal:listDay', (proId: string, date: string) => gcal.listDay(proId, date))
+
   ipcMain.on('window:flash', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)
     if (win && !win.isFocused()) win.flashFrame(true)
   })
 
   createWindow()
+  // Sessão do WhatsApp salva: reconecta sozinho ao abrir o app
+  void wa.hasSession().then((has) => {
+    if (has) void wa.start()
+  })
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+app.on('before-quit', () => wa.stop())
 
 app.on('window-all-closed', () => {
   if (!isMac) app.quit()

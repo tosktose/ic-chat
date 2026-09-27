@@ -10,6 +10,7 @@ import { DataProvider } from '@/lib/data'
 import { GoogleProvider } from '@/lib/google'
 import { NotificationsProvider } from '@/lib/notifications'
 import { TagsProvider } from '@/lib/tags'
+import { WhatsAppProvider } from '@/lib/whatsapp'
 import { ThemeProvider, useTheme } from '@/lib/theme'
 import { AdminPage } from '@/pages/admin/AdminPage'
 import { AdminLicensesPage } from '@/pages/admin/AdminLicensesPage'
@@ -59,6 +60,7 @@ export function App() {
           <HashRouter>
             <NotificationsProvider>
             <TagsProvider>
+            <WhatsAppProvider>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route element={<AppShell />}>
@@ -88,6 +90,7 @@ export function App() {
               <Route path="/" element={<Home />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
+            </WhatsAppProvider>
             </TagsProvider>
             </NotificationsProvider>
           </HashRouter>

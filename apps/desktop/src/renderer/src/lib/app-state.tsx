@@ -40,7 +40,8 @@ interface AppState {
   setMyPhoto: (url?: string) => void
   /** Agendamentos (em memória até o Core estar ligado) */
   appointments: Appointment[]
-  addAppointment: (a: Omit<Appointment, 'id'>) => void
+  addAppointment: (a: Omit<Appointment, 'id'>) => Appointment
+  updateAppointment: (id: string, patch: Partial<Appointment>) => void
   /** 'cancelado' remove o horário da agenda */
   setAppointmentStatus: (id: string, status: Appointment['status'] | 'cancelado') => void
   /** Janela "Novo agendamento", abre de qualquer tela (opcionalmente já com o cliente) */
@@ -159,7 +160,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           }
         },
         appointments,
-        addAppointment: (a) => setAppointments((list) => [...list, { ...a, id: crypto.randomUUID() }]),
+        addAppointment: (a) => {
+          const appt = { ...a, id: crypto.randomUUID() }
+          setAppointments((list) => [...list, appt])
+          return appt
+        },
+        updateAppointment: (id, patch) => setAppointments((list) => list.map((x) => (x.id === id ? { ...x, ...patch } : x))),
         setAppointmentStatus: (id, status) =>
           setAppointments((list) =>
             status === 'cancelado' ? list.filter((a) => a.id !== id) : list.map((a) => (a.id === id ? { ...a, status } : a))

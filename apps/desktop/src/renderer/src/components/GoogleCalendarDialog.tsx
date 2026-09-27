@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { formatDistanceToNowStrict } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ArrowLeftRight, ArrowRight, CalendarCheck, Loader2, Mail, RefreshCw, ShieldCheck, Unplug } from 'lucide-react'
+import { ArrowLeftRight, ArrowRight, CalendarCheck, ExternalLink, KeyRound, Loader2, Mail, RefreshCw, ShieldCheck, Unplug } from 'lucide-react'
+import { TODAY } from '@/data/mock'
 import { toast } from 'sonner'
 import { GoogleIcon } from '@/components/brand'
 import { Button } from '@/components/ui/button'
@@ -38,7 +39,12 @@ export function GoogleSyncButton({ className }: { className?: string }) {
 
 export function GoogleCalendarDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { professionals } = useCompany()
-  const { config, setConfig, connect, disconnect, syncNow, lastSync } = useGoogle()
+  const g = useGoogle()
+  const { config, setConfig, connect, disconnect, syncNow, lastSync } = g
+  const [clientId, setClientId] = useState('')
+  const [secret, setSecret] = useState('')
+  const [savingCreds, setSavingCreds] = useState(false)
+  const [showCreds, setShowCreds] = useState(false)
   const [connecting, setConnecting] = useState<string | null>(null)
   const [emailFor, setEmailFor] = useState<{ id: string; email: string } | null>(null)
   const [syncing, setSyncing] = useState(false)
@@ -50,15 +56,27 @@ export function GoogleCalendarDialog({ open, onOpenChange }: { open: boolean; on
     }
   }, [open])
 
-  const authorize = (proId: string, email: string) => {
+  useEffect(() => {
+    if (open) {
+      setClientId(g.clientId)
+      setSecret('')
+      setShowCreds(g.real && !g.hasCredentials)
+    }
+  }, [open])
+
+  const authorize = async (proId: string, email?: string) => {
     setEmailFor(null)
     setConnecting(proId)
-    // No sistema real abre a tela de login do Google (OAuth) no navegador e volta com a autorização
-    setTimeout(() => {
-      connect(proId, email)
+    try {
+      // App instalado: abre a tela de login do Google no navegador e volta com a autorização
+      const connected = g.real ? await connect(proId) : await new Promise<string>((r) => setTimeout(() => r(connect(proId, email)), 1600))
+      toast.success('Agenda conectada', { description: `${connected} · os horários já começaram a sincronizar.` })
+      void g.loadDay(TODAY, true)
+    } catch (e) {
+      toast.error('Não foi possível conectar a agenda', { description: e instanceof Error ? e.message : String(e) })
+    } finally {
       setConnecting(null)
-      toast.success('Agenda conectada', { description: `${email} · os horários já começaram a sincronizar.` })
-    }, 1600)
+    }
   }
 
   const dirOptions: { value: SyncDirection; label: string }[] = [
@@ -82,11 +100,9 @@ export function GoogleCalendarDialog({ open, onOpenChange }: { open: boolean; on
             disabled={syncing || !Object.keys(config.calendars).length}
             onClick={() => {
               setSyncing(true)
-              setTimeout(() => {
-                syncNow()
-                setSyncing(false)
-                toast.success('Agendas sincronizadas')
-              }, 1200)
+              void syncNow(TODAY)
+                .then(() => toast.success('Agendas sincronizadas'))
+                .finally(() => setSyncing(false))
             }}
           >
             {syncing ? <Loader2 className="animate-spin" /> : <RefreshCw />} Sincronizar agora
@@ -96,6 +112,55 @@ export function GoogleCalendarDialog({ open, onOpenChange }: { open: boolean; on
       }
     >
       <div className="flex flex-col gap-5">
+        {/* Credenciais do Google Cloud (app instalado) */}
+        {g.real && (
+          <div className="rounded-xl border border-border">
+            <button onClick={() => setShowCreds((v) => !v)} className="flex w-full items-center gap-3 p-3 text-left">
+              <KeyRound className="size-4 text-muted" />
+              <div className="flex-1">
+                <p className="text-[13.5px] font-medium">Credenciais do Google Cloud</p>
+                <p className="text-xs text-muted">{g.hasCredentials ? `Configuradas · ${g.clientId.slice(0, 18)}…` : 'Necessárias uma única vez para conectar as agendas'}</p>
+              </div>
+              <Badge tone={g.hasCredentials ? 'success' : 'warning'}>{g.hasCredentials ? 'OK' : 'Pendente'}</Badge>
+            </button>
+            {showCreds && (
+              <div className="flex flex-col gap-3 border-t border-border p-3">
+                <ol className="flex flex-col gap-1 text-[12.5px] text-muted">
+                  <li>1. Acesse o <a className="font-medium text-primary hover:underline" href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noreferrer">Google Cloud Console <ExternalLink className="inline size-3" /></a> e crie um projeto (ex.: “IC Chat”).</li>
+                  <li>2. Ative a <a className="font-medium text-primary hover:underline" href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noreferrer">Google Calendar API <ExternalLink className="inline size-3" /></a>.</li>
+                  <li>3. Em <b>Tela de consentimento OAuth</b>: tipo <b>Externo</b> e adicione os e-mails dos profissionais em <b>Usuários de teste</b>.</li>
+                  <li>4. Em <b>Credenciais → Criar credenciais → ID do cliente OAuth</b>, escolha <b>App para computador</b>.</li>
+                  <li>5. Copie o <b>ID do cliente</b> e a <b>chave secreta</b> para os campos abaixo.</li>
+                </ol>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="ID do cliente"><Input value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="000000-xxxx.apps.googleusercontent.com" /></Field>
+                  <Field label="Chave secreta do cliente"><Input type="password" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={g.hasCredentials ? '•••••••• (salva)' : 'GOCSPX-…'} /></Field>
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    disabled={savingCreds || !clientId.includes('.apps.googleusercontent.com') || secret.length < 10}
+                    onClick={async () => {
+                      setSavingCreds(true)
+                      try {
+                        await g.saveCredentials(clientId, secret)
+                        setShowCreds(false)
+                        toast.success('Credenciais salvas', { description: 'Agora conecte a agenda de cada profissional.' })
+                      } catch (e) {
+                        toast.error('Não foi possível salvar', { description: e instanceof Error ? e.message : String(e) })
+                      } finally {
+                        setSavingCreds(false)
+                      }
+                    }}
+                  >
+                    {savingCreds && <Loader2 className="animate-spin" />} Salvar credenciais
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Profissionais */}
         <div>
           <p className="mb-2 text-[13px] font-semibold">Agendas dos profissionais</p>
@@ -110,7 +175,11 @@ export function GoogleCalendarDialog({ open, onOpenChange }: { open: boolean; on
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13.5px] font-medium">{p.name}</p>
                       <p className="truncate text-xs text-muted">
-                        {cal ? `${cal.email} · ${cal.calendarName} · sincronizado ${ago(cal.lastSync)}` : busy ? 'Aguardando autorização do Google…' : 'Não conectado'}
+                        {cal
+                          ? `${cal.email} · ${cal.status === 'erro' ? 'erro na última sincronização' : `sincronizado ${ago(cal.lastSync)}`}`
+                          : busy
+                            ? g.real ? 'Autorize no navegador que abriu…' : 'Aguardando autorização do Google…'
+                            : 'Não conectado'}
                       </p>
                     </div>
                     {cal ? (
@@ -122,8 +191,7 @@ export function GoogleCalendarDialog({ open, onOpenChange }: { open: boolean; on
                           className="hover:text-danger"
                           aria-label={`Desconectar agenda de ${p.name}`}
                           onClick={() => {
-                            disconnect(p.id)
-                            toast.success('Agenda desconectada', { description: p.name })
+                            void disconnect(p.id).then(() => toast.success('Agenda desconectada', { description: p.name }))
                           }}
                         >
                           <Unplug />
@@ -132,7 +200,13 @@ export function GoogleCalendarDialog({ open, onOpenChange }: { open: boolean; on
                     ) : busy ? (
                       <Loader2 className="size-5 animate-spin text-primary" />
                     ) : (
-                      <Button size="sm" variant="outline" onClick={() => setEmailFor({ id: p.id, email: p.email ?? '' })}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={g.real && !g.hasCredentials}
+                        tooltip={g.real && !g.hasCredentials ? 'Cadastre as credenciais do Google primeiro' : undefined}
+                        onClick={() => (g.real ? void authorize(p.id) : setEmailFor({ id: p.id, email: p.email ?? '' }))}
+                      >
                         <GoogleIcon className="size-4" /> Conectar
                       </Button>
                     )}
@@ -144,7 +218,7 @@ export function GoogleCalendarDialog({ open, onOpenChange }: { open: boolean; on
                       </Field>
                       <div className="flex gap-2">
                         <Button variant="ghost" onClick={() => setEmailFor(null)}>Cancelar</Button>
-                        <Button disabled={!/^\S+@\S+\.\S+$/.test(emailFor.email)} onClick={() => authorize(p.id, emailFor.email)}>
+                        <Button disabled={!/^\S+@\S+\.\S+$/.test(emailFor.email)} onClick={() => void authorize(p.id, emailFor.email)}>
                           Autorizar no Google
                         </Button>
                       </div>

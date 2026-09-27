@@ -6,6 +6,8 @@ import { Switch } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
 import { useAppState } from '@/lib/app-state'
 import { useNotifications } from '@/lib/notifications'
+import { useGoogle } from '@/lib/google'
+import { toast } from 'sonner'
 import { brl, cn } from '@/lib/utils'
 import { contactById, contacts, TODAY } from '@/data/mock'
 import { toMinutes, useCompany, weekdayOf, WEEKDAYS } from '@/lib/company'
@@ -22,7 +24,8 @@ const toHHMM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${
  * ou pela busca rápida. Sugere horários livres do profissional e bloqueia conflitos.
  */
 export function NewAppointmentDialog() {
-  const { apptDialog, closeNewAppointment, appointments, addAppointment } = useAppState()
+  const { apptDialog, closeNewAppointment, appointments, addAppointment, updateAppointment } = useAppState()
+  const google = useGoogle()
   const { notify } = useNotifications()
   const [contactId, setContactId] = useState(contacts[0].id)
   const { services, professionals: allPros, info } = useCompany()
@@ -60,9 +63,16 @@ export function NewAppointmentDialog() {
     () =>
       appointments
         .filter((a) => a.professionalId === proId && (a.date ?? TODAY) === date && a.status !== 'faltou')
-        .map((a) => [toMin(a.start), toMin(a.end)] as const),
-    [appointments, proId, date]
+        .map((a) => [toMin(a.start), toMin(a.end)] as const)
+        // Compromissos do Google Agenda do profissional também ocupam o horário
+        .concat(google.busy(proId, date).map((ev) => [ev.allDay ? 0 : toMin(ev.start), ev.allDay ? 24 * 60 : toMin(ev.end)] as const)),
+    [appointments, proId, date, google]
   )
+
+  // Carrega os compromissos do Google do dia escolhido
+  useEffect(() => {
+    if (apptDialog.open) void google.loadDay(date)
+  }, [apptDialog.open, date])
 
   const overlaps = (start: number, end: number) =>
     busy.some(([s, e]) => start < e && end > s) || (start < LUNCH[1] && end > LUNCH[0])
@@ -82,7 +92,7 @@ export function NewAppointmentDialog() {
 
   const save = () => {
     if (start === null || end === null || conflict || !proId || !serviceId) return
-    addAppointment({
+    const appt = addAppointment({
       contactId,
       professionalId: proId,
       service: service.name,
@@ -97,6 +107,16 @@ export function NewAppointmentDialog() {
     const c = contactById(contactId)
     const pro = allPros.find((p) => p.id === proId) ?? { name: 'profissional' }
     closeNewAppointment()
+    // Envia para o Google Agenda do profissional (quando conectado)
+    google
+      .pushAppointment(appt, { clientName: c.name, clientPhone: c.phone })
+      .then((eventId) => {
+        if (eventId) {
+          updateAppointment(appt.id, { googleEventId: eventId })
+          toast.success('Evento criado no Google Agenda', { description: `${pro.name} · ${toHHMM(start)}` })
+        }
+      })
+      .catch((e: Error) => toast.error('Não foi possível criar o evento no Google', { description: e.message }))
     notify({
       kind: 'agenda',
       title: 'Horário agendado',

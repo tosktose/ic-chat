@@ -1,5 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+type Result<T> = { ok: true; data: T } | { ok: false; error: string }
+const call = <T,>(name: string, ...args: unknown[]) => ipcRenderer.invoke(name, ...args) as Promise<Result<T>>
+
 const api = {
   isDesktop: true,
   platform: process.platform,
@@ -11,6 +14,32 @@ const api = {
     ipcRenderer.invoke('file:save', { content, fileName, filters }) as Promise<
       { ok: true; path?: string } | { ok: false; canceled?: boolean; error?: string }
     >,
+  /** WhatsApp via QR Code (serviço no processo principal) */
+  wa: {
+    start: () => call('wa:start'),
+    state: () => call('wa:state'),
+    logout: () => call('wa:logout'),
+    pair: (phone: string) => call('wa:pair', phone),
+    check: (phone: string) => call('wa:check', phone),
+    sendText: (to: string, text: string) => call('wa:sendText', to, text),
+    sendMedia: (to: string, media: unknown) => call('wa:sendMedia', to, media),
+    /** Eventos: state, message, ack. Devolve a função para parar de ouvir. */
+    on: (cb: (e: { type: string; payload: unknown }) => void) => {
+      const fn = (_: unknown, e: { type: string; payload: unknown }) => cb(e)
+      ipcRenderer.on('wa:event', fn)
+      return () => ipcRenderer.removeListener('wa:event', fn)
+    }
+  },
+  /** Google Agenda (OAuth + API do Calendar) */
+  gcal: {
+    status: () => call('gcal:status'),
+    setCredentials: (id: string, secret: string) => call('gcal:setCredentials', id, secret),
+    connect: (proId: string) => call('gcal:connect', proId),
+    disconnect: (proId: string) => call('gcal:disconnect', proId),
+    createEvent: (proId: string, ev: unknown) => call('gcal:createEvent', proId, ev),
+    deleteEvent: (proId: string, id: string) => call('gcal:deleteEvent', proId, id),
+    listDay: (proId: string, date: string) => call('gcal:listDay', proId, date)
+  },
   exportPdf: (html: string, fileName: string) =>
     ipcRenderer.invoke('pdf:export', { html, fileName }) as Promise<
       { ok: true; path?: string } | { ok: false; canceled?: boolean; error?: string }

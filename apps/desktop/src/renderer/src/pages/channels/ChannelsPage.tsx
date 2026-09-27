@@ -11,12 +11,25 @@ import { cn } from '@/lib/utils'
 import { useCompany } from '@/lib/company'
 import { useGoogle } from '@/lib/google'
 import { GoogleCalendarDialog } from '@/components/GoogleCalendarDialog'
+import { useWhatsApp } from '@/lib/whatsapp'
+import { formatPhone } from '@/lib/utils'
 
 export function ChannelsPage() {
   const { professionals, info } = useCompany()
   const google = useGoogle()
   // Estado da conexão por QR (no sistema real vem do Core/Baileys em tempo real)
-  const [wa, setWa] = useState<'conectado' | 'reconectando' | 'desconectado'>('conectado')
+  const real = useWhatsApp()
+  const [demoWa, setDemoWa] = useState<'conectado' | 'reconectando' | 'desconectado'>('conectado')
+  // No app instalado o estado vem do WhatsApp de verdade; no navegador, demonstração
+  const wa: 'conectado' | 'reconectando' | 'desconectado' = real.available
+    ? real.state.status === 'conectado'
+      ? 'conectado'
+      : real.state.status === 'desconectado'
+        ? 'desconectado'
+        : 'reconectando'
+    : demoWa
+  const setWa = setDemoWa
+  const waNumber = real.available && real.state.me ? formatPhone(real.state.me.phone) : info.phone
   const [confirmOff, setConfirmOff] = useState(false)
   const [official, setOfficial] = useState<{ phoneId: string } | null>(null)
   const [googleOpen, setGoogleOpen] = useState(false)
@@ -45,13 +58,19 @@ export function ChannelsPage() {
               <span className={cn('relative inline-flex size-2.5 rounded-full', wa === 'conectado' ? 'bg-success' : wa === 'reconectando' ? 'bg-warning' : 'bg-danger')} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13.5px] font-semibold">{info.phone} · {info.name}</p>
+              <p className="truncate text-[13.5px] font-semibold">{real.available && !real.state.me ? 'Nenhum número conectado' : `${waNumber} · ${info.name}`}</p>
               <p className="text-xs text-muted">
-                {wa === 'conectado' ? 'Conectado · última mensagem há 1 min' : wa === 'reconectando' ? 'Reconectando…' : 'Desconectado: as mensagens não estão chegando'}
+                {wa === 'conectado'
+                  ? real.available ? 'Conectado · recebendo e enviando mensagens' : 'Conectado · última mensagem há 1 min'
+                  : wa === 'reconectando'
+                    ? real.state.status === 'qr' ? 'Aguardando leitura do QR Code' : 'Conectando…'
+                    : real.state.error ?? 'Desconectado: as mensagens não estão chegando'}
               </p>
             </div>
             {wa === 'desconectado' ? (
               <Button size="sm" onClick={() => setQrOpen(true)}>Conectar</Button>
+            ) : real.available && real.state.status !== 'conectado' ? (
+              <Button size="sm" variant="outline" onClick={() => setQrOpen(true)}>Ver QR Code</Button>
             ) : (
               <>
                 <Button
@@ -60,6 +79,7 @@ export function ChannelsPage() {
                   aria-label="Reconectar"
                   disabled={wa === 'reconectando'}
                   onClick={() => {
+                    if (real.available) return void real.start()
                     setWa('reconectando')
                     setTimeout(() => {
                       setWa('conectado')
@@ -153,6 +173,7 @@ export function ChannelsPage() {
       <QrDialog
         open={qrOpen}
         onOpenChange={setQrOpen}
+        real={real.available ? real : undefined}
         onConnected={() => {
           setWa('conectado')
           setQrOpen(false)
@@ -179,7 +200,8 @@ export function ChannelsPage() {
             <Button
               variant="danger"
               onClick={() => {
-                setWa('desconectado')
+                if (real.available) void real.logout()
+                else setWa('desconectado')
                 setConfirmOff(false)
                 toast.success('WhatsApp desconectado')
               }}
@@ -242,7 +264,25 @@ function FakeQr() {
   )
 }
 
-function QrDialog({ open, onOpenChange, onConnected }: { open: boolean; onOpenChange: (v: boolean) => void; onConnected: () => void }) {
+function QrDialog({
+  open,
+  onOpenChange,
+  onConnected,
+  real
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  onConnected: () => void
+  real?: ReturnType<typeof useWhatsApp>
+}) {
+  const [pairing, setPairing] = useState(false)
+  // WhatsApp real: inicia a conexão ao abrir e fecha sozinho quando o celular conectar
+  useEffect(() => {
+    if (open && real && real.state.status === 'desconectado') void real.start()
+  }, [open])
+  useEffect(() => {
+    if (open && real?.state.status === 'conectado') onOpenChange(false)
+  }, [real?.state.status])
   const [mode, setMode] = useState<'qr' | 'codigo'>('qr')
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState<string | null>(null)
@@ -269,7 +309,7 @@ function QrDialog({ open, onOpenChange, onConnected }: { open: boolean; onOpenCh
           <Button variant="ghost" className="mr-auto" onClick={() => setMode(mode === 'qr' ? 'codigo' : 'qr')}>
             {mode === 'qr' ? <><Smartphone /> Conectar com código de 8 dígitos</> : <><QrCode /> Voltar para o QR Code</>}
           </Button>
-          <Button onClick={onConnected} tooltip="Demonstração: simula a leitura do código no celular">Já conectei no celular</Button>
+          {!real && <Button onClick={onConnected} tooltip="Demonstração: simula a leitura do código no celular">Já conectei no celular</Button>}
         </>
       }
     >
@@ -279,14 +319,22 @@ function QrDialog({ open, onOpenChange, onConnected }: { open: boolean; onOpenCh
             <div className="flex gap-2">
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 90000-0000" />
               <Button
-                disabled={phone.replace(/\D/g, '').length < 10}
-                onClick={() => {
+                disabled={pairing || phone.replace(/\D/g, '').length < 10}
+                onClick={async () => {
+                  if (real && window.icchat) {
+                    setPairing(true)
+                    const r = await window.icchat.wa.pair(phone.replace(/\D/g, '').replace(/^(?!55)/, '55'))
+                    setPairing(false)
+                    if (r.ok) setCode(r.data.replace(/-/g, ''))
+                    else toast.error('Não foi possível gerar o código', { description: r.error })
+                    return
+                  }
                   const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
                   const pick = () => abc[Math.floor(Math.random() * abc.length)]
                   setCode(Array.from({ length: 8 }, pick).join(''))
                 }}
               >
-                Gerar código
+                {pairing ? <Loader2 className="animate-spin" /> : null} Gerar código
               </Button>
             </div>
           </Field>
@@ -305,7 +353,18 @@ function QrDialog({ open, onOpenChange, onConnected }: { open: boolean; onOpenCh
       ) : (
       <div className="flex flex-col items-center gap-6 pb-2 sm:flex-row sm:items-start">
         <div className="relative size-56 shrink-0 rounded-2xl border border-border bg-white p-3 shadow-sm">
-          <FakeQr />
+          {real ? (
+            real.state.qr ? (
+              <img src={real.state.qr} alt="QR Code do WhatsApp" className="size-full" />
+            ) : (
+              <div className="flex size-full flex-col items-center justify-center gap-2 text-center text-xs text-slate-500">
+                <Loader2 className="size-6 animate-spin text-slate-400" />
+                {real.state.status === 'conectado' ? 'Conectado!' : 'Gerando QR Code…'}
+              </div>
+            )
+          ) : (
+            <FakeQr />
+          )}
           <div className="absolute top-1/2 left-1/2 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-xl bg-white shadow">
             <ChannelBadge kind="whatsapp" size={34} className="ring-0" />
           </div>

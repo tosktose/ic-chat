@@ -1,4 +1,5 @@
 appId: br.com.itacondo.icchat
+electronVersion: 44.4.5
 productName: IC Chat
 copyright: Copyright © 2026 ItaCondo
 directories:
@@ -8,12 +9,21 @@ files:
   - out/**/*
   - package.json
   - '!out/web/**'
+# O ffmpeg (conversão de áudio do WhatsApp) precisa ficar fora do .asar para ser executado
+asarUnpack:
+  - '**/node_modules/ffmpeg-static/**'
+# Sem módulos nativos para recompilar
+npmRebuild: false
 win:
   target:
     - target: nsis
       arch: [x64]
+    - target: portable
+      arch: [x64]
   icon: build/icon.ico
   artifactName: IC-Chat-Setup-${version}.${ext}
+portable:
+  artifactName: IC-Chat-Portatil-${version}.${ext}
 nsis:
   oneClick: false
   perMachine: false

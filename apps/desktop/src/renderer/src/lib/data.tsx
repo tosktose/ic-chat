@@ -23,7 +23,12 @@ interface Ctx {
   /** Abre (ou reaproveita) a conversa do contato no canal */
   openConversation: (contactId: string, channel?: ChannelKind) => string
   updateConversation: (id: string, patch: Partial<Conversation>) => void
-  appendMessage: (id: string, msg: Omit<Message, 'id' | 'time'> & { time?: string }) => void
+  /** Adiciona a mensagem e devolve o id dela */
+  appendMessage: (id: string, msg: Omit<Message, 'id' | 'time'> & { time?: string }) => string
+  updateMessage: (convId: string, msgId: string, patch: Partial<Message>) => void
+  /** Atualiza pelo id do WhatsApp (confirmações de entrega/leitura) */
+  updateMessageByWaId: (waId: string, patch: Partial<Message>) => void
+  findContactByPhone: (phone: string) => Contact | undefined
 }
 
 const DataCtx = createContext<Ctx | null>(null)
@@ -112,9 +117,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
         Object.assign(c, patch)
         bump()
       },
+      findContactByPhone: (phone) => {
+        const d = onlyDigits(phone)
+        const tail = d.slice(-8)
+        // compara pelos últimos 8 dígitos (resolve o 9º dígito e o +55)
+        return contactList.find((c) => onlyDigits(c.phone).slice(-8) === tail)
+      },
+      updateMessage: (convId, msgId, patch) => {
+        const c = conversationList.find((x) => x.id === convId)
+        if (!c) return
+        c.messages = c.messages.map((m) => (m.id === msgId ? { ...m, ...patch } : m))
+        bump()
+      },
+      updateMessageByWaId: (waId, patch) => {
+        for (const c of conversationList) {
+          if (c.messages.some((m) => m.waId === waId)) {
+            c.messages = c.messages.map((m) => (m.waId === waId ? { ...m, ...patch } : m))
+            bump()
+            return
+          }
+        }
+      },
       appendMessage: (id, msg) => {
         const c = conversationList.find((x) => x.id === id)
-        if (!c) return
+        if (!c) return ''
         const full: Message = { ...msg, id: crypto.randomUUID(), time: msg.time ?? now() } as Message
         c.messages = [...c.messages, full]
         if (msg.kind !== 'system' && msg.kind !== 'note') {
@@ -128,6 +154,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           conversationList.unshift(c)
         }
         bump()
+        return full.id
       }
     }),
     [version, bump]

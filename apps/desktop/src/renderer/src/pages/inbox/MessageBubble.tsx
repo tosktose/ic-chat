@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bot, Check, CheckCheck, Download, FileText, Pause, Play, StickyNote } from 'lucide-react'
+import { Bot, Check, CheckCheck, CircleAlert, Download, FileText, Pause, Play, StickyNote } from 'lucide-react'
 import { Tooltip } from '@/components/ui/misc'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -101,6 +101,11 @@ export function MessageBubble({ msg }: { msg: Message }) {
           {outgoing && msg.status === 'read' && <CheckCheck className="size-3.5 text-primary" />}
           {outgoing && msg.status === 'delivered' && <CheckCheck className="size-3.5" />}
           {outgoing && msg.status === 'sent' && <Check className="size-3.5" />}
+          {outgoing && msg.status === 'error' && (
+            <Tooltip content="Não enviada" description="O WhatsApp estava desconectado ou recusou o envio">
+              <CircleAlert className="size-3.5 text-danger" />
+            </Tooltip>
+          )}
         </div>
       </div>
     </div>
