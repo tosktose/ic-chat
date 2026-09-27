@@ -9,14 +9,14 @@ import { brl, cn } from '@/lib/utils'
 import { users } from '@/data/mock'
 import { useCompany } from '@/lib/company'
 import { DASHBOARD_DATA as DATA, type Period } from '@/data/dashboard'
-import { ExportReportDialog } from './ExportReportDialog'
+import { useNavigate } from 'react-router'
 
 export function DashboardPage() {
   const { resolveUser } = useAppState()
   const { professionals } = useCompany()
   const SEED_INDEX: Record<string, number> = { p1: 0, p2: 1, p3: 2, p4: 3 }
   const [period, setPeriod] = useState<Period>('semana')
-  const [exportOpen, setExportOpen] = useState(false)
+  const navigate = useNavigate()
   const d = DATA[period]
   const proRows = professionals
     .filter((p) => p.active)
@@ -41,8 +41,8 @@ export function DashboardPage() {
               { value: 'mes', label: 'Mês' }
             ]}
           />
-          <Button variant="outline" size="md" onClick={() => setExportOpen(true)} tooltip="Relatório em PDF">
-            <Download /> <span className="hidden sm:inline">Exportar PDF</span>
+          <Button variant="outline" size="md" onClick={() => navigate('/relatorios')} tooltip="Relatórios com filtros, em PDF ou Excel">
+            <Download /> <span className="hidden sm:inline">Relatórios</span>
           </Button>
         </>
       }
@@ -203,7 +203,6 @@ export function DashboardPage() {
           </div>
         </div>
       </Card>
-      <ExportReportDialog open={exportOpen} onOpenChange={setExportOpen} initialPeriod={period} />
     </Page>
   )
 }

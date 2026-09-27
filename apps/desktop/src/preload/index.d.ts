@@ -6,6 +6,11 @@ declare global {
       platform: NodeJS.Platform | string
       setTitleBarTheme: (theme: 'light' | 'dark') => void
       flashFrame: () => void
+      saveFile: (
+        content: string,
+        fileName: string,
+        filters: { name: string; extensions: string[] }[]
+      ) => Promise<{ ok: true; path?: string } | { ok: false; canceled?: boolean; error?: string }>
       exportPdf: (
         html: string,
         fileName: string

@@ -66,6 +66,23 @@ app.whenReady().then(() => {
     })
   })
 
+  // Salvar arquivos gerados pelo app (ex.: planilhas CSV dos relatórios)
+  ipcMain.handle(
+    'file:save',
+    async (event, { content, fileName, filters }: { content: string; fileName: string; filters: { name: string; extensions: string[] }[] }) => {
+      const parent = BrowserWindow.fromWebContents(event.sender) ?? undefined
+      const choice = await dialog.showSaveDialog(parent!, { defaultPath: join(app.getPath('documents'), fileName), filters })
+      if (choice.canceled || !choice.filePath) return { ok: false, canceled: true }
+      try {
+        await writeFile(choice.filePath, content, 'utf8')
+        void shell.openPath(choice.filePath)
+        return { ok: true, path: choice.filePath }
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : String(e) }
+      }
+    }
+  )
+
   // Relatórios em PDF: renderiza o HTML numa janela invisível e imprime em A4
   ipcMain.handle('pdf:export', async (event, { html, fileName }: { html: string; fileName: string }) => {
     const parent = BrowserWindow.fromWebContents(event.sender) ?? undefined

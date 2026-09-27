@@ -24,6 +24,7 @@ import { InboxPage } from '@/pages/inbox/InboxPage'
 import { KanbanPage } from '@/pages/kanban/KanbanPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { ProfilePage } from '@/pages/profile/ProfilePage'
+import { ReportsPage } from '@/pages/reports/ReportsPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { TeamPage } from '@/pages/team/TeamPage'
 
@@ -62,6 +63,7 @@ export function App() {
                 <Route path="/kanban" element={<Guard><KanbanPage /></Guard>} />
                 <Route path="/ia" element={<Guard><AiPage /></Guard>} />
                 <Route path="/canais" element={<Guard><ChannelsPage /></Guard>} />
+                <Route path="/relatorios" element={<Guard><ReportsPage /></Guard>} />
                 <Route path="/equipe" element={<Guard><TeamPage /></Guard>} />
                 <Route path="/config" element={<Guard><SettingsPage /></Guard>} />
                 {/* Gerente e analista */}
