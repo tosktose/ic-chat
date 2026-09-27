@@ -1,0 +1,31 @@
+# Dependências e builds
+node_modules/
+dist/
+out/
+release/
+*.log
+
+# Segredos - NUNCA versionar
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Dados locais
+*.sqlite
+*.sqlite3
+*.db
+auth_info*/
+sessions/
+
+# Sistema
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Configuração local do Claude Code
+.claude/settings.local.json
