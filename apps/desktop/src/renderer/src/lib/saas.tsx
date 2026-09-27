@@ -33,7 +33,10 @@ const parse = (s: string) => {
   const [d, m, y] = s.split('/').map(Number)
   return new Date(y, m - 1, d)
 }
-const TODAY = new Date(2026, 8, 27)
+const TODAY = (() => {
+  const d = new Date()
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+})()
 const daysUntil = (d: Date) => Math.round((d.getTime() - TODAY.getTime()) / 86400000)
 
 export interface NewTenantInput {

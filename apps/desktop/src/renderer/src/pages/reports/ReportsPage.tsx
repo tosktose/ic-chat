@@ -15,6 +15,7 @@ import {
 import { toast } from 'sonner'
 import { channelLabel, type ChannelKind } from '@/components/brand'
 import { Page } from '@/components/layout/Page'
+import { DemoDataNotice } from '@/components/DemoDataNotice'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select } from '@/components/ui/input'
 import { Card, Segmented } from '@/components/ui/misc'
@@ -388,6 +389,7 @@ export function ReportsPage() {
         </>
       }
     >
+      <DemoDataNotice />
       {/* Tipo de relatório */}
       <div className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
         {KINDS.map((k) => (

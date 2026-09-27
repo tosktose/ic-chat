@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { appointments as seedAppointments, sessionUsers, type Appointment, type Role, type User } from '@/data/mock'
 
 /** Estados da licença (seção 5.8 do documento do projeto) */
@@ -97,7 +97,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
   })
   const [commandOpen, setCommandOpen] = useState(false)
-  const [appointments, setAppointments] = useState<Appointment[]>(seedAppointments)
+  // App instalado: agendamentos vêm do banco local; navegador: exemplos
+  const appMode = Boolean(window.icchat?.db)
+  const [appointments, setAppointments] = useState<Appointment[]>(appMode ? [] : seedAppointments)
+  useEffect(() => {
+    if (!appMode) return
+    void window.icchat!.db.load().then((r) => r.ok && setAppointments(r.data.appointments as Appointment[]))
+  }, [appMode])
+  const saveAppt = (a: Appointment) => void window.icchat?.db.upsert('appointment', a.id, a)
   const [signature, setSignature] = useState(true)
   const [photos, setPhotos] = useState<Record<string, string | undefined>>({})
   const [profiles, setProfiles] = useState<Record<string, ProfileOverride>>(() => {
@@ -163,13 +170,31 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         addAppointment: (a) => {
           const appt = { ...a, id: crypto.randomUUID() }
           setAppointments((list) => [...list, appt])
+          saveAppt(appt)
           return appt
         },
-        updateAppointment: (id, patch) => setAppointments((list) => list.map((x) => (x.id === id ? { ...x, ...patch } : x))),
-        setAppointmentStatus: (id, status) =>
+        updateAppointment: (id, patch) =>
           setAppointments((list) =>
-            status === 'cancelado' ? list.filter((a) => a.id !== id) : list.map((a) => (a.id === id ? { ...a, status } : a))
+            list.map((x) => {
+              if (x.id !== id) return x
+              const next = { ...x, ...patch }
+              saveAppt(next)
+              return next
+            })
           ),
+        setAppointmentStatus: (id, status) =>
+          setAppointments((list) => {
+            if (status === 'cancelado') {
+              void window.icchat?.db.remove('appointment', id)
+              return list.filter((a) => a.id !== id)
+            }
+            return list.map((a) => {
+              if (a.id !== id) return a
+              const next = { ...a, status }
+              saveAppt(next)
+              return next
+            })
+          }),
         apptDialog,
         openNewAppointment: (contactId) => setApptDialog({ open: true, contactId }),
         closeNewAppointment: () => setApptDialog({ open: false }),

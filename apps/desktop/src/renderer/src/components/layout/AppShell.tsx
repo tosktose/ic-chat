@@ -22,6 +22,8 @@ import { NewAppointmentDialog } from '@/components/NewAppointmentDialog'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { navByPath, navFor, roleLabel, type NavItem } from '@/components/layout/nav'
 import { useAppState } from '@/lib/app-state'
+import { useData } from '@/lib/data'
+import type { Role } from '@/data/mock'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/lib/company'
@@ -72,9 +74,19 @@ export function AppShell() {
 /* ------------------------------------------------------------------ */
 /* Menu lateral (tablet e desktop)                                      */
 /* ------------------------------------------------------------------ */
+/** Menu do perfil com o contador real de mensagens não lidas no Atendimento */
+function useNav(role: Role) {
+  const { me } = useAppState()
+  const { conversations } = useData()
+  const unread = conversations
+    .filter((c) => c.status !== 'resolvida' && (role !== 'analista' || !c.assignee || c.assignee === me.id))
+    .reduce((sum, c) => sum + (c.unread || 0), 0)
+  return navFor(role).map((i) => (i.to === '/inbox' ? { ...i, badge: unread } : i))
+}
+
 function Sidebar() {
   const { sidebarCollapsed, setSidebarCollapsed, sidebarHidden, role } = useAppState()
-  const items = navFor(role)
+  const items = useNav(role)
   const groups = [...new Set(items.map((i) => i.group))]
   // Em telas médias (768–1279px) fica sempre recolhido em "trilho" de ícones
   const collapsed = sidebarCollapsed
@@ -333,7 +345,14 @@ function UserMenu() {
         </div>
         <MenuSeparator />
         <MenuItem icon={<UserRound />} onSelect={() => navigate('/perfil')}>Meu perfil</MenuItem>
-        <MenuItem icon={<LogOut />} danger onSelect={() => navigate('/login')}>
+        <MenuItem icon={<LogOut />} danger onSelect={() => {
+          try {
+            localStorage.setItem('icchat.keep', '0')
+          } catch {
+            /* ignore */
+          }
+          navigate('/login')
+        }}>
           Sair
         </MenuItem>
       </MenuContent>
@@ -386,7 +405,7 @@ function BottomNav() {
   const { pathname } = useLocation()
   const { role, me } = useAppState()
   const { info } = useCompany()
-  const items = navFor(role)
+  const items = useNav(role)
   const primary = items.filter((n) => n.mobile).slice(0, 4)
   const rest = items.filter((n) => !primary.includes(n))
   const restActive = rest.some((n) => pathname.startsWith(n.to))

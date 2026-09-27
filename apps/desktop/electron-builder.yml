@@ -12,6 +12,15 @@ files:
 # O ffmpeg (conversão de áudio do WhatsApp) precisa ficar fora do .asar para ser executado
 asarUnpack:
   - '**/node_modules/ffmpeg-static/**'
+# Segurança do executável: não roda como Node, ignora NODE_OPTIONS/--inspect,
+# só carrega o app de dentro do .asar e confere a integridade dele
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
 # Sem módulos nativos para recompilar
 npmRebuild: false
 win:

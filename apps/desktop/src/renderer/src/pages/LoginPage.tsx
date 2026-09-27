@@ -7,6 +7,8 @@ import { Field, Input } from '@/components/ui/input'
 import { homeByRole } from '@/components/layout/nav'
 import { useAppState } from '@/lib/app-state'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { Dialog } from '@/components/ui/overlay'
 import type { Role } from '@/data/mock'
 
 const DEMO: { role: Role; label: string; email: string; icon: typeof Bot; hint: string }[] = [
@@ -19,7 +21,26 @@ export function LoginPage() {
   const navigate = useNavigate()
   const { role: lastRole, signIn } = useAppState()
   const [show, setShow] = useState(false)
+  const [forgotOpen, setForgotOpen] = useState(false)
+  const [serverOpen, setServerOpen] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+  const [server, setServer] = useState<{ mode: 'local' | 'rede' | 'nuvem'; address: string }>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('icchat.server') ?? '') as { mode: 'local' | 'rede' | 'nuvem'; address: string }
+    } catch {
+      return { mode: 'local', address: '' }
+    }
+  })
+  const [serverDraft, setServerDraft] = useState(server)
+  const serverLabel = server.mode === 'local' ? 'Este computador' : server.mode === 'rede' ? `Rede local · ${server.address}` : `Nuvem · ${server.address}`
   const [role, setRole] = useState<Role>(lastRole)
+  const [keep, setKeep] = useState(() => {
+    try {
+      return localStorage.getItem('icchat.keep') !== '0'
+    } catch {
+      return true
+    }
+  })
   const demo = DEMO.find((d) => d.role === role)!
 
   return (
@@ -70,6 +91,11 @@ export function LoginPage() {
           onSubmit={(e) => {
             e.preventDefault()
             signIn(role)
+            try {
+              localStorage.setItem('icchat.keep', keep ? '1' : '0')
+            } catch {
+              /* ignore */
+            }
             navigate(homeByRole[role])
           }}
         >
@@ -117,9 +143,9 @@ export function LoginPage() {
             </Field>
             <div className="flex items-center justify-between text-[13px]">
               <label className="flex items-center gap-2 text-muted">
-                <input type="checkbox" defaultChecked className="size-4 accent-(--primary)" /> Manter conectado
+                <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} className="size-4 accent-(--primary)" /> Manter conectado
               </label>
-              <button type="button" className="font-medium text-primary hover:underline">Esqueci a senha</button>
+              <button type="button" className="font-medium text-primary hover:underline" onClick={() => setForgotOpen(true)}>Esqueci a senha</button>
             </div>
             <Button type="submit" size="lg" className="mt-2 w-full">
               Entrar <ArrowRight />
@@ -129,12 +155,105 @@ export function LoginPage() {
           <div className="mt-6 flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 text-[13px]">
             <div>
               <p className="font-medium">Servidor</p>
-              <p className="mt-0.5 text-muted">{role === 'superadmin' ? 'Nuvem itaCondo' : 'Este computador · Studio Bella'}</p>
+              <p className="mt-0.5 text-muted">{role === 'superadmin' ? 'Nuvem itaCondo' : serverLabel}</p>
             </div>
-            <button type="button" className="text-xs font-medium text-primary hover:underline">Trocar</button>
+            <button
+              type="button"
+              className="text-xs font-medium text-primary hover:underline"
+              onClick={() => {
+                setServerDraft(server)
+                setServerOpen(true)
+              }}
+            >
+              Trocar
+            </button>
           </div>
         </form>
       </div>
+      <Dialog
+        open={forgotOpen}
+        onOpenChange={setForgotOpen}
+        title="Recuperar senha"
+        description="Enviaremos um link para você criar uma nova senha. Ele vale por 30 minutos."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setForgotOpen(false)}>Cancelar</Button>
+            <Button
+              disabled={!/^\S+@\S+\.\S+$/.test(resetEmail)}
+              onClick={() => {
+                setForgotOpen(false)
+                toast.success('Se o e-mail estiver cadastrado, o link chega em instantes', { description: resetEmail })
+                setResetEmail('')
+              }}
+            >
+              Enviar link
+            </Button>
+          </>
+        }
+      >
+        <Field label="E-mail de login">
+          <Input autoFocus type="email" icon={<Mail />} value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="voce@empresa.com.br" />
+        </Field>
+      </Dialog>
+
+      <Dialog
+        open={serverOpen}
+        onOpenChange={setServerOpen}
+        title="Onde ficam os dados"
+        description="Escolha o servidor do IC Chat. Na dúvida, mantenha “Este computador”."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setServerOpen(false)}>Cancelar</Button>
+            <Button
+              disabled={serverDraft.mode !== 'local' && serverDraft.address.trim().length < 4}
+              onClick={() => {
+                setServer(serverDraft)
+                try {
+                  localStorage.setItem('icchat.server', JSON.stringify(serverDraft))
+                } catch {
+                  /* ignore */
+                }
+                setServerOpen(false)
+                toast.success('Servidor definido', { description: serverDraft.mode === 'local' ? 'Este computador' : serverDraft.address })
+              }}
+            >
+              Salvar
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-2">
+          {([
+            ['local', 'Este computador', 'Os dados ficam neste PC (SQLite). Ideal para um único computador ou para o PC servidor da empresa.'],
+            ['rede', 'Servidor na rede da empresa', 'Outro PC da empresa guarda os dados e este se conecta a ele pela rede.'],
+            ['nuvem', 'Nuvem (Supabase)', 'Os dados ficam na nuvem, acessíveis de qualquer lugar. Definido no contrato.']
+          ] as const).map(([mode, title, desc]) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setServerDraft({ ...serverDraft, mode })}
+              className={cn('rounded-xl border-2 p-3 text-left', serverDraft.mode === mode ? 'border-primary bg-primary-soft/50' : 'border-border hover:border-border-strong')}
+            >
+              <p className="text-[13.5px] font-semibold">{title}</p>
+              <p className="text-xs text-muted">{desc}</p>
+            </button>
+          ))}
+          {serverDraft.mode !== 'local' && (
+            <Field label={serverDraft.mode === 'rede' ? 'Endereço do servidor na rede' : 'Endereço do projeto na nuvem'} hint="Fornecido pelo suporte IC Chat">
+              <Input
+                value={serverDraft.address}
+                onChange={(e) => setServerDraft({ ...serverDraft, address: e.target.value })}
+                placeholder={serverDraft.mode === 'rede' ? '192.168.0.10:3210' : 'https://empresa.supabase.co'}
+              />
+            </Field>
+          )}
+          {serverDraft.mode !== 'local' && (
+            <p className="rounded-lg bg-warning-soft px-3 py-2 text-xs text-warning">
+              Nesta versão de teste os dados continuam sendo salvos neste computador. A conexão com servidor e nuvem chega na próxima etapa.
+            </p>
+          )}
+        </div>
+      </Dialog>
     </div>
   )
 }

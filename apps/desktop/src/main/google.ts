@@ -1,6 +1,6 @@
 // Google Agenda: login OAuth de "app instalado" (loopback + PKCE) e API do Calendar.
 // Credenciais (Client ID/Secret do Google Cloud) e tokens ficam em %APPDATA%/IC Chat/google.json.
-import { app, shell } from 'electron'
+import { app, safeStorage, shell } from 'electron'
 import { createHash, randomBytes } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
@@ -28,14 +28,22 @@ const SCOPES = [
 const TZ = 'America/Sao_Paulo'
 const file = () => join(app.getPath('userData'), 'google.json')
 
+// A chave secreta e os tokens ficam criptografados com o cofre do sistema (DPAPI no Windows)
+const ENC = 'icchat-enc:'
 async function load(): Promise<Store> {
   try {
-    return { accounts: {}, ...JSON.parse(await readFile(file(), 'utf8')) }
+    const raw = await readFile(file(), 'utf8')
+    const json = raw.startsWith(ENC) ? safeStorage.decryptString(Buffer.from(raw.slice(ENC.length), 'base64')) : raw
+    return { accounts: {}, ...JSON.parse(json) }
   } catch {
     return { accounts: {} }
   }
 }
-const save = (s: Store) => writeFile(file(), JSON.stringify(s, null, 2), 'utf8')
+const save = (s: Store) => {
+  const json = JSON.stringify(s)
+  const out = safeStorage.isEncryptionAvailable() ? ENC + safeStorage.encryptString(json).toString('base64') : json
+  return writeFile(file(), out, 'utf8')
+}
 
 export async function status() {
   const s = await load()

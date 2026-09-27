@@ -7,9 +7,11 @@ import { Dialog } from '@/components/ui/overlay'
 import { useAppState } from '@/lib/app-state'
 import { useNotifications } from '@/lib/notifications'
 import { useGoogle } from '@/lib/google'
+import { useWhatsApp } from '@/lib/whatsapp'
 import { toast } from 'sonner'
 import { brl, cn } from '@/lib/utils'
-import { contactById, contacts, TODAY } from '@/data/mock'
+import { TODAY } from '@/data/mock'
+import { useData } from '@/lib/data'
 import { toMinutes, useCompany, weekdayOf, WEEKDAYS } from '@/lib/company'
 
 
@@ -24,10 +26,12 @@ const toHHMM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${
  * ou pela busca rápida. Sugere horários livres do profissional e bloqueia conflitos.
  */
 export function NewAppointmentDialog() {
-  const { apptDialog, closeNewAppointment, appointments, addAppointment, updateAppointment } = useAppState()
+  const { apptDialog, closeNewAppointment, appointments, addAppointment, updateAppointment, myDisplayName } = useAppState()
+  const wa = useWhatsApp()
   const google = useGoogle()
   const { notify } = useNotifications()
-  const [contactId, setContactId] = useState(contacts[0].id)
+  const { contacts, contactById, openConversation, conversations, appendMessage, updateMessage } = useData()
+  const [contactId, setContactId] = useState(contacts[0]?.id ?? '')
   const { services, professionals: allPros, info } = useCompany()
   const [serviceId, setServiceId] = useState(services[0]?.id ?? '')
   const [proId, setProId] = useState(allPros[0]?.id ?? '')
@@ -40,8 +44,8 @@ export function NewAppointmentDialog() {
   useEffect(() => {
     if (!apptDialog.open) return
     const c = apptDialog.contactId ? contactById(apptDialog.contactId) : contacts[0]
-    setContactId(c.id)
-    setProId(c.favoriteProfessional ?? allPros[0]?.id ?? '')
+    setContactId(c?.id ?? '')
+    setProId(c?.favoriteProfessional ?? allPros[0]?.id ?? '')
     setServiceId(services[0]?.id ?? '')
     setDate(TODAY)
     setTime('')
@@ -80,18 +84,21 @@ export function NewAppointmentDialog() {
   const freeSlots = useMemo(() => {
     const out: string[] = []
     if (!day.open) return out
+    // Hoje: só a partir do horário atual
+    const nowMin = date === TODAY ? new Date().getHours() * 60 + new Date().getMinutes() : -1
     for (let m = OPEN_MIN; m + service.minutes <= CLOSE_MIN; m += 30) {
-      if (!overlaps(m, m + service.minutes)) out.push(toHHMM(m))
+      if (m > nowMin && !overlaps(m, m + service.minutes)) out.push(toHHMM(m))
     }
     return out
-  }, [busy, service.minutes, day.open, OPEN_MIN, CLOSE_MIN, LUNCH[0], LUNCH[1]])
+  }, [busy, service.minutes, day.open, OPEN_MIN, CLOSE_MIN, LUNCH[0], LUNCH[1], date])
 
   const start = time ? toMin(time) : null
   const end = start !== null ? start + service.minutes : null
-  const conflict = start !== null && end !== null && (!day.open || overlaps(start, end) || start < OPEN_MIN || end > CLOSE_MIN)
+  const past = start !== null && (date < TODAY || (date === TODAY && start <= new Date().getHours() * 60 + new Date().getMinutes()))
+  const conflict = start !== null && end !== null && (past || !day.open || overlaps(start, end) || start < OPEN_MIN || end > CLOSE_MIN)
 
   const save = () => {
-    if (start === null || end === null || conflict || !proId || !serviceId) return
+    if (start === null || end === null || conflict || !proId || !serviceId || !contactId) return
     const appt = addAppointment({
       contactId,
       professionalId: proId,
@@ -117,10 +124,38 @@ export function NewAppointmentDialog() {
         }
       })
       .catch((e: Error) => toast.error('Não foi possível criar o evento no Google', { description: e.message }))
+    // Confirmação para o cliente pelo WhatsApp da empresa (fica registrada na conversa)
+    let confirmNote = ''
+    if (sendConfirmation && c.phone) {
+      const [y, mo, dd] = date.split('-')
+      const text = `Olá, ${c.name.split(' ')[0]}! Seu horário está confirmado ✅
+📅 ${dd}/${mo}/${y} às ${toHHMM(start)}
+✂️ ${service.name} com ${pro.name}
+📍 ${info.name}
+
+Se precisar remarcar, é só responder esta mensagem.`
+      const convId = openConversation(contactId)
+      const conv = conversations.find((x) => x.id === convId)
+      const msgId = appendMessage(convId, { from: 'agent', author: myDisplayName, kind: 'text', text, status: 'sent' })
+      if (!wa.available) {
+        confirmNote = ' · confirmação registrada na conversa'
+      } else if (wa.state.status === 'conectado' && conv) {
+        confirmNote = ' · confirmação enviada por WhatsApp'
+        wa.sendText(conv, c.phone, text)
+          .then((waId) => updateMessage(convId, msgId, { waId, status: 'sent' }))
+          .catch((e: Error) => {
+            updateMessage(convId, msgId, { status: 'error' })
+            toast.error('Confirmação não enviada', { description: e.message })
+          })
+      } else {
+        updateMessage(convId, msgId, { status: 'error' })
+        confirmNote = ' · confirmação não enviada (WhatsApp desconectado)'
+      }
+    }
     notify({
       kind: 'agenda',
       title: 'Horário agendado',
-      body: `${c.name} · ${service.name} com ${pro.name.split(' ')[0]} às ${toHHMM(start)}${sendConfirmation ? ' · confirmação enviada por WhatsApp' : ''}`,
+      body: `${c.name} · ${service.name} com ${pro.name.split(' ')[0]} às ${toHHMM(start)}${confirmNote}`,
       link: '/agenda'
     })
   }
@@ -134,7 +169,7 @@ export function NewAppointmentDialog() {
       footer={
         <>
           <Button variant="outline" onClick={closeNewAppointment}>Cancelar</Button>
-          <Button onClick={save} disabled={!time || conflict}>
+          <Button onClick={save} disabled={!time || conflict || !contactId}>
             <CalendarPlus /> Agendar
           </Button>
         </>
@@ -142,7 +177,8 @@ export function NewAppointmentDialog() {
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Cliente" className="sm:col-span-2">
-          <Select value={contactId} onChange={(e) => setContactId(e.target.value)}>
+          <Select value={contactId} onChange={(e) => setContactId(e.target.value)} disabled={!contacts.length}>
+            {!contacts.length && <option value="">Nenhum cliente cadastrado — cadastre em Contatos</option>}
             {contacts.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -193,12 +229,12 @@ export function NewAppointmentDialog() {
             </div>
           ) : (
             <p className="text-[13px] text-muted">
-              {day.open ? 'Sem horários livres neste dia para este serviço.' : `Fechado às ${WEEKDAYS[weekdayOf(date)].toLowerCase()}s. Escolha outra data.`}
+              {day.open ? (date === TODAY ? 'Sem horários livres hoje. Escolha outra data.' : 'Sem horários livres neste dia para este serviço.') : `Fechado às ${WEEKDAYS[weekdayOf(date)].toLowerCase()}s. Escolha outra data.`}
             </p>
           )}
           {conflict && (
             <p className="mt-2 flex items-center gap-1.5 text-[13px] font-medium text-danger">
-              <CircleAlert className="size-4" /> Esse horário conflita com outro atendimento, o almoço ou o expediente.
+              <CircleAlert className="size-4" /> {past ? 'Esse horário já passou.' : 'Esse horário conflita com outro atendimento, o almoço ou o expediente.'}
             </p>
           )}
         </div>
@@ -209,7 +245,7 @@ export function NewAppointmentDialog() {
         <label className="flex items-center justify-between gap-3 rounded-xl border border-border p-3 sm:col-span-2">
           <div>
             <p className="text-[13.5px] font-medium">Enviar confirmação por WhatsApp</p>
-            <p className="text-xs text-muted">E lembrete automático 24h antes</p>
+            <p className="text-xs text-muted">Data, hora, serviço e profissional, pelo WhatsApp da empresa</p>
           </div>
           <Switch checked={sendConfirmation} onCheckedChange={setSendConfirmation} />
         </label>

@@ -84,7 +84,7 @@
 }
 
 @theme inline {
-  --font-sans: 'Inter Variable', 'Noto Color Emoji', ui-sans-serif, system-ui, 'Segoe UI', sans-serif;
+  --font-sans: 'Twemoji', 'Inter Variable', ui-sans-serif, system-ui, 'Segoe UI', sans-serif;
 
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -255,5 +255,5 @@ html[data-density='compact'] {
 
 /* Emojis do seletor sempre com a fonte embutida (o Windows 10 não tem os mais novos) */
 .icchat-emoji .epr-emoji-native {
-  font-family: 'Noto Color Emoji', sans-serif !important;
+  font-family: 'Twemoji', sans-serif !important;
 }

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { CalendarCheck, Clock, MessagesSquare, Star } from 'lucide-react'
 import { Page } from '@/components/layout/Page'
+import { DemoDataNotice } from '@/components/DemoDataNotice'
 import { Card, CardHeader, Progress, Segmented } from '@/components/ui/misc'
 import { useAppState } from '@/lib/app-state'
 
@@ -34,6 +35,7 @@ export function MyPerformancePage() {
         />
       }
     >
+      <DemoDataNotice />
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat icon={<MessagesSquare />} label="Conversas atendidas" value={String(d.chats)} />
         <Stat icon={<Clock />} label="Tempo da 1ª resposta" value={d.frt} />

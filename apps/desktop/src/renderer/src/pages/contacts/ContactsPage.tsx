@@ -116,7 +116,7 @@ export function ContactsPage() {
                     <Avatar name={c.name} size={34} />
                     <div className="min-w-0">
                       <p className="truncate font-medium">{c.name}</p>
-                      <p className="truncate text-xs text-muted">desde {c.since}</p>
+                      {c.since && <p className="truncate text-xs text-muted">desde {c.since}</p>}
                     </div>
                   </div>
                 </td>

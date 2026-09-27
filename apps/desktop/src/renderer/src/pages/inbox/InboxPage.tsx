@@ -116,7 +116,7 @@ function ChatPane({
   onTogglePanel: () => void
   panelVisible: boolean
 }) {
-  const { conversations, contactById, updateConversation, appendMessage, updateMessage } = useData()
+  const { conversations, contactById, updateConversation, appendMessage, updateMessage, saveMedia } = useData()
   const { info } = useCompany()
   const wa = useWhatsApp()
   const conv = conversations.find((c) => c.id === convId)!
@@ -212,9 +212,14 @@ function ChatPane({
 ${text}` : text))
   }
 
-  const sendFile = (file: File, caption?: string) => {
+  const sendFile = async (file: File, caption?: string) => {
     ensureOwner()
-    const src = URL.createObjectURL(file)
+    let src: string
+    try {
+      src = await saveMedia(file, file.type || 'application/octet-stream', file.name)
+    } catch (e) {
+      return toast.error('Não foi possível anexar o arquivo', { description: e instanceof Error ? e.message : String(e) })
+    }
     const size = file.size > 1024 * 1024 ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(file.size / 1024))} KB`
     const visual = file.type.startsWith('image/') || file.type.startsWith('video/')
     const id = visual
@@ -224,13 +229,19 @@ ${text}` : text))
     deliver(id, () => wa.sendMedia(conv, contact.phone, { blob: file, mime: file.type || 'application/octet-stream', fileName: file.name, caption, kind }))
   }
 
-  const sendAudio = (blob: Blob, seconds: number) => {
+  const sendAudio = async (blob: Blob, seconds: number) => {
     ensureOwner()
+    let src: string
+    try {
+      src = await saveMedia(blob, blob.type || 'audio/webm', 'audio.webm')
+    } catch (e) {
+      return toast.error('Não foi possível salvar o áudio', { description: e instanceof Error ? e.message : String(e) })
+    }
     const id = appendMessage(conv.id, {
       from: 'agent',
       author: myDisplayName,
       kind: 'audio',
-      src: URL.createObjectURL(blob),
+      src,
       duration: `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`,
       status: 'sent'
     })

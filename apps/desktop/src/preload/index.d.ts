@@ -44,6 +44,15 @@ declare global {
       flashFrame: () => void
       saveFile: (content: string, fileName: string, filters: { name: string; extensions: string[] }[]) => Promise<FileResult>
       exportPdf: (html: string, fileName: string) => Promise<FileResult>
+      db: {
+        load: () => Promise<Result<{ contacts: unknown[]; conversations: unknown[]; appointments: unknown[]; kv: Record<string, unknown> }>>
+        upsert: (kind: 'contact' | 'conversation' | 'message' | 'appointment' | 'kv', id: string, data: unknown, parent?: string) => Promise<Result<void>>
+        remove: (kind: 'contact' | 'conversation' | 'message' | 'appointment' | 'kv', id: string) => Promise<Result<void>>
+        clear: () => Promise<Result<void>>
+      }
+      media: {
+        save: (base64: string, mime: string, fileName?: string) => Promise<Result<string>>
+      }
       wa: {
         start: () => Promise<Result<WaStateDTO>>
         state: () => Promise<Result<WaStateDTO>>

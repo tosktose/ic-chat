@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { ArrowDownRight, ArrowUpRight, Bot, CalendarCheck, Clock, Download, MessagesSquare, UserX } from 'lucide-react'
 import { Page } from '@/components/layout/Page'
+import { DemoDataNotice } from '@/components/DemoDataNotice'
 import { Button } from '@/components/ui/button'
 import { Avatar, Card, CardHeader, Progress, Segmented } from '@/components/ui/misc'
 import { useAppState } from '@/lib/app-state'
@@ -47,6 +48,7 @@ export function DashboardPage() {
         </>
       }
     >
+      <DemoDataNotice />
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Kpi icon={<MessagesSquare />} label="Conversas" value={String(d.kpis.conv)} delta={d.kpis.convDelta} />

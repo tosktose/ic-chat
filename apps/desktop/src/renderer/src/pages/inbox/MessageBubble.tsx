@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bot, Check, CheckCheck, CircleAlert, Download, FileText, Pause, Play, StickyNote } from 'lucide-react'
 import { Tooltip } from '@/components/ui/misc'
+import { Dialog as RDialog } from 'radix-ui'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { Message } from '@/data/mock'
@@ -9,6 +10,7 @@ import type { Message } from '@/data/mock'
 const WAVE = [4, 9, 14, 7, 18, 12, 22, 16, 9, 20, 13, 6, 15, 21, 11, 8, 17, 12, 5, 14, 19, 10, 7, 13, 16, 9, 12, 6]
 
 export function MessageBubble({ msg }: { msg: Message }) {
+  const [viewer, setViewer] = useState(false)
   if (msg.kind === 'system') {
     return (
       <div className="my-2 flex justify-center">
@@ -60,9 +62,9 @@ export function MessageBubble({ msg }: { msg: Message }) {
             {msg.src && msg.mime?.startsWith('video/') ? (
               <video src={msg.src} controls className="max-h-80 w-72 max-w-full rounded-xl bg-black" />
             ) : msg.src ? (
-              <a href={msg.src} target="_blank" rel="noreferrer" title="Abrir imagem">
+              <button onClick={() => setViewer(true)} title="Ampliar" className="block cursor-zoom-in">
                 <img src={msg.src} alt={msg.fileName ?? 'Imagem'} className="max-h-80 w-72 max-w-full rounded-xl object-cover" />
-              </a>
+              </button>
             ) : (
               <div className={cn('aspect-[4/3] w-64 max-w-full rounded-xl bg-gradient-to-br', msg.imageTone)} />
             )}
@@ -108,6 +110,26 @@ export function MessageBubble({ msg }: { msg: Message }) {
           )}
         </div>
       </div>
+      {viewer && msg.src && (
+        <RDialog.Root open onOpenChange={setViewer}>
+          <RDialog.Portal>
+            <RDialog.Overlay className="fixed inset-0 z-50 animate-fade-in bg-black/85" />
+            <RDialog.Content className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 p-6 outline-none" onClick={() => setViewer(false)}>
+              <RDialog.Title className="sr-only">Imagem</RDialog.Title>
+              <RDialog.Description className="sr-only">{msg.text ?? msg.fileName ?? 'Imagem da conversa'}</RDialog.Description>
+              <img src={msg.src} alt={msg.fileName ?? 'Imagem'} className="max-h-[85vh] max-w-full rounded-lg object-contain shadow-2xl" onClick={(e) => e.stopPropagation()} />
+              <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                <a href={msg.src} download={msg.fileName ?? 'imagem'} className="rounded-lg bg-white/15 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/25">
+                  Baixar
+                </a>
+                <button onClick={() => setViewer(false)} className="rounded-lg bg-white/15 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/25">
+                  Fechar
+                </button>
+              </div>
+            </RDialog.Content>
+          </RDialog.Portal>
+        </RDialog.Root>
+      )}
     </div>
   )
 }

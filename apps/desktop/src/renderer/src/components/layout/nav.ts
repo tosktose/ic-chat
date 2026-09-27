@@ -45,7 +45,7 @@ export const navByRole: Record<Role, NavItem[]> = {
   ],
   gerente: [
     { to: '/dashboard', label: 'Painel do gerente', short: 'Painel', icon: LayoutDashboard, group: 'Gestão', mobile: true },
-    { to: '/inbox', label: 'Atendimento', icon: MessageSquare, badge: 8, group: 'Gestão', mobile: true },
+    { to: '/inbox', label: 'Atendimento', icon: MessageSquare, group: 'Gestão', mobile: true },
     { to: '/agenda', label: 'Agenda', icon: CalendarDays, group: 'Gestão', mobile: true },
     { to: '/kanban', label: 'Kanban IA', short: 'Kanban', icon: SquareKanban, group: 'Gestão', mobile: true },
     { to: '/contatos', label: 'Contatos', icon: BookUser, group: 'Gestão' },
@@ -56,7 +56,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: '/config', label: 'Configurações', short: 'Config.', icon: Settings, group: 'Configuração' }
   ],
   analista: [
-    { to: '/inbox', label: 'Meus atendimentos', short: 'Conversas', icon: MessageSquare, badge: 3, group: 'Atendimento', mobile: true },
+    { to: '/inbox', label: 'Meus atendimentos', short: 'Conversas', icon: MessageSquare, group: 'Atendimento', mobile: true },
     { to: '/agenda', label: 'Agenda', icon: CalendarDays, group: 'Atendimento', mobile: true },
     { to: '/contatos', label: 'Contatos', icon: BookUser, group: 'Atendimento', mobile: true },
     { to: '/meu-painel', label: 'Meu desempenho', short: 'Desempenho', icon: Gauge, group: 'Atendimento', mobile: true }

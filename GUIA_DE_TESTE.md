@@ -17,6 +17,11 @@ Para gerar os pacotes de novo: `npm run dist:win` (na pasta do projeto).
 ## 2. Entrar
 
 Na tela de login escolha **Gerente** e clique em **Entrar** (o login ainda é de demonstração).
+Com **Manter conectado** marcado o app abre direto na próxima vez; **Sair** volta a pedir login.
+
+O app instalado começa **vazio** (sem clientes de exemplo). Para ver as telas preenchidas:
+**Configurações → Dados → Carregar dados de exemplo**. Para recomeçar do zero:
+**Configurações → Dados → Apagar todos os dados** (digite `APAGAR`).
 
 ## 3. Testar o WhatsApp (QR Code)
 
@@ -51,18 +56,39 @@ Para desconectar: **Canais → ícone de desconectar** (ou pelo celular, em Apar
 2. Abra **Credenciais do Google Cloud**, cole o ID e a chave e clique em **Salvar credenciais**.
 3. Em cada profissional clique em **Conectar**: o navegador abre, faça login e autorize.
 4. Crie um horário em **Agenda → Novo agendamento** → o evento aparece no Google Agenda do profissional.
+   Com “Enviar confirmação por WhatsApp” ligado, o cliente recebe data, hora, serviço e profissional
+   (a mensagem fica registrada na conversa; se o WhatsApp estiver desconectado ela aparece com ⚠).
 5. Crie um compromisso direto no Google Agenda → em **Agenda** clique em **Sincronizar agora**:
    ele aparece como bloco “Google” e o horário fica indisponível no agendamento.
 6. Cancelar um horário no IC Chat remove o evento do Google.
 
 ## 5. O que ainda é demonstração nesta versão
 
-- Login, usuários, empresas e licenças (Super Admin) ainda não usam banco de dados.
-- Contatos e conversas de exemplo aparecem junto com os reais; os dados não ficam salvos ao fechar
-  (exceto configurações, perfil, empresa e a sessão do WhatsApp).
-- A IA ainda não responde sozinha (a configuração está pronta, falta ligar ao provedor).
+- Login, usuários, empresas e licenças (Super Admin) ainda não usam servidor: e-mails de convite,
+  de nova senha e de chave de licença não são enviados (a chave gerada é **copiada** para você enviar).
+- **Painel do gerente**, **Relatórios** e **Meu desempenho** mostram números de demonstração
+  (aviso amarelo na tela) — passam a usar os atendimentos reais na próxima versão.
+- A IA ainda não responde sozinha e a fila da URA ainda não distribui para o analista mais livre.
 - WhatsApp Oficial (API da Meta), Instagram e Messenger ainda não enviam mensagens.
+- Modalidade Nuvem (Supabase) / servidor na rede: só a tela de escolha, os dados ficam neste computador.
 
 ## 6. Onde ficam os dados do app
 
-`%APPDATA%\IC Chat\` — `whatsapp-auth\` (sessão do WhatsApp) e `google.json` (credenciais e autorizações do Google).
+`%APPDATA%\IC Chat\`
+
+| Item | Conteúdo |
+|---|---|
+| `icchat.db` | Banco SQLite: contatos, conversas, mensagens e agendamentos |
+| `media\` | Fotos, áudios e documentos enviados e recebidos |
+| `whatsapp-auth\` | Sessão do WhatsApp (apague para desconectar à força) |
+| `google.json` | Credenciais e autorizações do Google, **criptografadas** pelo Windows |
+
+## 7. Segurança desta versão
+
+- Interface isolada do sistema (sem acesso a Node), com política de conteúdo (CSP) que bloqueia
+  scripts e conexões externas; links externos só abrem no navegador e só `https`, `mailto` e `tel`.
+- Todas as chamadas internas validam a origem e os dados (tamanho de arquivos, formato de datas etc.).
+- Executável com *fuses* do Electron: não roda como Node, ignora `NODE_OPTIONS`/`--inspect` e confere
+  a integridade do pacote `.asar`.
+- Tokens do Google guardados com a criptografia do Windows (DPAPI).
+- Uma instância só por computador (evita duas cópias brigando pela sessão do WhatsApp e pelo banco).

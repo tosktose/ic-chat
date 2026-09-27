@@ -9,10 +9,15 @@ const CSP = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
+  "img-src 'self' data: blob: icchat-media:",
   "font-src 'self' data:",
-  "connect-src 'self' ws: wss: http: https:",
-  "media-src 'self' blob: data:"
+  // A interface não acessa a internet diretamente: WhatsApp e Google passam pelo processo principal
+  "connect-src 'self' icchat-media:",
+  "media-src 'self' blob: data: icchat-media:",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-src 'self' blob: data:"
 ].join('; ')
 
 const cspPlugin: Plugin = {

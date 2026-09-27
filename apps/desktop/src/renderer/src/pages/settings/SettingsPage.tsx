@@ -4,6 +4,7 @@ import {
   Building2,
   Clock,
   Copy,
+  Database,
   KeyRound,
   Laptop,
   MessageSquareText,
@@ -31,6 +32,7 @@ import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/lib/company'
 import { CompanyTab } from './CompanyTab'
+import { DataTab } from './DataTab'
 import { ProfessionalsTab, QuickRepliesTab, ServicesTab } from './CatalogTabs'
 
 const TABS = [
@@ -39,6 +41,7 @@ const TABS = [
   { id: 'servicos', label: 'Serviços', icon: Clock },
   { id: 'etiquetas', label: 'Etiquetas', icon: Tags },
   { id: 'respostas', label: 'Respostas rápidas', icon: MessageSquareText },
+  { id: 'dados', label: 'Dados', icon: Database },
   { id: 'licenca', label: 'Licença', icon: KeyRound },
   { id: 'aparencia', label: 'Aparência', icon: Palette }
 ] as const
@@ -74,6 +77,7 @@ export function SettingsPage() {
           {tab === 'servicos' && <ServicesTab />}
           {tab === 'etiquetas' && <TagsTab />}
           {tab === 'respostas' && <QuickRepliesTab />}
+          {tab === 'dados' && <DataTab />}
           {tab === 'licenca' && <LicenseTab />}
           {tab === 'aparencia' && <AppearanceTab />}
         </div>

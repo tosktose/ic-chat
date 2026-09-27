@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { toast } from 'sonner'
 import type { ChannelKind } from '@/components/brand'
 import {
   contacts as contactList,
@@ -9,11 +10,27 @@ import {
 } from '@/data/mock'
 
 /**
- * Contatos e conversas "vivos" (em memória até o Core estar ligado).
- * Alterações feitas aqui aparecem em todas as telas: atendimento, contatos, kanban, agenda.
+ * Contatos, conversas e mensagens.
+ * - No app instalado: salvos no banco SQLite local (começa limpo, sem dados de exemplo).
+ * - No navegador: dados de demonstração em memória.
+ * Alterações aparecem em todas as telas: atendimento, contatos, kanban, agenda.
  */
+export const APP_MODE = typeof window !== 'undefined' && Boolean(window.icchat?.db)
+
+// Cópia dos exemplos (para "Carregar dados de exemplo" no app instalado)
+const DEMO_CONTACTS: Contact[] = structuredClone(contactList)
+const DEMO_CONVERSATIONS: Conversation[] = structuredClone(conversationList)
+
+// No app instalado a lista começa vazia e é preenchida pelo banco
+if (APP_MODE) {
+  contactList.splice(0)
+  conversationList.splice(0)
+}
+
 interface Ctx {
   version: number
+  /** false enquanto o banco carrega (app instalado) */
+  ready: boolean
   contacts: Contact[]
   conversations: Conversation[]
   contactById: (id: string) => Contact
@@ -29,6 +46,10 @@ interface Ctx {
   /** Atualiza pelo id do WhatsApp (confirmações de entrega/leitura) */
   updateMessageByWaId: (waId: string, patch: Partial<Message>) => void
   findContactByPhone: (phone: string) => Contact | undefined
+  /** Guarda o arquivo (foto, áudio, documento) e devolve o endereço para exibir */
+  saveMedia: (blob: Blob, mime: string, fileName?: string) => Promise<string>
+  loadDemo: () => Promise<void>
+  clearAll: () => Promise<void>
 }
 
 const DataCtx = createContext<Ctx | null>(null)
@@ -36,6 +57,10 @@ const DataCtx = createContext<Ctx | null>(null)
 const now = () => new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 const onlyDigits = (s: string) => s.replace(/\D/g, '')
 const sinceLabel = () => new Date().toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).replace('. de ', '/').replace(' de ', '/').replace('.', '')
+
+function normalizeContact(c: Partial<Contact>): Contact {
+  return { since: '', visits: 0, spent: 0, ...c, id: String(c.id), name: c.name || 'Contato', phone: c.phone ?? '', tags: Array.isArray(c.tags) ? c.tags : [] }
+}
 
 function preview(m: Omit<Message, 'id' | 'time'>): string {
   const who = m.from === 'agent' ? 'Você: ' : m.from === 'ai' ? 'IA: ' : ''
@@ -45,13 +70,62 @@ function preview(m: Omit<Message, 'id' | 'time'>): string {
   return who + (m.text ?? '')
 }
 
+/* ---------------- gravação no banco (só no app instalado) ---------------- */
+let warned = false
+function persist(job: Promise<{ ok: boolean; error?: string }> | undefined) {
+  void job?.then((r) => {
+    if (!r.ok && !warned) {
+      warned = true
+      toast.error('Não foi possível salvar no banco local', { description: r.error })
+    }
+  })
+}
+const db = () => window.icchat?.db
+const saveContact = (c: Contact) => persist(db()?.upsert('contact', c.id, c))
+const saveConversation = (c: Conversation) => {
+  // mensagens ficam em registros separados
+  const { messages: _m, ...meta } = c
+  persist(db()?.upsert('conversation', c.id, meta))
+}
+const saveMessage = (convId: string, m: Message) => persist(db()?.upsert('message', m.id, m, convId))
+
+const blobToBase64 = (b: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(String(r.result).split(',')[1] ?? '')
+    r.onerror = () => reject(r.error)
+    r.readAsDataURL(b)
+  })
+
 export function DataProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0)
+  const [ready, setReady] = useState(!APP_MODE)
   const bump = useCallback(() => setVersion((v) => v + 1), [])
+
+  // App instalado: carrega o banco ao abrir
+  useEffect(() => {
+    if (!APP_MODE) return
+    void db()!.load().then((r) => {
+      if (r.ok) {
+        const contacts = (r.data.contacts as Partial<Contact>[]).filter((c) => c && c.id).map(normalizeContact)
+        const ids = new Set(contacts.map((c) => c.id))
+        const convs = (r.data.conversations as Partial<Conversation>[])
+          .filter((c) => c && c.id && c.contactId && ids.has(c.contactId))
+          .map((c) => ({ ...c, messages: Array.isArray(c.messages) ? c.messages : [], tags: c.tags ?? [], unread: c.unread ?? 0 }) as Conversation)
+        contactList.splice(0, contactList.length, ...contacts)
+        conversationList.splice(0, conversationList.length, ...convs)
+      } else {
+        toast.error('Não foi possível abrir o banco local', { description: r.error })
+      }
+      setReady(true)
+      bump()
+    })
+  }, [bump])
 
   const value = useMemo<Ctx>(
     () => ({
       version,
+      ready,
       contacts: contactList,
       conversations: conversationList,
       contactById: (id) =>
@@ -59,6 +133,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addContact: (c) => {
         const contact: Contact = { id: crypto.randomUUID(), since: sinceLabel(), visits: 0, spent: 0, ...c, tags: c.tags ?? [] }
         contactList.unshift(contact)
+        saveContact(contact)
         bump()
         return contact
       },
@@ -66,6 +141,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const c = contactList.find((x) => x.id === id)
         if (!c) return
         Object.assign(c, patch)
+        saveContact(c)
         bump()
       },
       importContacts: (list) => {
@@ -77,7 +153,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             skipped++
             continue
           }
-          contactList.unshift({
+          const c: Contact = {
             id: crypto.randomUUID(),
             name: row.name.trim(),
             phone: phone.startsWith('55') ? phone : '55' + phone,
@@ -86,7 +162,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
             since: sinceLabel(),
             visits: 0,
             spent: 0
-          })
+          }
+          contactList.unshift(c)
+          saveContact(c)
           added++
         }
         bump()
@@ -108,6 +186,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           messages: []
         }
         conversationList.unshift(conv)
+        saveConversation(conv)
         bump()
         return conv.id
       },
@@ -115,6 +194,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const c = conversationList.find((x) => x.id === id)
         if (!c) return
         Object.assign(c, patch)
+        saveConversation(c)
         bump()
       },
       findContactByPhone: (phone) => {
@@ -126,13 +206,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
       updateMessage: (convId, msgId, patch) => {
         const c = conversationList.find((x) => x.id === convId)
         if (!c) return
-        c.messages = c.messages.map((m) => (m.id === msgId ? { ...m, ...patch } : m))
+        c.messages = c.messages.map((m) => {
+          if (m.id !== msgId) return m
+          const next = { ...m, ...patch }
+          saveMessage(convId, next)
+          return next
+        })
         bump()
       },
       updateMessageByWaId: (waId, patch) => {
         for (const c of conversationList) {
           if (c.messages.some((m) => m.waId === waId)) {
-            c.messages = c.messages.map((m) => (m.waId === waId ? { ...m, ...patch } : m))
+            c.messages = c.messages.map((m) => {
+              if (m.waId !== waId) return m
+              const next = { ...m, ...patch }
+              saveMessage(c.id, next)
+              return next
+            })
             bump()
             return
           }
@@ -153,11 +243,40 @@ export function DataProvider({ children }: { children: ReactNode }) {
           conversationList.splice(i, 1)
           conversationList.unshift(c)
         }
+        saveMessage(id, full)
+        saveConversation(c)
         bump()
         return full.id
+      },
+      saveMedia: async (blob, mime, fileName) => {
+        const media = window.icchat?.media
+        if (!media) return URL.createObjectURL(blob)
+        const r = await media.save(await blobToBase64(blob), mime, fileName)
+        if (!r.ok) throw new Error(r.error)
+        return r.data
+      },
+      loadDemo: async () => {
+        for (const c of structuredClone(DEMO_CONTACTS)) {
+          if (contactList.some((x) => x.id === c.id)) continue
+          contactList.push(c)
+          saveContact(c)
+        }
+        for (const conv of structuredClone(DEMO_CONVERSATIONS)) {
+          if (conversationList.some((x) => x.id === conv.id)) continue
+          conversationList.push(conv)
+          saveConversation(conv)
+          conv.messages.forEach((m) => saveMessage(conv.id, m))
+        }
+        bump()
+      },
+      clearAll: async () => {
+        await db()?.clear()
+        contactList.splice(0)
+        conversationList.splice(0)
+        bump()
       }
     }),
-    [version, bump]
+    [version, ready, bump]
   )
 
   return <DataCtx.Provider value={value}>{children}</DataCtx.Provider>

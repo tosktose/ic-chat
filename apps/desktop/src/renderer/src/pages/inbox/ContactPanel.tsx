@@ -62,7 +62,7 @@ export function ContactPanel({
         )}
         <Avatar name={contact.name} size={76} badge={<ChannelBadge kind={conv.channel} size={24} />} />
         <h3 className="mt-3 text-[17px] font-semibold">{contact.name}</h3>
-        <p className="text-[13px] text-muted">Cliente desde {contact.since} · {channelLabel(conv.channel)}</p>
+        <p className="text-[13px] text-muted">{contact.since ? `Cliente desde ${contact.since} · ` : ''}{channelLabel(conv.channel)}</p>
         <div className="mt-3 flex flex-wrap justify-center gap-1.5">
           {tags.map((t) => (
             <TagChip key={t.id} tag={t} size="md" onRemove={() => toggleContactTag(contact.id, t.id)} />

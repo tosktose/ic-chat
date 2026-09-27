@@ -19,6 +19,7 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys'
 import pino from 'pino'
 import QRCode from 'qrcode'
+import { saveMedia } from './db'
 import ffmpegPath from 'ffmpeg-static'
 
 export type WaStatus = 'desconectado' | 'conectando' | 'qr' | 'conectado'
@@ -53,8 +54,14 @@ const MAX_MEDIA = 15 * 1024 * 1024
 let sock: WASocket | null = null
 let state: WaState = { status: 'desconectado' }
 let stopping = false
+let retries = 0
 /** Mensagens enviadas pelo app (para não duplicar quando o WhatsApp devolve o eco) */
 const sentByApp = new Set<string>()
+const rememberSent = (id: string) => {
+  rememberSent(id)
+  // mantém só as últimas 500
+  if (sentByApp.size > 500) sentByApp.delete(sentByApp.values().next().value as string)
+}
 
 function emit(type: string, payload: unknown) {
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send('wa:event', { type, payload })
@@ -106,6 +113,7 @@ export async function start(): Promise<WaState> {
     if (u.qr) setState({ status: 'qr', qr: await QRCode.toDataURL(u.qr, { margin: 1, width: 320 }) })
     if (u.connection === 'open') {
       const id = s.user?.id ?? ''
+      retries = 0
       setState({ status: 'conectado', qr: undefined, me: { jid: jidNormalizedUser(id), phone: digits(id), name: s.user?.name } })
     }
     if (u.connection === 'close') {
@@ -115,9 +123,10 @@ export async function start(): Promise<WaState> {
         await rm(authDir(), { recursive: true, force: true })
         setState({ status: 'desconectado', qr: undefined, me: undefined, error: 'Sessão encerrada no celular. Conecte de novo.' })
       } else if (!stopping) {
-        // Queda de rede ou reinício pedido pelo WhatsApp: reconecta sozinho
+        // Queda de rede ou reinício pedido pelo WhatsApp: reconecta sozinho, esperando cada vez mais (até 1 min)
         setState({ status: 'conectando' })
-        setTimeout(() => void start(), code === DisconnectReason.restartRequired ? 0 : 3000)
+        const wait = code === DisconnectReason.restartRequired ? 0 : Math.min(60_000, 2000 * 2 ** retries++)
+        setTimeout(() => void start(), wait)
       } else {
         setState({ status: 'desconectado', qr: undefined })
       }
@@ -154,7 +163,24 @@ async function toIncoming(s: WASocket, m: WAMessage): Promise<WaIncoming | null>
   // Com os novos IDs do WhatsApp (LID), o telefone pode vir no campo alternativo
   const alt = (m.key as { remoteJidAlt?: string }).remoteJidAlt
   const phoneJid = isPnUser(chatJid) ? chatJid : alt && isPnUser(alt) ? alt : chatJid
-  const c = m.message
+  // Mensagens temporárias, de visualização única e editadas vêm "embrulhadas"
+  let c = m.message
+  for (let i = 0; i < 4; i++) {
+    const inner =
+      c.ephemeralMessage?.message ??
+      c.viewOnceMessage?.message ??
+      c.viewOnceMessageV2?.message ??
+      c.viewOnceMessageV2Extension?.message ??
+      c.documentWithCaptionMessage?.message ??
+      c.editedMessage?.message
+    if (!inner) break
+    c = inner
+  }
+  // Mensagens internas (apagar, reação, chaves de criptografia, enquetes…) não viram conversa
+  if (c.protocolMessage || c.reactionMessage || c.senderKeyDistributionMessage || c.pollUpdateMessage || c.keepInChatMessage) {
+    const onlyTechnical = Object.keys(c).every((k) => ['protocolMessage', 'reactionMessage', 'senderKeyDistributionMessage', 'pollUpdateMessage', 'keepInChatMessage', 'messageContextInfo'].includes(k))
+    if (onlyTechnical) return null
+  }
   const base = {
     id: m.key.id ?? crypto.randomUUID(),
     chatJid,
@@ -165,22 +191,36 @@ async function toIncoming(s: WASocket, m: WAMessage): Promise<WaIncoming | null>
   }
   const text = c.conversation ?? c.extendedTextMessage?.text ?? undefined
   if (text) return { ...base, kind: 'text', text }
+  if (c.locationMessage || c.liveLocationMessage) {
+    const l = c.locationMessage ?? c.liveLocationMessage!
+    const link = `https://maps.google.com/?q=${l.degreesLatitude},${l.degreesLongitude}`
+    return { ...base, kind: 'text', text: `📍 Localização${(c.locationMessage?.name ?? '') ? `: ${c.locationMessage?.name}` : ''}\n${link}` }
+  }
+  if (c.contactMessage || c.contactsArrayMessage) {
+    const names = c.contactMessage ? [c.contactMessage.displayName] : (c.contactsArrayMessage?.contacts ?? []).map((x) => x.displayName)
+    return { ...base, kind: 'text', text: `👤 Contato compartilhado: ${names.filter(Boolean).join(', ')}` }
+  }
+  if (c.pollCreationMessage || c.pollCreationMessageV3) {
+    return { ...base, kind: 'text', text: `📊 Enquete: ${(c.pollCreationMessage ?? c.pollCreationMessageV3)?.name ?? ''}` }
+  }
 
-  const media = c.imageMessage ?? c.videoMessage ?? c.stickerMessage ?? c.audioMessage ?? c.documentMessage ?? c.documentWithCaptionMessage?.message?.documentMessage
-  if (!media) return { ...base, kind: 'text', text: '[mensagem não suportada nesta versão]' }
+  const media = c.imageMessage ?? c.videoMessage ?? c.stickerMessage ?? c.audioMessage ?? c.documentMessage
+  if (!media) return { ...base, kind: 'text', text: '[tipo de mensagem ainda não suportado — veja no celular]' }
 
   const mime = (media as { mimetype?: string }).mimetype ?? 'application/octet-stream'
   const size = Number((media as { fileLength?: number | { toNumber(): number } }).fileLength ?? 0)
   let src: string | undefined
   if (size < MAX_MEDIA) {
-    const buf = await downloadMediaMessage(m, 'buffer', {}, { logger, reuploadRequest: s.updateMediaMessage })
-    src = `data:${mime.split(';')[0]};base64,${buf.toString('base64')}`
+    // Baixa e guarda no disco do app; a interface recebe só o endereço interno
+    const buf = await downloadMediaMessage({ ...m, message: c }, 'buffer', {}, { logger, reuploadRequest: s.updateMediaMessage })
+    const docName = (c.documentMessage?.fileName ?? undefined) as string | undefined
+    src = await saveMedia(buf, mime, docName)
   }
   if (c.audioMessage) return { ...base, kind: 'audio', src, mime, seconds: c.audioMessage.seconds ?? undefined }
   if (c.imageMessage || c.videoMessage || c.stickerMessage) {
     return { ...base, kind: 'image', src, mime, text: c.imageMessage?.caption ?? c.videoMessage?.caption ?? undefined }
   }
-  const doc = c.documentMessage ?? c.documentWithCaptionMessage?.message?.documentMessage
+  const doc = c.documentMessage
   return { ...base, kind: 'document', src, mime, fileName: doc?.fileName ?? 'arquivo', fileSize: humanSize(size) }
 }
 
@@ -230,7 +270,7 @@ export async function sendText(to: string, text: string): Promise<{ id: string; 
   const jid = await resolveJid(to)
   const r = await s.sendMessage(jid, { text })
   const id = r?.key.id ?? crypto.randomUUID()
-  sentByApp.add(id)
+  rememberSent(id)
   return { id, jid }
 }
 
@@ -256,7 +296,7 @@ export async function sendMedia(to: string, media: OutMedia): Promise<{ id: stri
   else content = { document: buf, mimetype: media.mime, fileName: media.fileName ?? 'arquivo', caption: media.caption }
   const r = await s.sendMessage(jid, content)
   const id = r?.key.id ?? crypto.randomUUID()
-  sentByApp.add(id)
+  rememberSent(id)
   return { id, jid }
 }
 

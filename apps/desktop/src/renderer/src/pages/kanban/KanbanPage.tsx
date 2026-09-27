@@ -19,7 +19,24 @@ import { Sheet } from '@/components/ui/overlay'
 import { TagChip } from '@/components/tags'
 import { useTags } from '@/lib/tags'
 import { cn } from '@/lib/utils'
-import { contactById, conversations, kanban as initial, userById, type KanbanCard, type KanbanStage } from '@/data/mock'
+import { contactById, kanban as demoCards, userById, type Conversation, type ConversationStatus, type KanbanCard, type KanbanStage } from '@/data/mock'
+import { useData } from '@/lib/data'
+
+// Etapa do Kanban a partir do status da conversa (e o caminho inverso ao arrastar)
+const STAGE_OF: Record<ConversationStatus, KanbanStage> = { nova: 'nova', ia: 'ia', aguardando: 'aguardando', humano: 'humano', resolvida: 'concluido' }
+const STATUS_OF: Record<KanbanStage, ConversationStatus> = { nova: 'nova', ia: 'ia', aguardando: 'aguardando', humano: 'humano', agendado: 'aguardando', concluido: 'resolvida' }
+
+function toCard(conv: Conversation): KanbanCard {
+  const demo = demoCards.find((k) => k.conversationId === conv.id)
+  return {
+    id: conv.id,
+    conversationId: conv.id,
+    stage: conv.kanbanStage ?? demo?.stage ?? STAGE_OF[conv.status],
+    summary: demo?.summary ?? conv.lastMessage,
+    since: conv.lastTime,
+    aiSteps: demo?.aiSteps
+  }
+}
 
 const STAGES: { id: KanbanStage; label: string; icon: typeof Bot; accent: string }[] = [
   { id: 'nova', label: 'Nova conversa', icon: Inbox, accent: 'bg-primary' },
@@ -40,7 +57,9 @@ const FEED = [
 ]
 
 export function KanbanPage() {
-  const [cards, setCards] = useState<KanbanCard[]>(initial)
+  // Um cartão por conversa (reais no app instalado, exemplos no navegador)
+  const { conversations, updateConversation } = useData()
+  const cards = conversations.map(toCard)
   const [filter, setFilter] = useState<'todos' | 'ia' | 'equipe'>('todos')
   const [activeId, setActiveId] = useState<string | null>(null)
   const [feedOpen, setFeedOpen] = useState(false)
@@ -54,11 +73,12 @@ export function KanbanPage() {
     setActiveId(null)
     const stage = e.over?.id as KanbanStage | undefined
     if (!stage) return
-    setCards((cs) => cs.map((c) => (c.id === e.active.id ? { ...c, stage } : c)))
+    updateConversation(String(e.active.id), { kanbanStage: stage, status: STATUS_OF[stage] })
   }
 
   const visible = cards.filter((c) => {
-    const conv = conversations.find((v) => v.id === c.conversationId)!
+    const conv = conversations.find((v) => v.id === c.conversationId)
+    if (!conv) return false
     if (filter === 'ia') return conv.aiEnabled
     if (filter === 'equipe') return !conv.aiEnabled
     return true
@@ -148,6 +168,7 @@ function DraggableCard({ card }: { card: KanbanCard }) {
 
 function CardView({ card, dragging }: { card: KanbanCard; dragging?: boolean }) {
   const navigate = useNavigate()
+  const { conversations } = useData()
   const conv = conversations.find((v) => v.id === card.conversationId)!
   const contact = contactById(conv.contactId)
   const agent = userById(conv.assignee)

@@ -14,6 +14,16 @@ const api = {
     ipcRenderer.invoke('file:save', { content, fileName, filters }) as Promise<
       { ok: true; path?: string } | { ok: false; canceled?: boolean; error?: string }
     >,
+  /** Banco local (SQLite) e mídias salvas */
+  db: {
+    load: () => call('db:load'),
+    upsert: (kind: string, id: string, data: unknown, parent?: string) => call('db:upsert', kind, id, data, parent),
+    remove: (kind: string, id: string) => call('db:remove', kind, id),
+    clear: () => call('db:clear')
+  },
+  media: {
+    save: (base64: string, mime: string, fileName?: string) => call('media:save', base64, mime, fileName)
+  },
   /** WhatsApp via QR Code (serviço no processo principal) */
   wa: {
     start: () => call('wa:start'),

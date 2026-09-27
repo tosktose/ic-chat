@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Field, Input, Select } from '@/components/ui/input'
 import { Badge, Card, CardHeader, Segmented } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
-import { licenseKeys, randomKey, tenantById, tenants, type LicenseKey } from '@/data/saas'
+import { randomKey, tenantById, type LicenseKey } from '@/data/saas'
+import { useSaas } from '@/lib/saas'
 
 const tone: Record<LicenseKey['status'], 'success' | 'danger' | 'neutral' | 'warning'> = {
   ativa: 'success',
@@ -21,9 +22,12 @@ const API_TOKENS = [
 ]
 
 export function AdminLicensesPage() {
+  const { keys: licenseKeys, tenants, issueKey, revokeKey } = useSaas()
+  const [genTenant, setGenTenant] = useState('')
+  const [genKind, setGenKind] = useState<LicenseKey['kind']>('Mensal')
   const [filter, setFilter] = useState<'todas' | LicenseKey['status']>('todas')
   const [open, setOpen] = useState(false)
-  const [key] = useState(randomKey)
+  const [key, setKey] = useState(randomKey)
   const list = licenseKeys.filter((k) => filter === 'todas' || k.status === filter)
 
   const copy = (k: string) => {
@@ -78,8 +82,8 @@ export function AdminLicensesPage() {
                   <td className="px-3 py-3">
                     <div className="flex items-center justify-end gap-0.5">
                       <Button variant="ghost" size="icon-sm" aria-label="Copiar chave" onClick={() => copy(k.key)}><Copy /></Button>
-                      <Button variant="ghost" size="icon-sm" aria-label="Substituir por uma chave nova" onClick={() => toast.success('Chave substituída por uma nova')}><RefreshCw /></Button>
-                      <Button variant="ghost" size="icon-sm" className="hover:text-danger" aria-label="Revogar chave" disabled={k.status === 'revogada'} onClick={() => toast.success('Chave revogada')}><ShieldX /></Button>
+                      <Button variant="ghost" size="icon-sm" aria-label="Substituir por uma chave nova" onClick={() => { const nk = issueKey(k.tenantId, k.kind); void navigator.clipboard?.writeText(nk); toast.success('Chave substituída e copiada', { description: nk }) }}><RefreshCw /></Button>
+                      <Button variant="ghost" size="icon-sm" className="hover:text-danger" aria-label="Revogar chave" disabled={k.status === 'revogada'} onClick={() => { revokeKey(k.key); toast.success('Chave revogada', { description: k.key }) }}><ShieldX /></Button>
                     </div>
                   </td>
                 </tr>
@@ -118,20 +122,34 @@ export function AdminLicensesPage() {
         footer={
           <>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button onClick={() => { setOpen(false); toast.success('Chave gerada e enviada', { description: key }) }}><KeyRound /> Gerar e enviar</Button>
+            <Button
+              disabled={!genTenant}
+              onClick={() => {
+                issueKey(genTenant, genKind, key)
+                setOpen(false)
+                setKey(randomKey())
+                void navigator.clipboard?.writeText(key).catch(() => {})
+                toast.success('Chave gerada e copiada', { description: `${key} · cole no WhatsApp ou e-mail do cliente` })
+              }}
+            >
+              <KeyRound /> Gerar e enviar
+            </Button>
           </>
         }
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Empresa" className="sm:col-span-2">
-            <Select>
+            <Select value={genTenant} onChange={(e) => setGenTenant(e.target.value)}>
+              <option value="">Escolha a empresa</option>
               {tenants.map((t) => (
-                <option key={t.id}>{t.name}</option>
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </Select>
           </Field>
           <Field label="Tipo">
-            <Select><option>Mensal</option><option>Trimestral</option><option>Anual</option><option>Teste · 7 dias</option></Select>
+            <Select value={genKind} onChange={(e) => setGenKind(e.target.value as LicenseKey['kind'])}>
+              <option>Mensal</option><option>Trimestral</option><option>Anual</option><option value="Teste">Teste · 7 dias</option>
+            </Select>
           </Field>
           <Field label="Válida até"><Input type="date" defaultValue="2026-10-27" /></Field>
           <div className="rounded-xl border border-dashed border-border-strong bg-surface-2 p-3 sm:col-span-2">

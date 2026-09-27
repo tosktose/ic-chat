@@ -157,7 +157,7 @@ export function AgendaPage() {
         ) : (
           <div className="flex flex-1 items-center justify-center p-6 text-center">
             <div>
-              <p className="text-lg font-semibold">Fechado hoje</p>
+              <p className="text-lg font-semibold">{day === TODAY ? 'Fechado hoje' : 'Fechado neste dia'}</p>
               <p className="mt-1 text-sm text-muted">Ajuste os dias e horários em Configurações → Empresa.</p>
             </div>
           </div>
@@ -190,7 +190,12 @@ function DayGrid({
   const START_H = Math.floor(toMinutes(day.start) / 60)
   const END_H = Math.ceil(toMinutes(day.end) / 60)
   const hours = Array.from({ length: Math.max(1, END_H - START_H) }, (_, i) => START_H + i)
-  const nowMin = 11 * 60 + 20 // hora "atual" da demonstração
+  // Linha do "agora", atualizada a cada minuto
+  const [nowMin, setNowMin] = useState(() => new Date().getHours() * 60 + new Date().getMinutes())
+  useEffect(() => {
+    const t = setInterval(() => setNowMin(new Date().getHours() * 60 + new Date().getMinutes()), 60_000)
+    return () => clearInterval(t)
+  }, [])
   const nowTop = ((nowMin - START_H * 60) / 60) * HOUR_PX
   const lunch = day.lunchStart && day.lunchEnd ? [toMinutes(day.lunchStart), toMinutes(day.lunchEnd)] : null
   const google = useGoogle()
@@ -296,7 +301,7 @@ function DayGrid({
           ))}
 
           {/* Linha "agora" */}
-          {showNow && <div className="pointer-events-none absolute right-0 left-14 z-10 flex items-center" style={{ top: nowTop + 12 }}>
+          {showNow && nowMin >= START_H * 60 && nowMin <= END_H * 60 && <div className="pointer-events-none absolute right-0 left-14 z-10 flex items-center" style={{ top: nowTop + 12 }}>
             <span className="size-2.5 rounded-full bg-danger" />
             <span className="h-0.5 flex-1 bg-danger" />
           </div>}
@@ -312,6 +317,12 @@ function ListView({ appts, onOpen }: { appts: Appointment[]; onOpen: (a: Appoint
   return (
     <div className="scroll-thin flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-3xl flex-col gap-2 p-4 md:p-6">
+        {!sorted.length && (
+          <div className="flex flex-col items-center gap-1 py-16 text-center">
+            <p className="font-semibold">Nenhum agendamento neste dia</p>
+            <p className="text-sm text-muted">Use o botão de novo agendamento ou navegue pelas setas.</p>
+          </div>
+        )}
         {sorted.map((a) => {
           const c = contactById(a.contactId)
           const p = professionalById(a.professionalId)
@@ -391,7 +402,7 @@ function AppointmentDialog({ appt, onClose }: { appt: Appointment | null; onClos
         <Avatar name={c.name} size={44} />
         <div className="flex-1">
           <p className="font-semibold">{c.name}</p>
-          <p className="text-[13px] text-muted">{c.visits} visitas · cliente desde {c.since}</p>
+          <p className="text-[13px] text-muted">{c.visits} visitas{c.since ? ` · cliente desde ${c.since}` : ''}</p>
         </div>
         <Badge tone={statusMeta[appt.status].tone} size="md">{statusMeta[appt.status].label}</Badge>
       </div>

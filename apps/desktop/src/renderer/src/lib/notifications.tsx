@@ -110,7 +110,9 @@ function loadPrefs(): NotificationPrefs {
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { role, license } = useAppState()
   const navigate = useNavigate()
-  const [notifications, setNotifications] = useState<AppNotification[]>(() => seedFor(role))
+  // App instalado: sem notificações de exemplo nem eventos simulados (só os reais)
+  const appMode = Boolean(window.icchat?.db)
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => (appMode ? [] : seedFor(role)))
   const [prefs, setPrefsState] = useState<NotificationPrefs>(loadPrefs)
   const [desktopPermission, setDesktopPermission] = useState<Ctx['desktopPermission']>(() =>
     'Notification' in window ? Notification.permission : 'unsupported'
@@ -120,8 +122,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   // Cada perfil tem suas notificações
   useEffect(() => {
-    setNotifications(seedFor(role))
-  }, [role])
+    setNotifications(appMode ? [] : seedFor(role))
+  }, [role, appMode])
 
   const markRead = useCallback((id: string) => setNotifications((l) => l.map((n) => (n.id === id ? { ...n, read: true } : n))), [])
 
@@ -182,8 +184,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     notify({ ...msg, link: role === 'gerente' ? '/config?tab=licenca' : undefined })
   }, [license.state, license.daysLeft, license.expiresAt, role, notify])
 
-  // Eventos em tempo real (simulados)
+  // Eventos em tempo real (simulados, só na demonstração do navegador)
   useEffect(() => {
+    if (appMode) return
     const pool = LIVE[role]
     let i = 0
     const fire = () => {
@@ -196,7 +199,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       clearTimeout(first)
       clearInterval(every)
     }
-  }, [role, notify])
+  }, [role, notify, appMode])
 
   const unread = notifications.filter((n) => !n.read).length
 

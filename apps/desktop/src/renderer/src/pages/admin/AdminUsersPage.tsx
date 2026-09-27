@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Avatar, Badge, Card, Segmented } from '@/components/ui/misc'
 import { NewUserDialog, UserDetailSheet, UserQuickActions, type DetailUser } from '@/components/UserDetail'
-import { tenantById, tenants, tenantUsers, type TenantUser } from '@/data/saas'
+import { tenantById, type TenantUser } from '@/data/saas'
+import { useSaas } from '@/lib/saas'
 
 const toDetail = (u: TenantUser): DetailUser => {
   const t = tenantById(u.tenantId)
@@ -15,6 +16,7 @@ const toDetail = (u: TenantUser): DetailUser => {
 type RoleFilter = 'todos' | 'gerente' | 'analista'
 
 export function AdminUsersPage() {
+  const { tenants, users: tenantUsers, updateUser, removeUser, addUser } = useSaas()
   const [q, setQ] = useState('')
   const [tenant, setTenant] = useState('todas')
   const [role, setRole] = useState<RoleFilter>('todos')
@@ -29,7 +31,7 @@ export function AdminUsersPage() {
           (role === 'todos' || u.role === role) &&
           (u.name + u.email).toLowerCase().includes(q.toLowerCase())
       ),
-    [q, tenant, role]
+    [q, tenant, role, tenantUsers]
   )
 
   return (
@@ -93,7 +95,7 @@ export function AdminUsersPage() {
                   <td className="px-3 py-3"><Badge tone={u.active ? 'success' : 'neutral'}>{u.active ? 'Ativo' : 'Bloqueado'}</Badge></td>
                   <td className="px-3 py-3 whitespace-nowrap text-muted">{u.lastSeen}</td>
                   <td className="px-3 py-3">
-                    <UserQuickActions user={toDetail(u)} className="justify-end" />
+                    <UserQuickActions user={toDetail(u)} className="justify-end" onSetActive={(active) => updateUser(u.id, { active })} />
                   </td>
                 </tr>
               ))}
@@ -102,8 +104,21 @@ export function AdminUsersPage() {
         </div>
       </Card>
 
-      <NewUserDialog open={open} onOpenChange={setOpen} companies={tenants.map((t) => t.name)} />
-      <UserDetailSheet user={detail} onClose={() => setDetail(null)} />
+      <NewUserDialog
+        open={open}
+        onOpenChange={setOpen}
+        companies={tenants.map((t) => t.name)}
+        onCreate={(u) => {
+          const t = tenants.find((x) => x.name === u.company)
+          if (t) addUser({ tenantId: t.id, name: u.name, email: u.email, role: u.role })
+        }}
+      />
+      <UserDetailSheet
+        user={detail}
+        onClose={() => setDetail(null)}
+        onSave={(patch) => detail && updateUser(detail.id, patch)}
+        onRemove={() => detail && removeUser(detail.id)}
+      />
     </Page>
   )
 }

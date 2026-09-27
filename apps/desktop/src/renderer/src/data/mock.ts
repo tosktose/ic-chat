@@ -72,6 +72,8 @@ export interface Conversation {
   messages: Message[]
   /** Endereço do chat no WhatsApp (definido quando a conversa passa pelo WhatsApp real) */
   waJid?: string
+  /** Etapa escolhida no Kanban (quando diferente da que o status indica) */
+  kanbanStage?: KanbanStage
 }
 
 export interface Appointment {
@@ -110,8 +112,11 @@ export const services: Service[] = [
   { id: 's9', name: 'Corte + barba', minutes: 60, price: 95 }
 ]
 
-/** Data "de hoje" usada na demonstração */
-export const TODAY = '2026-09-27'
+/** Data de hoje no fuso do computador (AAAA-MM-DD) */
+export const TODAY = (() => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+})()
 
 export type KanbanStage = 'nova' | 'ia' | 'aguardando' | 'humano' | 'agendado' | 'concluido'
 export interface KanbanCard {
@@ -268,7 +273,7 @@ export const quickReplies = [
 export const company = { name: 'Studio Bella', segment: 'Salão de beleza', plan: 'Pro', trialDaysLeft: 5 }
 
 export function contactById(id: string): Contact {
-  return contacts.find((c) => c.id === id)!
+  return contacts.find((c) => c.id === id) ?? { id, name: 'Contato', phone: '', tags: [], since: '', visits: 0, spent: 0 }
 }
 export function userById(id?: string): User | undefined {
   return users.find((u) => u.id === id)
