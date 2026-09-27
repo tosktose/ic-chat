@@ -1,0 +1,33 @@
+appId: br.com.itacondo.icchat
+productName: IC Chat
+copyright: Copyright © 2026 ItaCondo
+directories:
+  buildResources: build
+  output: release/${version}
+files:
+  - out/**/*
+  - package.json
+  - '!out/web/**'
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  artifactName: IC-Chat-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: IC Chat
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+# macOS preparado para o futuro (build universal Intel + Apple Silicon)
+mac:
+  target:
+    - target: dmg
+      arch: [universal]
+  icon: build/icon.png
+  category: public.app-category.business

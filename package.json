@@ -1,0 +1,15 @@
+{
+  "name": "ic-chat",
+  "private": true,
+  "description": "IC Chat — Powered by itaCondo. Plataforma SaaS de atendimento multicanal.",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @icchat/desktop",
+    "dev:web": "npm run dev:web -w @icchat/desktop",
+    "build": "npm run build -w @icchat/desktop",
+    "dist:win": "npm run dist:win -w @icchat/desktop",
+    "typecheck": "npm run typecheck -w @icchat/desktop"
+  }
+}

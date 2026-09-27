@@ -9,7 +9,7 @@
 | Tema | Situação / decisão |
 |---|---|
 | **Objetivo do MVP** | Validar e vender o produto para **então formalizar a empresa** |
-| **Marca** | **IC = ItaCondo** ([www.itacondo.com.br](https://www.itacondo.com.br)), outro serviço do mesmo dono. Produto: **"IC Chat — de ItaCondo"** |
+| **Marca** | **IC = ItaCondo** ([www.itacondo.com.br](https://www.itacondo.com.br)), outro serviço do mesmo dono. Produto: **"IC Chat — Powered by itaCondo"** |
 | **Sistemas operacionais** | **Windows e macOS** |
 | **Infra** | Já existe uma conta **Supabase** |
 | **CNPJ** | **Ainda não tem** → afeta a API oficial da Meta, a assinatura de código e o Google (ver 0.1) |
@@ -58,7 +58,7 @@
 | `LOGO BRANCA C FUNDO.png` | Logo para tema escuro / splash |
 
 Paleta extraída do ícone: azul royal `#0A4FE0` → azul ciano `#18C8F5` (gradiente), branco, grafite `#111418`.
-> ✅ **"DE ITACONDO"** confirmado: IC = ItaCondo ([itacondo.com.br](https://www.itacondo.com.br)). Usar "IC Chat" no app e "de ItaCondo" na tela de login, no "Sobre" e no site. Sugestão de domínios: `icchat.itacondo.com.br` (site/política de privacidade) e `avisos@itacondo.com.br` (e-mails de licença).
+> ✅ Assinatura da marca: **"Powered by itaCondo"** — IC = ItaCondo ([itacondo.com.br](https://www.itacondo.com.br)). Usar "IC Chat" no app e "Powered by itaCondo" na tela de login, no "Sobre" e no site. Sugestão de domínios: `icchat.itacondo.com.br` (site/política de privacidade) e `avisos@itacondo.com.br` (e-mails de licença).
 
 ---
 
@@ -308,6 +308,27 @@ Esses valores são o **padrão**. Você pode mudar carência, dias offline e lim
 - Último contato de cada instalação (online/offline, versão do app).
 - **Acesso exclusivo:** login com **2FA obrigatório**. Opcional: restringir o acesso por IP. Chave privada de assinatura guardada fora do banco (variável de ambiente / cofre de segredos).
 - Futuro: integração com cobrança (Asaas, Mercado Pago, Stripe). **Pagou → renova sozinho; atrasou → suspende sozinho após X dias.**
+
+### 5.9 Perfis de acesso e isolamento de dados (RLS)
+
+O IC Chat é **multiempresa** e **permissionado**. Cada perfil vê um painel diferente:
+
+| Perfil | Quem é | O que vê e faz |
+|---|---|---|
+| **Super Admin** | Dono do SaaS (itaCondo) | Painel próprio: **Empresas** (cadastro, ficha, usuários de cada empresa), **Usuários** (todas as empresas), **Licenças e tokens**, **Planos**, **Configurações do sistema**. Não vê conversas de clientes. |
+| **Gerente** | Responsável pela empresa cliente | Painel do gerente, Atendimento (todas as conversas da empresa), Agenda, Kanban IA, Contatos, Assistente IA, Canais, **Equipe** (cria e gerencia os analistas) e Configurações da empresa. |
+| **Analista** | Atendente humano criado pelo gerente | Só **Meus atendimentos** (as conversas dele + a fila), Agenda, Contatos e **Meu desempenho**. |
+
+**Um WhatsApp por empresa:** todos os analistas atendem pelo **mesmo número da empresa**. Quando um analista assume a conversa:
+- fica registrado na conversa ("Juliana assumiu o atendimento");
+- as mensagens saem com o **nome do analista em negrito** no início (ex.: `*Juliana:* Olá!`), configurável pelo gerente em Equipe;
+- opcionalmente o cliente recebe "Você está sendo atendido(a) por Juliana".
+
+**Isolamento (RLS — Row Level Security):**
+- Toda tabela de negócio tem `tenant_id`. No **Postgres/Supabase**, políticas RLS garantem que cada usuário só lê/grava linhas da própria empresa (`tenant_id = auth.jwt() ->> 'tenant_id'`), e analistas só as conversas atribuídas a eles ou na fila.
+- No **modo Local (SQLite)**, que não tem RLS, o mesmo filtro é aplicado obrigatoriamente na camada de repositórios do Core (nenhuma consulta sem `tenant_id`), com testes automáticos que tentam ler dados de outra empresa.
+- O Super Admin acessa só dados administrativos (empresas, usuários, licenças), nunca o conteúdo das conversas.
+- O token de sessão (JWT) carrega `tenant_id` e `role`; as telas são protegidas no front **e** no Core (o front sozinho não é segurança).
 
 ---
 
