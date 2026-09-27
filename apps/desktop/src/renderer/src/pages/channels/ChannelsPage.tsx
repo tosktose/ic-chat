@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { Avatar, Badge, Card, CardHeader } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
-import { professionals } from '@/data/mock'
+import { useCompany } from '@/lib/company'
 
 export function ChannelsPage() {
+  const { professionals } = useCompany()
   const [qrOpen, setQrOpen] = useState(false)
   const [officialOpen, setOfficialOpen] = useState(false)
 

@@ -2,7 +2,7 @@
 // Tudo é embutido (fonte, logo, gráficos em SVG), então funciona sem internet.
 import interFont from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?inline'
 import { ANALYST_STATS, DASHBOARD_DATA, ORIGIN_SPLIT, PERIOD_LABEL, type Period } from '@/data/dashboard'
-import { professionals } from '@/data/mock'
+import type { Professional } from '@/data/mock'
 
 export type ReportSection = 'resumo' | 'destaques' | 'conversas' | 'profissionais' | 'atendentes' | 'origem'
 
@@ -20,6 +20,9 @@ export interface ReportOptions {
   sections: ReportSection[]
   company: string
   author: string
+  /** Profissionais cadastrados (Configurações) */
+  professionals: Professional[]
+  logo?: string
 }
 
 // Cores fixas do papel (sempre tema claro) — paleta categórica validada
@@ -115,12 +118,14 @@ export function buildDashboardReport(opts: ReportOptions): string {
   const now = new Date()
   const generated = `${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
 
-  const pros = professionals
-    .map((p, i) => ({ ...p, clients: d.pros[i], revenue: d.revenue[i], color: C.chart[i % C.chart.length] }))
+  // Números de demonstração ligados aos profissionais de exemplo (p1..p4); novos começam em zero
+  const SEED_INDEX: Record<string, number> = { p1: 0, p2: 1, p3: 2, p4: 3 }
+  const pros = opts.professionals
+    .map((p, i) => ({ ...p, clients: d.pros[SEED_INDEX[p.id]] ?? 0, revenue: d.revenue[SEED_INDEX[p.id]] ?? 0, color: C.chart[i % C.chart.length] }))
     .sort((a, b) => b.clients - a.clients)
-  const totalRevenue = pros.reduce((s, p) => s + p.revenue, 0)
-  const totalClients = pros.reduce((s, p) => s + p.clients, 0)
-  const maxClients = Math.max(...pros.map((p) => p.clients))
+  const totalRevenue = pros.reduce((s, p) => s + p.revenue, 0) || 1
+  const totalClients = pros.reduce((s, p) => s + p.clients, 0) || 1
+  const maxClients = Math.max(1, ...pros.map((p) => p.clients))
   const analysts = ANALYST_STATS[opts.period]
   const origin = ORIGIN_SPLIT[opts.period]
   const peakDay = d.daily.reduce((m, p) => (p.v > m.v ? p : m), d.daily[0])
@@ -189,7 +194,7 @@ export function buildDashboardReport(opts: ReportOptions): string {
                 <td><div class="who"><span class="av" style="background:${p.color}">${initials(p.name)}</span><div><b>${esc(p.name)}</b><small>${esc(p.specialty)}</small></div></div></td>
                 <td><div class="barcell"><span>${p.clients}</span><div class="bar"><i style="width:${(p.clients / maxClients) * 100}%;background:${p.color}"></i></div></div></td>
                 <td class="r">${brl(p.revenue)}</td>
-                <td class="r muted">${brl(p.revenue / p.clients)}</td>
+                <td class="r muted">${p.clients ? brl(p.revenue / p.clients) : '—'}</td>
                 <td class="r">${Math.round((p.revenue / totalRevenue) * 100)}%</td>
               </tr>`
             )
@@ -305,7 +310,7 @@ tfoot td { background: ${C.soft}; }
   <header class="cover">
     <div class="brand">${LOGO(34)}<div><b>icChat</b><small>Powered by itaCondo</small></div></div>
     <h1>Relatório de desempenho</h1>
-    <p class="co">${esc(opts.company)} · Painel do gerente</p>
+    <p class="co">${opts.logo ? `<img src="${opts.logo}" style="width:22px;height:22px;border-radius:6px;object-fit:cover;vertical-align:-6px;margin-right:6px"/>` : ''}${esc(opts.company)} · Painel do gerente</p>
     <div class="chips">
       <span>${esc(label.short)} · ${esc(label.range)}</span>
       <span>Gerado em ${generated}</span>

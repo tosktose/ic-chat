@@ -52,6 +52,8 @@ interface AppState {
   setSignature: (v: boolean) => void
   license: LicenseInfo
   simulateLicense: (s: LicenseState) => void
+  /** Ativa uma chave nova (no sistema real, validada pelo servidor de licenças) */
+  activateLicense: (key: string) => void
   sidebarCollapsed: boolean
   setSidebarCollapsed: (v: boolean) => void
   sidebarHidden: boolean
@@ -177,6 +179,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         setSignature,
         license,
         simulateLicense: (state) => setLicense((l) => ({ ...l, ...presets[state], state })),
+        activateLicense: (key) => {
+          const exp = new Date(Date.now() + 30 * 86400_000)
+          setLicense((l) => ({ ...l, key, state: 'ativa', daysLeft: 30, expiresAt: exp.toLocaleDateString('pt-BR'), lastCheck: 'agora' }))
+        },
         sidebarCollapsed,
         setSidebarCollapsed: (v) => {
           setCollapsed(v)

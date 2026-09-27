@@ -8,11 +8,10 @@ import { Avatar, Badge, Segmented } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
 import { useMediaQuery } from '@/lib/use-media'
 import { brl, cn } from '@/lib/utils'
-import { contactById, professionalById, professionals, TODAY, type Appointment } from '@/data/mock'
+import { contactById, TODAY, type Appointment } from '@/data/mock'
+import { formatLongDate, toMinutes, useCompany, weekdayOf, type ProfessionalItem } from '@/lib/company'
 import { useAppState } from '@/lib/app-state'
 
-const START_H = 8
-const END_H = 20
 const HOUR_PX = 72
 
 const statusMeta: Record<Appointment['status'], { label: string; tone: 'primary' | 'success' | 'warning' | 'danger' | 'neutral' }> = {
@@ -35,9 +34,13 @@ export function AgendaPage() {
   const [params, setParams] = useSearchParams()
   const isMdUp = useMediaQuery('(min-width: 768px)')
   const [view, setView] = useState<'dia' | 'lista'>('dia')
-  const [selectedPros, setSelectedPros] = useState<string[]>(professionals.map((p) => p.id))
+  const [hiddenPros, setHiddenPros] = useState<string[]>([])
   const [openAppt, setOpenAppt] = useState<Appointment | null>(null)
   const { appointments: all, openNewAppointment } = useAppState()
+  const { professionals: allPros, info } = useCompany()
+  const professionals = allPros.filter((p) => p.active)
+  const selectedPros = professionals.map((p) => p.id).filter((id) => !hiddenPros.includes(id))
+  const today = info.hours[weekdayOf(TODAY)]
   const appointments = all.filter((a) => (a.date ?? TODAY) === TODAY)
 
   // Atalho da busca rápida: /agenda?novo=1 abre a janela de agendamento
@@ -55,7 +58,7 @@ export function AgendaPage() {
   const revenue = dayAppts.filter((a) => a.status !== 'faltou').reduce((s, a) => s + a.price, 0)
 
   const togglePro = (id: string) =>
-    setSelectedPros((s) => (s.includes(id) ? (s.length > 1 ? s.filter((x) => x !== id) : s) : [...s, id]))
+    setHiddenPros((h) => (h.includes(id) ? h.filter((x) => x !== id) : selectedPros.length > 1 ? [...h, id] : h))
 
   return (
     <div className="flex h-full flex-col">
@@ -72,7 +75,7 @@ export function AgendaPage() {
             </Button>
           </div>
           <div className="mr-auto">
-            <p className="text-[15px] leading-tight font-semibold">Sábado, 27 de setembro</p>
+            <p className="text-[15px] leading-tight font-semibold">{formatLongDate(TODAY)}</p>
             <p className="text-xs text-muted">
               {dayAppts.length} agendamentos · {brl.format(revenue)} previstos
             </p>
@@ -118,7 +121,16 @@ export function AgendaPage() {
       </div>
 
       {effectiveView === 'dia' ? (
-        <DayGrid pros={pros} appointments={appointments} onOpen={setOpenAppt} />
+        today.open ? (
+          <DayGrid pros={pros} appointments={appointments} onOpen={setOpenAppt} hours={today} />
+        ) : (
+          <div className="flex flex-1 items-center justify-center p-6 text-center">
+            <div>
+              <p className="text-lg font-semibold">Fechado hoje</p>
+              <p className="mt-1 text-sm text-muted">Ajuste os dias e horários em Configurações → Empresa.</p>
+            </div>
+          </div>
+        )
       ) : (
         <ListView appts={dayAppts} onOpen={setOpenAppt} />
       )}
@@ -128,10 +140,24 @@ export function AgendaPage() {
   )
 }
 
-function DayGrid({ pros, appointments, onOpen }: { pros: typeof professionals; appointments: Appointment[]; onOpen: (a: Appointment) => void }) {
-  const hours = Array.from({ length: END_H - START_H }, (_, i) => START_H + i)
+function DayGrid({
+  pros,
+  appointments,
+  onOpen,
+  hours: day
+}: {
+  pros: ProfessionalItem[]
+  appointments: Appointment[]
+  onOpen: (a: Appointment) => void
+  hours: { start: string; end: string; lunchStart?: string; lunchEnd?: string }
+}) {
+  // A grade segue o horário de funcionamento do dia (Configurações → Empresa)
+  const START_H = Math.floor(toMinutes(day.start) / 60)
+  const END_H = Math.ceil(toMinutes(day.end) / 60)
+  const hours = Array.from({ length: Math.max(1, END_H - START_H) }, (_, i) => START_H + i)
   const nowMin = 11 * 60 + 20 // hora "atual" da demonstração
   const nowTop = ((nowMin - START_H * 60) / 60) * HOUR_PX
+  const lunch = day.lunchStart && day.lunchEnd ? [toMinutes(day.lunchStart), toMinutes(day.lunchEnd)] : null
 
   return (
     <div className="scroll-thin flex-1 overflow-auto">
@@ -171,12 +197,14 @@ function DayGrid({ pros, appointments, onOpen }: { pros: typeof professionals; a
                 </div>
               ))}
               {/* Intervalo de almoço */}
-              <div
-                className="absolute inset-x-0 flex items-center justify-center bg-[repeating-linear-gradient(135deg,var(--surface-2)_0_6px,transparent_6px_12px)] text-[11px] font-medium text-subtle"
-                style={{ top: (12 - START_H) * HOUR_PX, height: HOUR_PX }}
-              >
-                Almoço
-              </div>
+              {lunch && (
+                <div
+                  className="absolute inset-x-0 flex items-center justify-center bg-[repeating-linear-gradient(135deg,var(--surface-2)_0_6px,transparent_6px_12px)] text-[11px] font-medium text-subtle"
+                  style={{ top: ((lunch[0] - START_H * 60) / 60) * HOUR_PX, height: ((lunch[1] - lunch[0]) / 60) * HOUR_PX }}
+                >
+                  Almoço
+                </div>
+              )}
               {appointments
                 .filter((a) => a.professionalId === p.id)
                 .map((a) => {
@@ -228,13 +256,14 @@ function DayGrid({ pros, appointments, onOpen }: { pros: typeof professionals; a
 }
 
 function ListView({ appts, onOpen }: { appts: Appointment[]; onOpen: (a: Appointment) => void }) {
+  const { professionalById } = useCompany()
   const sorted = [...appts].sort((a, b) => toMin(a.start) - toMin(b.start))
   return (
     <div className="scroll-thin flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-3xl flex-col gap-2 p-4 md:p-6">
         {sorted.map((a) => {
           const c = contactById(a.contactId)
-          const p = professionalById(a.professionalId)!
+          const p = professionalById(a.professionalId)
           const OriginIcon = originIcon[a.origin]
           return (
             <button
@@ -246,11 +275,11 @@ function ListView({ appts, onOpen }: { appts: Appointment[]; onOpen: (a: Appoint
                 <p className="text-[15px] font-bold tabular-nums">{a.start}</p>
                 <p className="text-[11px] text-muted tabular-nums">{a.end}</p>
               </div>
-              <span className={cn('w-1 self-stretch rounded-full', p.dot)} />
+              <span className={cn('w-1 self-stretch rounded-full', p?.dot ?? 'bg-subtle')} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[14px] font-semibold">{c.name}</p>
                 <p className="truncate text-[12.5px] text-muted">
-                  {a.service} · {p.name}
+                  {a.service} · {p?.name ?? 'Profissional removido'}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1.5">
@@ -267,6 +296,7 @@ function ListView({ appts, onOpen }: { appts: Appointment[]; onOpen: (a: Appoint
 
 
 function AppointmentDialog({ appt, onClose }: { appt: Appointment | null; onClose: () => void }) {
+  const { professionalById } = useCompany()
   const { setAppointmentStatus, openNewAppointment } = useAppState()
   if (!appt) return null
   const act = (status: Appointment['status'] | 'cancelado', msg: string) => () => {

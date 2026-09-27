@@ -6,19 +6,23 @@ import { Button } from '@/components/ui/button'
 import { Avatar, Card, CardHeader, Progress, Segmented } from '@/components/ui/misc'
 import { useAppState } from '@/lib/app-state'
 import { brl, cn } from '@/lib/utils'
-import { professionals, users } from '@/data/mock'
+import { users } from '@/data/mock'
+import { useCompany } from '@/lib/company'
 import { DASHBOARD_DATA as DATA, type Period } from '@/data/dashboard'
 import { ExportReportDialog } from './ExportReportDialog'
 
 export function DashboardPage() {
   const { resolveUser } = useAppState()
+  const { professionals } = useCompany()
+  const SEED_INDEX: Record<string, number> = { p1: 0, p2: 1, p3: 2, p4: 3 }
   const [period, setPeriod] = useState<Period>('semana')
   const [exportOpen, setExportOpen] = useState(false)
   const d = DATA[period]
   const proRows = professionals
-    .map((p, i) => ({ ...p, clients: d.pros[i], revenue: d.revenue[i] }))
+    .filter((p) => p.active)
+    .map((p) => ({ ...p, clients: d.pros[SEED_INDEX[p.id]] ?? 0, revenue: d.revenue[SEED_INDEX[p.id]] ?? 0 }))
     .sort((a, b) => b.clients - a.clients)
-  const maxClients = Math.max(...proRows.map((p) => p.clients))
+  const maxClients = Math.max(1, ...proRows.map((p) => p.clients))
   const totalRevenue = d.revenue.reduce((a, b) => a + b, 0)
 
   return (
@@ -168,7 +172,7 @@ export function DashboardPage() {
                       </div>
                     </td>
                     <td className="px-3 py-3 text-right font-medium tabular-nums">{brl.format(p.revenue)}</td>
-                    <td className="px-5 py-3 text-right text-muted tabular-nums">{brl.format(p.revenue / p.clients)}</td>
+                    <td className="px-5 py-3 text-right text-muted tabular-nums">{p.clients ? brl.format(p.revenue / p.clients) : '—'}</td>
                   </tr>
                 ))}
               </tbody>

@@ -8,11 +8,13 @@ import { Avatar, Card } from '@/components/ui/misc'
 import { TagChip } from '@/components/tags'
 import { TAG_COLORS, useTags } from '@/lib/tags'
 import { brl, cn, formatPhone } from '@/lib/utils'
-import { contacts, conversations, professionalById } from '@/data/mock'
+import { contacts, conversations } from '@/data/mock'
+import { useCompany } from '@/lib/company'
 
 export function ContactsPage() {
   const [q, setQ] = useState('')
   const [tagFilter, setTagFilter] = useState<string | null>(null)
+  const { professionalById } = useCompany()
   const navigate = useNavigate()
   const { tags, tagsOf, hasTag, countOf } = useTags()
   const list = contacts.filter(

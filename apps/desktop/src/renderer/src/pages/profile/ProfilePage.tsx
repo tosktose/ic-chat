@@ -11,13 +11,14 @@ import { useAppState } from '@/lib/app-state'
 import { useNotifications } from '@/lib/notifications'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
-import { company } from '@/data/mock'
+import { useCompany } from '@/lib/company'
 
 type Tab = 'dados' | 'seguranca' | 'preferencias'
 
 /** Tela "Meu perfil" — igual para Super Admin, Gerente e Analista (cada um edita só a própria conta). */
 export function ProfilePage() {
   const { me, role, myPhoto: photo, setMyPhoto: setPhoto } = useAppState()
+  const { info: company } = useCompany()
   const [tab, setTab] = useState<Tab>('dados')
   const fileRef = useRef<HTMLInputElement>(null)
 

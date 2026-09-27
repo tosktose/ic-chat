@@ -7,11 +7,9 @@ import { Dialog } from '@/components/ui/overlay'
 import { useAppState } from '@/lib/app-state'
 import { useNotifications } from '@/lib/notifications'
 import { brl, cn } from '@/lib/utils'
-import { contactById, contacts, professionals, services, TODAY } from '@/data/mock'
+import { contactById, contacts, TODAY } from '@/data/mock'
+import { toMinutes, useCompany, weekdayOf, WEEKDAYS } from '@/lib/company'
 
-const OPEN_MIN = 8 * 60
-const CLOSE_MIN = 20 * 60
-const LUNCH = [12 * 60, 13 * 60] as const
 
 const toMin = (t: string) => {
   const [h, m] = t.split(':').map(Number)
@@ -27,8 +25,9 @@ export function NewAppointmentDialog() {
   const { apptDialog, closeNewAppointment, appointments, addAppointment } = useAppState()
   const { notify } = useNotifications()
   const [contactId, setContactId] = useState(contacts[0].id)
-  const [serviceId, setServiceId] = useState(services[0].id)
-  const [proId, setProId] = useState(professionals[0].id)
+  const { services, professionals: allPros, info } = useCompany()
+  const [serviceId, setServiceId] = useState(services[0]?.id ?? '')
+  const [proId, setProId] = useState(allPros[0]?.id ?? '')
   const [date, setDate] = useState(TODAY)
   const [time, setTime] = useState('')
   const [notes, setNotes] = useState('')
@@ -39,14 +38,24 @@ export function NewAppointmentDialog() {
     if (!apptDialog.open) return
     const c = apptDialog.contactId ? contactById(apptDialog.contactId) : contacts[0]
     setContactId(c.id)
-    setProId(c.favoriteProfessional ?? professionals[0].id)
-    setServiceId(services[0].id)
+    setProId(c.favoriteProfessional ?? allPros[0]?.id ?? '')
+    setServiceId(services[0]?.id ?? '')
     setDate(TODAY)
     setTime('')
     setNotes('')
   }, [apptDialog.open, apptDialog.contactId])
 
-  const service = services.find((s) => s.id === serviceId)!
+  const service = services.find((s) => s.id === serviceId) ?? { id: '', name: 'Serviço', minutes: 60, price: 0 }
+  // Só profissionais ativos que fazem o serviço escolhido (Configurações → Profissionais)
+  const professionals = allPros.filter((p) => p.active && (p.serviceIds.length === 0 || p.serviceIds.includes(serviceId)))
+  useEffect(() => {
+    if (professionals.length && !professionals.some((p) => p.id === proId)) setProId(professionals[0].id)
+  }, [professionals, proId])
+  // Funcionamento do dia escolhido (Configurações → Empresa)
+  const day = info.hours[weekdayOf(date)]
+  const OPEN_MIN = toMinutes(day.start)
+  const CLOSE_MIN = toMinutes(day.end)
+  const LUNCH = day.lunchStart && day.lunchEnd ? ([toMinutes(day.lunchStart), toMinutes(day.lunchEnd)] as const) : ([0, 0] as const)
   const busy = useMemo(
     () =>
       appointments
@@ -60,18 +69,19 @@ export function NewAppointmentDialog() {
 
   const freeSlots = useMemo(() => {
     const out: string[] = []
+    if (!day.open) return out
     for (let m = OPEN_MIN; m + service.minutes <= CLOSE_MIN; m += 30) {
       if (!overlaps(m, m + service.minutes)) out.push(toHHMM(m))
     }
     return out
-  }, [busy, service.minutes])
+  }, [busy, service.minutes, day.open, OPEN_MIN, CLOSE_MIN, LUNCH[0], LUNCH[1]])
 
   const start = time ? toMin(time) : null
   const end = start !== null ? start + service.minutes : null
-  const conflict = start !== null && end !== null && (overlaps(start, end) || start < OPEN_MIN || end > CLOSE_MIN)
+  const conflict = start !== null && end !== null && (!day.open || overlaps(start, end) || start < OPEN_MIN || end > CLOSE_MIN)
 
   const save = () => {
-    if (start === null || end === null || conflict) return
+    if (start === null || end === null || conflict || !proId || !serviceId) return
     addAppointment({
       contactId,
       professionalId: proId,
@@ -85,7 +95,7 @@ export function NewAppointmentDialog() {
       notes: notes || undefined
     })
     const c = contactById(contactId)
-    const pro = professionals.find((p) => p.id === proId)!
+    const pro = allPros.find((p) => p.id === proId) ?? { name: 'profissional' }
     closeNewAppointment()
     notify({
       kind: 'agenda',
@@ -162,7 +172,9 @@ export function NewAppointmentDialog() {
               ))}
             </div>
           ) : (
-            <p className="text-[13px] text-muted">Sem horários livres neste dia para este serviço.</p>
+            <p className="text-[13px] text-muted">
+              {day.open ? 'Sem horários livres neste dia para este serviço.' : `Fechado às ${WEEKDAYS[weekdayOf(date)].toLowerCase()}s. Escolha outra data.`}
+            </p>
           )}
           {conflict && (
             <p className="mt-2 flex items-center gap-1.5 text-[13px] font-medium text-danger">

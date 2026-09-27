@@ -24,6 +24,8 @@ import { navByPath, navFor, roleLabel, type NavItem } from '@/components/layout/
 import { useAppState } from '@/lib/app-state'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
+import { useCompany } from '@/lib/company'
+import { CompanyLogo } from '@/pages/settings/CompanyTab'
 import { company } from '@/data/mock'
 
 const platform = window.icchat?.platform
@@ -176,21 +178,18 @@ function SideLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
 
 function CompanyCard({ collapsed }: { collapsed: boolean }) {
   const { role } = useAppState()
+  const { info } = useCompany()
   const owner = role === 'superadmin'
   return (
     <div className={cn('mt-2 flex items-center gap-3 rounded-lg p-2', !collapsed && 'xl:bg-surface-2')}>
-      <div
-        className={cn(
-          'mx-auto flex size-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white',
-          owner ? 'brand-gradient' : 'bg-gradient-to-br from-pink-500 to-violet-600',
-          !collapsed && 'xl:mx-0'
-        )}
-      >
-        {owner ? 'IC' : 'SB'}
-      </div>
+      {owner ? (
+        <div className={cn('brand-gradient mx-auto flex size-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white', !collapsed && 'xl:mx-0')}>IC</div>
+      ) : (
+        <CompanyLogo info={info} size={36} className={cn('mx-auto rounded-lg', !collapsed && 'xl:mx-0')} />
+      )}
       {!collapsed && (
         <div className="hidden min-w-0 flex-1 xl:block">
-          <p className="truncate text-[13px] font-semibold">{owner ? 'itaCondo' : company.name}</p>
+          <p className="truncate text-[13px] font-semibold">{owner ? 'itaCondo' : info.name}</p>
           <p className="truncate text-[11.5px] text-muted">{owner ? 'Dono do sistema' : `Plano ${company.plan}`}</p>
         </div>
       )}
@@ -386,6 +385,7 @@ function BottomNav() {
   const [moreOpen, setMoreOpen] = useState(false)
   const { pathname } = useLocation()
   const { role, me } = useAppState()
+  const { info } = useCompany()
   const items = navFor(role)
   const primary = items.filter((n) => n.mobile).slice(0, 4)
   const rest = items.filter((n) => !primary.includes(n))
@@ -437,7 +437,7 @@ function BottomNav() {
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{me.name}</p>
               <p className="truncate text-xs text-white/75">
-                {roleLabel[role]} · {role === 'superadmin' ? 'itaCondo' : company.name}
+                {roleLabel[role]} · {role === 'superadmin' ? 'itaCondo' : info.name}
               </p>
             </div>
           </div>

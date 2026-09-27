@@ -9,7 +9,8 @@ import { useAppState } from '@/lib/app-state'
 import { useNotifications } from '@/lib/notifications'
 import { useTags } from '@/lib/tags'
 import { brl, cn, formatPhone } from '@/lib/utils'
-import { contactById, professionalById, TODAY, type Conversation } from '@/data/mock'
+import { contactById, TODAY, type Conversation } from '@/data/mock'
+import { useCompany } from '@/lib/company'
 
 export function ContactPanel({
   conv,
@@ -25,6 +26,7 @@ export function ContactPanel({
   className?: string
 }) {
   const { appointments, openNewAppointment, role } = useAppState()
+  const { professionalById } = useCompany()
   const { tagsOf, toggleContactTag } = useTags()
   const { notify } = useNotifications()
   const contact = contactById(conv.contactId)

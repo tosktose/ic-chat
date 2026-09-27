@@ -7,17 +7,18 @@ import { Avatar, Badge, Card, CardHeader, Switch } from '@/components/ui/misc'
 import { NewUserDialog, UserDetailSheet, UserQuickActions, type DetailUser } from '@/components/UserDetail'
 import { useAppState } from '@/lib/app-state'
 import { cn } from '@/lib/utils'
-import { company, users, type User } from '@/data/mock'
+import { users, type User } from '@/data/mock'
+import { useCompany } from '@/lib/company'
 
-const toDetail = (u: User): DetailUser => ({
+const toDetail = (u: User, companyName: string, whatsapp: string): DetailUser => ({
   id: u.id,
   name: u.name,
   email: `${u.name.split(' ')[0].toLowerCase()}@studiobella.com.br`,
   role: u.role === 'gerente' ? 'gerente' : 'analista',
   active: true,
   lastSeen: u.presence === 'online' ? 'agora' : u.presence === 'away' ? 'há 20 min' : 'há 12 dias',
-  company: company.name,
-  companyWhatsapp: '(11) 98765-4321'
+  company: companyName,
+  companyWhatsapp: whatsapp
 })
 
 const presenceLabel = { online: 'Disponível', away: 'Ausente', busy: 'Ocupado', offline: 'Offline' }
@@ -25,6 +26,9 @@ const presenceLabel = { online: 'Disponível', away: 'Ausente', busy: 'Ocupado',
 /** Gerente administra a própria empresa: cria analistas que atendem pelo WhatsApp único da empresa. */
 export function TeamPage() {
   const { signature, setSignature, resolveUser } = useAppState()
+  const { info } = useCompany()
+  const company = info
+  const asDetail = (u: User) => toDetail(u, info.name, info.phone)
   const [open, setOpen] = useState(false)
   const [detail, setDetail] = useState<DetailUser | null>(null)
 
@@ -43,8 +47,8 @@ export function TeamPage() {
                 key={u.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => setDetail(toDetail(u))}
-                onKeyDown={(e) => e.key === 'Enter' && setDetail(toDetail(u))}
+                onClick={() => setDetail(asDetail(u))}
+                onKeyDown={(e) => e.key === 'Enter' && setDetail(asDetail(u))}
                 className="flex cursor-pointer items-center gap-3 border-t border-border px-5 py-3 transition-colors hover:bg-surface-2/50"
               >
                 <Avatar name={u.name} size={38} presence={u.presence} />
@@ -55,7 +59,7 @@ export function TeamPage() {
                   </p>
                 </div>
                 <Badge tone={u.role === 'gerente' ? 'primary' : 'neutral'}>{u.role === 'gerente' ? 'Gerente' : 'Analista'}</Badge>
-                <UserQuickActions user={toDetail(u)} />
+                <UserQuickActions user={asDetail(u)} />
               </div>
             ))}
           </div>
@@ -70,7 +74,7 @@ export function TeamPage() {
                   <WhatsAppIcon className="size-5" />
                 </span>
                 <div>
-                  <p className="font-semibold">(11) 98765-4321</p>
+                  <p className="font-semibold">{info.phone}</p>
                   <p className="text-xs text-muted">{company.name} · conectado</p>
                 </div>
               </div>

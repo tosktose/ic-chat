@@ -22,14 +22,16 @@ import { toast } from 'sonner'
 import { Page } from '@/components/layout/Page'
 import { Dialog } from '@/components/ui/overlay'
 import { Button } from '@/components/ui/button'
-import { Field, Input, Select } from '@/components/ui/input'
-import { Avatar, Badge, Card, CardHeader, Progress, Segmented } from '@/components/ui/misc'
+import { Field, Input } from '@/components/ui/input'
+import { Badge, Card, CardHeader, Progress, Segmented } from '@/components/ui/misc'
 import { RuleIcons, TagChip, TagEditorDialog } from '@/components/tags'
 import { useAppState, type LicenseState } from '@/lib/app-state'
 import { useTags, type Tag } from '@/lib/tags'
 import { useTheme } from '@/lib/theme'
-import { brl, cn } from '@/lib/utils'
-import { company, professionals, quickReplies, services } from '@/data/mock'
+import { cn } from '@/lib/utils'
+import { useCompany } from '@/lib/company'
+import { CompanyTab } from './CompanyTab'
+import { ProfessionalsTab, QuickRepliesTab, ServicesTab } from './CatalogTabs'
 
 const TABS = [
   { id: 'empresa', label: 'Empresa', icon: Building2 },
@@ -46,9 +48,10 @@ export function SettingsPage() {
   const [params, setParams] = useSearchParams()
   const tab = (TABS.some((t) => t.id === params.get('tab')) ? params.get('tab') : 'empresa') as TabId
   const setTab = (t: TabId) => setParams({ tab: t }, { replace: true })
+  const { info, segmentLabel } = useCompany()
 
   return (
-    <Page title="Configurações" description={`${company.name} · ${company.segment}`}>
+    <Page title="Configurações" description={`${info.name} · ${segmentLabel}`}>
       <div className="flex flex-col gap-5 lg:flex-row">
         <nav className="scroll-thin -mx-4 flex shrink-0 gap-1 overflow-x-auto px-4 lg:mx-0 lg:w-56 lg:flex-col lg:overflow-visible lg:px-0">
           {TABS.map((t) => (
@@ -79,98 +82,11 @@ export function SettingsPage() {
   )
 }
 
-function SaveBar() {
-  return (
-    <div className="flex justify-end border-t border-border px-5 py-3">
-      <Button onClick={() => toast.success('Alterações salvas')}>Salvar alterações</Button>
-    </div>
-  )
-}
-
-function CompanyTab() {
-  return (
-    <Card>
-      <CardHeader title="Dados da empresa" description="Aparecem para a IA e nas mensagens automáticas" />
-      <div className="grid gap-4 px-5 pb-5 sm:grid-cols-2">
-        <div className="flex items-center gap-4 sm:col-span-2">
-          <div className="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-500 to-violet-600 text-xl font-bold text-white">SB</div>
-          <div>
-            <Button variant="outline" size="sm">Trocar logo</Button>
-            <p className="mt-1 text-xs text-muted">PNG ou JPG, até 2 MB</p>
-          </div>
-        </div>
-        <Field label="Nome fantasia"><Input defaultValue="Studio Bella" /></Field>
-        <Field label="Segmento">
-          <Select defaultValue="salao">
-            <option value="salao">Salão de beleza</option>
-            <option value="barbearia">Barbearia</option>
-            <option value="estetica">Clínica de estética</option>
-            <option value="clinica">Clínica / consultório</option>
-            <option value="outro">Outro</option>
-          </Select>
-        </Field>
-        <Field label="CNPJ (opcional)"><Input placeholder="00.000.000/0001-00" /></Field>
-        <Field label="Telefone"><Input defaultValue="(11) 98765-4321" /></Field>
-        <Field label="Endereço" className="sm:col-span-2"><Input defaultValue="Rua das Flores, 123 — Centro, São Paulo/SP" /></Field>
-        <Field label="Funcionamento" className="sm:col-span-2" hint="Usado pela IA e pela agenda">
-          <Input defaultValue="Terça a sábado, 9h às 20h" />
-        </Field>
-      </div>
-      <SaveBar />
-    </Card>
-  )
-}
 
 
-function ProfessionalsTab() {
-  return (
-    <Card>
-      <CardHeader title="Profissionais" description="Quem aparece na agenda" action={<Button size="sm"><Plus /> Adicionar</Button>} />
-      <div className="grid gap-2 px-5 pb-5 sm:grid-cols-2">
-        {professionals.map((p) => (
-          <div key={p.id} className="flex items-center gap-3 rounded-xl border border-border p-3">
-            <Avatar name={p.name} size={40} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13.5px] font-semibold">{p.name}</p>
-              <p className="truncate text-xs text-muted">{p.specialty}</p>
-            </div>
-            <span className={cn('size-3 rounded-full', p.dot)} title="Cor na agenda" />
-            <Button variant="ghost" size="icon-sm" aria-label="Editar"><Pencil /></Button>
-          </div>
-        ))}
-      </div>
-    </Card>
-  )
-}
 
 
-function ServicesTab() {
-  return (
-    <Card className="overflow-hidden">
-      <CardHeader title="Serviços" description="A IA usa esta tabela para informar preços e duração" action={<Button size="sm"><Plus /> Novo serviço</Button>} />
-      <table className="w-full text-[13.5px]">
-        <thead>
-          <tr className="border-y border-border bg-surface-2/60 text-left text-[11px] font-semibold tracking-wider text-subtle uppercase">
-            <th className="px-5 py-2.5">Serviço</th>
-            <th className="px-3 py-2.5">Duração</th>
-            <th className="px-3 py-2.5 text-right">Preço</th>
-            <th className="w-12" />
-          </tr>
-        </thead>
-        <tbody>
-          {services.map(({ name, minutes: min, price }) => (
-            <tr key={name} className="border-b border-border last:border-0">
-              <td className="px-5 py-3 font-medium">{name}</td>
-              <td className="px-3 py-3 text-muted">{min >= 60 ? `${Math.floor(min / 60)}h${min % 60 ? ` ${min % 60}min` : ''}` : `${min} min`}</td>
-              <td className="px-3 py-3 text-right tabular-nums">{brl.format(price)}</td>
-              <td className="px-3"><Button variant="ghost" size="icon-sm" aria-label="Editar"><Pencil /></Button></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Card>
-  )
-}
+
 
 function TagsTab() {
   const { tags, countOf } = useTags()
@@ -249,25 +165,12 @@ function DeleteTagDialog({ tag, onClose }: { tag: Tag | null; onClose: () => voi
   )
 }
 
-function QuickRepliesTab() {
-  return (
-    <Card>
-      <CardHeader title="Respostas rápidas" description="Digite / no chat para usar" action={<Button size="sm"><Plus /> Nova</Button>} />
-      <div className="flex flex-col">
-        {quickReplies.map((r) => (
-          <div key={r.shortcut} className="flex items-start gap-3 border-t border-border px-5 py-3">
-            <Badge tone="primary" size="md">{r.shortcut}</Badge>
-            <p className="flex-1 text-[13.5px] text-muted">{r.text}</p>
-            <Button variant="ghost" size="icon-sm" aria-label="Excluir"><Trash2 /></Button>
-          </div>
-        ))}
-      </div>
-    </Card>
-  )
-}
 
 function LicenseTab() {
-  const { license, simulateLicense } = useAppState()
+  const { license, simulateLicense, activateLicense } = useAppState()
+  const [keyOpen, setKeyOpen] = useState(false)
+  const [newKey, setNewKey] = useState('')
+  const keyOk = /^ICCH(-[A-Z0-9]{4}){4}$/.test(newKey.trim().toUpperCase())
   const stateCfg: Record<LicenseState, { label: string; tone: 'success' | 'primary' | 'warning' | 'danger' }> = {
     ativa: { label: 'Ativa', tone: 'success' },
     teste: { label: 'Teste grátis', tone: 'primary' },
@@ -321,8 +224,10 @@ function LicenseTab() {
           </p>
         </div>
         <div className="flex flex-col gap-2 border-t border-border px-5 py-3 sm:flex-row sm:justify-end">
-          <Button variant="outline">Inserir nova chave</Button>
-          <Button>Falar com o suporte para renovar</Button>
+          <Button variant="outline" onClick={() => setKeyOpen(true)}><KeyRound /> Inserir nova chave</Button>
+          <Button onClick={() => window.open('https://wa.me/5511900000000?text=' + encodeURIComponent(`Olá! Quero renovar a licença do IC Chat (${license.key}).`), '_blank')}>
+            Falar com o suporte para renovar
+          </Button>
         </div>
       </Card>
 
@@ -344,6 +249,33 @@ function LicenseTab() {
         </div>
       </Card>
 
+      <Dialog
+        open={keyOpen}
+        onOpenChange={setKeyOpen}
+        title="Inserir nova chave de licença"
+        description="Cole a chave recebida por WhatsApp ou e-mail. Ela é validada no servidor de licenças."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setKeyOpen(false)}>Cancelar</Button>
+            <Button
+              disabled={!keyOk}
+              onClick={() => {
+                activateLicense(newKey.trim().toUpperCase())
+                setKeyOpen(false)
+                setNewKey('')
+                toast.success('Licença ativada', { description: 'Plano Pro válido por 30 dias.' })
+              }}
+            >
+              <KeyRound /> Ativar
+            </Button>
+          </>
+        }
+      >
+        <Field label="Chave" hint={newKey && !keyOk ? <span className="text-danger">Formato esperado: ICCH-XXXX-XXXX-XXXX-XXXX</span> : 'Formato: ICCH-XXXX-XXXX-XXXX-XXXX'}>
+          <Input autoFocus value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="ICCH-XXXX-XXXX-XXXX-XXXX" className="font-mono tracking-wider uppercase" />
+        </Field>
+      </Dialog>
+
       <Card className="border-dashed">
         <CardHeader title="Pré-visualizar estados da licença" description="Apenas para demonstração do design" />
         <div className="flex flex-wrap gap-2 px-5 pb-5">
@@ -360,6 +292,8 @@ function LicenseTab() {
 
 function AppearanceTab() {
   const { theme, setTheme, density, setDensity } = useTheme()
+  const { sidebarCollapsed, setSidebarCollapsed, sidebarHidden, setSidebarHidden } = useAppState()
+  const menu = sidebarHidden ? 'escondido' : sidebarCollapsed ? 'icones' : 'completo'
   const opt = (value: 'light' | 'dark' | 'system', label: string, icon: ReactNode, preview: string) => (
     <button
       onClick={() => setTheme(value)}
@@ -391,6 +325,23 @@ function AppearanceTab() {
               { value: 'compact', label: 'Compacta' }
             ]}
           />
+          <p className="mt-1.5 text-xs text-muted">Compacta mostra mais informação por tela (bom para monitores pequenos).</p>
+        </div>
+        <div>
+          <p className="mb-2 text-[13px] font-medium">Menu lateral</p>
+          <Segmented
+            value={menu}
+            onChange={(v) => {
+              setSidebarHidden(v === 'escondido')
+              setSidebarCollapsed(v === 'icones')
+            }}
+            options={[
+              { value: 'completo', label: 'Completo' },
+              { value: 'icones', label: 'Só ícones' },
+              { value: 'escondido', label: 'Escondido' }
+            ]}
+          />
+          <p className="mt-1.5 text-xs text-muted">Atalho: Ctrl + B mostra ou esconde o menu.</p>
         </div>
       </div>
     </Card>

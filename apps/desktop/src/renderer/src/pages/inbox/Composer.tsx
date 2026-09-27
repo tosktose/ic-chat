@@ -14,7 +14,7 @@ import { EmojiPopover } from '@/components/EmojiPicker'
 import { Button } from '@/components/ui/button'
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/overlay'
 import { cn } from '@/lib/utils'
-import { quickReplies } from '@/data/mock'
+import { useCompany } from '@/lib/company'
 
 export function Composer({
   disabled,
@@ -28,6 +28,7 @@ export function Composer({
   senderName?: string
   companyNumber: string
 }) {
+  const { quickReplies } = useCompany()
   const [text, setText] = useState('')
   const [note, setNote] = useState(false)
   const [recording, setRecording] = useState(false)

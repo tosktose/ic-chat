@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { canAccess, homeByRole } from '@/components/layout/nav'
 import { AppStateProvider, useAppState } from '@/lib/app-state'
+import { CompanyProvider } from '@/lib/company'
 import { NotificationsProvider } from '@/lib/notifications'
 import { TagsProvider } from '@/lib/tags'
 import { ThemeProvider, useTheme } from '@/lib/theme'
@@ -48,6 +49,7 @@ export function App() {
   return (
     <ThemeProvider>
       <AppStateProvider>
+      <CompanyProvider>
         <Tooltip.Provider>
           <HashRouter>
             <NotificationsProvider>
@@ -85,6 +87,7 @@ export function App() {
           </HashRouter>
           <ThemedToaster />
         </Tooltip.Provider>
+      </CompanyProvider>
       </AppStateProvider>
     </ThemeProvider>
   )

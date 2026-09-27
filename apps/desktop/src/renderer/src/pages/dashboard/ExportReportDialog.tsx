@@ -8,13 +8,14 @@ import { useAppState } from '@/lib/app-state'
 import { buildDashboardReport, REPORT_SECTIONS, type ReportSection } from '@/lib/report/dashboard-report'
 import { exportPdf } from '@/lib/report/export-pdf'
 import { cn } from '@/lib/utils'
-import { company } from '@/data/mock'
+import { useCompany } from '@/lib/company'
 import { PERIOD_LABEL, type Period } from '@/data/dashboard'
 
 const A4_WIDTH = 794 // px (210 mm a 96 dpi)
 
 export function ExportReportDialog({ open, onOpenChange, initialPeriod }: { open: boolean; onOpenChange: (v: boolean) => void; initialPeriod: Period }) {
   const { me } = useAppState()
+  const { info: company, professionals } = useCompany()
   const [period, setPeriod] = useState<Period>(initialPeriod)
   const [sections, setSections] = useState<ReportSection[]>(REPORT_SECTIONS.map((s) => s.id))
   const [busy, setBusy] = useState(false)
@@ -36,8 +37,8 @@ export function ExportReportDialog({ open, onOpenChange, initialPeriod }: { open
   }, [open])
 
   const html = useMemo(
-    () => buildDashboardReport({ period, sections, company: company.name, author: me.name }),
-    [period, sections, me.name]
+    () => buildDashboardReport({ period, sections, company: company.name, author: me.name, professionals, logo: company.logo }),
+    [period, sections, me.name, company.name, company.logo, professionals]
   )
 
   const toggle = (id: ReportSection) =>
