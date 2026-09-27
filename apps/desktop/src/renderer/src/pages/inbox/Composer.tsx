@@ -10,12 +10,11 @@ import {
   Trash2,
   Zap
 } from 'lucide-react'
+import { EmojiPopover } from '@/components/EmojiPicker'
 import { Button } from '@/components/ui/button'
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/overlay'
 import { cn } from '@/lib/utils'
 import { quickReplies } from '@/data/mock'
-
-const EMOJIS = ['😊', '😍', '🙏', '👏', '💙', '✅', '✂️', '💇‍♀️', '💅', '📅', '⏰', '🎉']
 
 export function Composer({
   disabled,
@@ -49,6 +48,20 @@ export function Composer({
     const t = setInterval(() => setSeconds((s) => s + 1), 1000)
     return () => clearInterval(t)
   }, [recording])
+
+  // Insere o emoji onde está o cursor (e não só no fim do texto)
+  const insertAtCursor = (emoji: string) => {
+    const el = ref.current
+    if (!el) return setText((t) => t + emoji)
+    const start = el.selectionStart ?? text.length
+    const end = el.selectionEnd ?? text.length
+    const next = text.slice(0, start) + emoji + text.slice(end)
+    setText(next)
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(start + emoji.length, start + emoji.length)
+    })
+  }
 
   const showQuick = text.startsWith('/')
   const quick = quickReplies.filter((r) => r.shortcut.startsWith(text.split(' ')[0]))
@@ -140,22 +153,11 @@ export function Composer({
             note ? 'border-note-border bg-note' : 'border-border bg-surface-2'
           )}
         >
-          <Menu>
-            <MenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Emoji" tooltip="Emojis">
-                <Smile />
-              </Button>
-            </MenuTrigger>
-            <MenuContent align="start" className="min-w-0">
-              <div className="grid grid-cols-6 gap-1 p-1">
-                {EMOJIS.map((e) => (
-                  <button key={e} onClick={() => setText((t) => t + e)} className="flex size-9 items-center justify-center rounded-lg text-xl hover:bg-surface-2">
-                    {e}
-                  </button>
-                ))}
-              </div>
-            </MenuContent>
-          </Menu>
+          <EmojiPopover onPick={insertAtCursor}>
+            <Button variant="ghost" size="icon-sm" aria-label="Emojis">
+              <Smile />
+            </Button>
+          </EmojiPopover>
           <Menu>
             <MenuTrigger asChild>
               <Button variant="ghost" size="icon-sm" aria-label="Anexar" tooltip="Anexar foto, vídeo ou documento">

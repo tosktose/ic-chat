@@ -4,6 +4,7 @@ import { ArrowDownRight, ArrowUpRight, Bot, CalendarCheck, Clock, Download, Mess
 import { Page } from '@/components/layout/Page'
 import { Button } from '@/components/ui/button'
 import { Avatar, Card, CardHeader, Progress, Segmented } from '@/components/ui/misc'
+import { useAppState } from '@/lib/app-state'
 import { brl, cn } from '@/lib/utils'
 import { professionals, users } from '@/data/mock'
 
@@ -33,6 +34,7 @@ const DATA: Record<Period, { kpis: { conv: number; convDelta: number; frt: strin
 }
 
 export function DashboardPage() {
+  const { resolveUser } = useAppState()
   const [period, setPeriod] = useState<Period>('semana')
   const d = DATA[period]
   const proRows = professionals
@@ -117,6 +119,7 @@ export function DashboardPage() {
               <span className="text-lg font-bold">3</span>
             </div>
             {users
+              .map(resolveUser)
               .filter((u) => u.role === 'analista')
               .map((u) => (
                 <div key={u.id} className="flex items-center gap-3 rounded-xl px-2.5 py-2 hover:bg-surface-2">

@@ -1,9 +1,13 @@
 import type { ReactNode } from 'react'
 import { CalendarPlus, Cake, Clock, Mail, PanelRightClose, Phone, Plus, Scissors, StickyNote, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { ChannelBadge, channelLabel } from '@/components/brand'
 import { Button } from '@/components/ui/button'
 import { Avatar, Badge, Tooltip } from '@/components/ui/misc'
+import { ruleList, TagChip, TagPicker } from '@/components/tags'
 import { useAppState } from '@/lib/app-state'
+import { useNotifications } from '@/lib/notifications'
+import { useTags } from '@/lib/tags'
 import { brl, cn, formatPhone } from '@/lib/utils'
 import { contactById, professionalById, TODAY, type Conversation } from '@/data/mock'
 
@@ -20,8 +24,11 @@ export function ContactPanel({
   onCollapse?: () => void
   className?: string
 }) {
-  const { appointments, openNewAppointment } = useAppState()
+  const { appointments, openNewAppointment, role } = useAppState()
+  const { tagsOf, toggleContactTag } = useTags()
+  const { notify } = useNotifications()
   const contact = contactById(conv.contactId)
+  const tags = tagsOf(contact.id)
   const fav = professionalById(contact.favoriteProfessional)
   const next = appointments
     .filter((a) => a.contactId === contact.id && a.status !== 'concluido' && a.status !== 'faltou')
@@ -49,14 +56,25 @@ export function ContactPanel({
         <h3 className="mt-3 text-[17px] font-semibold">{contact.name}</h3>
         <p className="text-[13px] text-muted">Cliente desde {contact.since} · {channelLabel(conv.channel)}</p>
         <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-          {contact.tags.map((t) => (
-            <Badge key={t} tone={t === 'VIP' ? 'warning' : t === 'Reclamação' ? 'danger' : 'primary'}>
-              {t}
-            </Badge>
+          {tags.map((t) => (
+            <TagChip key={t.id} tag={t} size="md" onRemove={() => toggleContactTag(contact.id, t.id)} />
           ))}
-          <button className="inline-flex h-5 items-center gap-0.5 rounded-full border border-dashed border-border-strong px-2 text-[11px] text-muted hover:text-foreground">
-            <Plus className="size-3" /> etiqueta
-          </button>
+          <TagPicker
+            contactId={contact.id}
+            onApplied={(t) => {
+              const rules = ruleList(t.rules)
+              if (t.rules.notifyManager && role !== 'gerente') {
+                notify({ kind: 'alerta', title: `Etiqueta “${t.name}” aplicada`, body: `${contact.name} · o gerente foi avisado.`, link: `/inbox?c=${conv.id}` })
+              } else if (t.rules.notifyManager) {
+                notify({ kind: 'alerta', title: `Etiqueta “${t.name}” aplicada`, body: contact.name, link: `/inbox?c=${conv.id}` })
+              }
+              if (rules.length) toast(`Etiqueta “${t.name}” aplicada`, { description: rules.map((r) => r.text).join(' · ') })
+            }}
+          >
+            <button className="inline-flex h-6 items-center gap-0.5 rounded-full border border-dashed border-border-strong px-2.5 text-xs text-muted hover:border-primary hover:text-primary">
+              <Plus className="size-3" /> etiqueta
+            </button>
+          </TagPicker>
         </div>
         <Button className="mt-4 w-full" onClick={() => openNewAppointment(contact.id)}>
           <CalendarPlus /> Agendar horário

@@ -24,7 +24,7 @@ const presenceLabel = { online: 'Disponível', away: 'Ausente', busy: 'Ocupado',
 
 /** Gerente administra a própria empresa: cria analistas que atendem pelo WhatsApp único da empresa. */
 export function TeamPage() {
-  const { signature, setSignature } = useAppState()
+  const { signature, setSignature, resolveUser } = useAppState()
   const [open, setOpen] = useState(false)
   const [detail, setDetail] = useState<DetailUser | null>(null)
 
@@ -38,7 +38,7 @@ export function TeamPage() {
         <Card>
           <CardHeader title="Usuários" description="Gerentes administram a empresa · Analistas atendem os clientes" />
           <div className="flex flex-col">
-            {users.map((u) => (
+            {users.map(resolveUser).map((u) => (
               <div
                 key={u.id}
                 role="button"

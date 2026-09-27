@@ -5,6 +5,7 @@ declare global {
       isDesktop: true
       platform: NodeJS.Platform | string
       setTitleBarTheme: (theme: 'light' | 'dark') => void
+      flashFrame: () => void
     }
   }
 }

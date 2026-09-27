@@ -16,6 +16,8 @@ import { ChannelBadge } from '@/components/brand'
 import { Button } from '@/components/ui/button'
 import { Avatar, Segmented } from '@/components/ui/misc'
 import { Sheet } from '@/components/ui/overlay'
+import { TagChip } from '@/components/tags'
+import { useTags } from '@/lib/tags'
 import { cn } from '@/lib/utils'
 import { contactById, conversations, kanban as initial, userById, type KanbanCard, type KanbanStage } from '@/data/mock'
 
@@ -149,13 +151,15 @@ function CardView({ card, dragging }: { card: KanbanCard; dragging?: boolean }) 
   const conv = conversations.find((v) => v.id === card.conversationId)!
   const contact = contactById(conv.contactId)
   const agent = userById(conv.assignee)
+  const { tagsOf, rulesOf } = useTags()
+  const tags = tagsOf(conv.contactId)
   return (
     <div
       onDoubleClick={() => navigate(`/inbox?c=${conv.id}`)}
       className={cn(
         'cursor-grab rounded-xl border border-border bg-surface p-3 shadow-(--shadow-soft) transition-shadow hover:shadow-md active:cursor-grabbing',
         dragging && 'rotate-2 shadow-(--shadow-pop)',
-        card.stage === 'humano' && conv.tags.includes('Reclamação') && 'border-l-[3px] border-l-danger'
+        card.stage !== 'concluido' && rulesOf(conv.contactId).priority && 'border-l-[3px] border-l-danger'
       )}
     >
       <div className="flex items-center gap-2.5">
@@ -178,9 +182,9 @@ function CardView({ card, dragging }: { card: KanbanCard; dragging?: boolean }) 
       )}
 
       <div className="mt-3 flex items-center justify-between">
-        <div className="flex gap-1">
-          {conv.tags.slice(0, 2).map((t) => (
-            <span key={t} className="rounded-md bg-surface-2 px-1.5 whitespace-nowrap py-0.5 text-[10.5px] font-medium text-muted">{t}</span>
+        <div className="flex min-w-0 flex-wrap gap-1">
+          {tags.slice(0, 2).map((t) => (
+            <TagChip key={t.id} tag={t} />
           ))}
         </div>
         {conv.aiEnabled && !agent ? (

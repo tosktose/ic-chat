@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import {
   Building2,
@@ -15,14 +15,18 @@ import {
   Scissors,
   Server,
   Sun,
+  Tags,
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Page } from '@/components/layout/Page'
+import { Dialog } from '@/components/ui/overlay'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select } from '@/components/ui/input'
 import { Avatar, Badge, Card, CardHeader, Progress, Segmented } from '@/components/ui/misc'
+import { RuleIcons, TagChip, TagEditorDialog } from '@/components/tags'
 import { useAppState, type LicenseState } from '@/lib/app-state'
+import { useTags, type Tag } from '@/lib/tags'
 import { useTheme } from '@/lib/theme'
 import { brl, cn } from '@/lib/utils'
 import { company, professionals, quickReplies, services } from '@/data/mock'
@@ -31,6 +35,7 @@ const TABS = [
   { id: 'empresa', label: 'Empresa', icon: Building2 },
   { id: 'profissionais', label: 'Profissionais', icon: Scissors },
   { id: 'servicos', label: 'Serviços', icon: Clock },
+  { id: 'etiquetas', label: 'Etiquetas', icon: Tags },
   { id: 'respostas', label: 'Respostas rápidas', icon: MessageSquareText },
   { id: 'licenca', label: 'Licença', icon: KeyRound },
   { id: 'aparencia', label: 'Aparência', icon: Palette }
@@ -64,6 +69,7 @@ export function SettingsPage() {
           {tab === 'empresa' && <CompanyTab />}
           {tab === 'profissionais' && <ProfessionalsTab />}
           {tab === 'servicos' && <ServicesTab />}
+          {tab === 'etiquetas' && <TagsTab />}
           {tab === 'respostas' && <QuickRepliesTab />}
           {tab === 'licenca' && <LicenseTab />}
           {tab === 'aparencia' && <AppearanceTab />}
@@ -163,6 +169,83 @@ function ServicesTab() {
         </tbody>
       </table>
     </Card>
+  )
+}
+
+function TagsTab() {
+  const { tags, countOf } = useTags()
+  const [editing, setEditing] = useState<Tag | null | 'new'>(null)
+  const [deleting, setDeleting] = useState<Tag | null>(null)
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader
+        title="Etiquetas"
+        description="Organizam os clientes e, com regras, mudam como o atendimento funciona"
+        action={<Button size="sm" onClick={() => setEditing('new')}><Plus /> Nova etiqueta</Button>}
+      />
+      <div className="scroll-thin overflow-x-auto">
+        <table className="w-full min-w-[620px] text-[13.5px]">
+          <thead>
+            <tr className="border-y border-border bg-surface-2/60 text-left text-[11px] font-semibold tracking-wider text-subtle uppercase">
+              <th className="px-5 py-2.5">Etiqueta</th>
+              <th className="px-3 py-2.5">O que faz</th>
+              <th className="px-3 py-2.5 text-right">Clientes</th>
+              <th className="w-24 px-3 py-2.5 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tags.map((t) => (
+              <tr key={t.id} onClick={() => setEditing(t)} className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-2/40">
+                <td className="px-5 py-3">
+                  <TagChip tag={t} size="md" />
+                  {t.description && <p className="mt-1 text-xs text-muted">{t.description}</p>}
+                </td>
+                <td className="px-3 py-3"><RuleIcons rules={t.rules} /></td>
+                <td className="px-3 py-3 text-right tabular-nums">{countOf(t.id)}</td>
+                <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex justify-end gap-0.5">
+                    <Button variant="ghost" size="icon-sm" aria-label={`Editar ${t.name}`} onClick={() => setEditing(t)}><Pencil /></Button>
+                    <Button variant="ghost" size="icon-sm" className="hover:text-danger" aria-label={`Excluir ${t.name}`} onClick={() => setDeleting(t)}><Trash2 /></Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <TagEditorDialog tag={editing === 'new' ? null : editing} open={editing !== null} onClose={() => setEditing(null)} />
+      <DeleteTagDialog tag={deleting} onClose={() => setDeleting(null)} />
+    </Card>
+  )
+}
+
+function DeleteTagDialog({ tag, onClose }: { tag: Tag | null; onClose: () => void }) {
+  const { deleteTag, countOf } = useTags()
+  const n = tag ? countOf(tag.id) : 0
+  return (
+    <Dialog
+      open={Boolean(tag)}
+      onOpenChange={(v) => !v && onClose()}
+      title="Excluir etiqueta?"
+      description={tag ? `“${tag.name}” será removida de ${n} ${n === 1 ? 'cliente' : 'clientes'} e as regras dela deixam de valer.` : ''}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              if (tag) deleteTag(tag.id)
+              toast.success('Etiqueta excluída')
+              onClose()
+            }}
+          >
+            <Trash2 /> Excluir
+          </Button>
+        </>
+      }
+    >
+      {tag && <TagChip tag={tag} size="md" />}
+    </Dialog>
   )
 }
 

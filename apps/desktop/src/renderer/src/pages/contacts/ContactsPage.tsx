@@ -4,14 +4,22 @@ import { Download, MessageSquare, Search, Upload, UserPlus } from 'lucide-react'
 import { Page } from '@/components/layout/Page'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Avatar, Badge, Card } from '@/components/ui/misc'
-import { brl, formatPhone } from '@/lib/utils'
+import { Avatar, Card } from '@/components/ui/misc'
+import { TagChip } from '@/components/tags'
+import { TAG_COLORS, useTags } from '@/lib/tags'
+import { brl, cn, formatPhone } from '@/lib/utils'
 import { contacts, conversations, professionalById } from '@/data/mock'
 
 export function ContactsPage() {
   const [q, setQ] = useState('')
+  const [tagFilter, setTagFilter] = useState<string | null>(null)
   const navigate = useNavigate()
-  const list = contacts.filter((c) => (c.name + c.phone + c.tags.join(' ')).toLowerCase().includes(q.toLowerCase()))
+  const { tags, tagsOf, hasTag, countOf } = useTags()
+  const list = contacts.filter(
+    (c) =>
+      (!tagFilter || hasTag(c.id, tagFilter)) &&
+      (c.name + c.phone + tagsOf(c.id).map((t) => t.name).join(' ')).toLowerCase().includes(q.toLowerCase())
+  )
   const openChat = (contactId: string) => {
     const conv = conversations.find((v) => v.contactId === contactId)
     navigate(conv ? `/inbox?c=${conv.id}` : '/inbox')
@@ -29,8 +37,28 @@ export function ContactsPage() {
         </>
       }
     >
-      <div className="mb-4 max-w-md">
+      <div className="mb-3 max-w-md">
         <Input icon={<Search />} placeholder="Buscar por nome, telefone ou etiqueta" value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+      <div className="scroll-thin -mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-1">
+        <button
+          onClick={() => setTagFilter(null)}
+          className={cn('h-7 shrink-0 rounded-full px-3 text-xs font-medium whitespace-nowrap', !tagFilter ? 'bg-foreground text-background' : 'bg-surface-2 text-muted hover:text-foreground')}
+        >
+          Todos · {contacts.length}
+        </button>
+        {tags.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTagFilter(tagFilter === t.id ? null : t.id)}
+            className={cn(
+              'flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium whitespace-nowrap',
+              tagFilter === t.id ? 'border-primary bg-primary-soft text-primary' : 'border-border text-muted hover:text-foreground'
+            )}
+          >
+            <span className={cn('size-2 rounded-full', TAG_COLORS[t.color].dot)} /> {t.name} · {countOf(t.id)}
+          </button>
+        ))}
       </div>
 
       {/* Tabela (tablet/desktop) */}
@@ -62,8 +90,8 @@ export function ContactsPage() {
                 <td className="px-3 py-3 text-muted tabular-nums">{formatPhone(c.phone)}</td>
                 <td className="hidden px-3 py-3 lg:table-cell">
                   <div className="flex flex-wrap gap-1">
-                    {c.tags.map((t) => (
-                      <Badge key={t} tone={t === 'VIP' ? 'warning' : t === 'Reclamação' ? 'danger' : 'primary'}>{t}</Badge>
+                    {tagsOf(c.id).map((t) => (
+                      <TagChip key={t.id} tag={t} />
                     ))}
                   </div>
                 </td>
@@ -89,11 +117,11 @@ export function ContactsPage() {
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold">{c.name}</p>
               <p className="text-[13px] text-muted">{formatPhone(c.phone)}</p>
-              {c.tags.length > 0 && (
-                <div className="mt-1.5 flex gap-1">
-                  {c.tags.map((t) => (
-                    <Badge key={t} tone="primary">{t}</Badge>
-                  ))}
+              {tagsOf(c.id).length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {tagsOf(c.id).map((t) => (
+                      <TagChip key={t.id} tag={t} />
+                    ))}
                 </div>
               )}
             </div>

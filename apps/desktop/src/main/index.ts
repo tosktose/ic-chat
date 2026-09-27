@@ -5,6 +5,9 @@ const __dirname = import.meta.dirname
 
 const isMac = process.platform === 'darwin'
 
+// Sons de notificação tocam mesmo antes do primeiro clique na janela
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
+
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -32,6 +35,7 @@ function createWindow(): BrowserWindow {
   })
 
   win.once('ready-to-show', () => win.show())
+  win.on('focus', () => win.flashFrame(false))
 
   // Links externos abrem no navegador padrão
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -59,6 +63,11 @@ app.whenReady().then(() => {
       symbolColor: theme === 'dark' ? '#cbd5e1' : '#475569',
       height: 48
     })
+  })
+
+  ipcMain.on('window:flash', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win && !win.isFocused()) win.flashFrame(true)
   })
 
   createWindow()

@@ -31,6 +31,7 @@
     "electron": "^44.4.5",
     "electron-builder": "^26.0.0",
     "electron-vite": "^5.0.0",
+    "emoji-picker-react": "^4.22.2",
     "lucide-react": "^1.48.0",
     "png-to-ico": "^3.0.2",
     "radix-ui": "^1.4.0",

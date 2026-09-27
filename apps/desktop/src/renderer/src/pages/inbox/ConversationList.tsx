@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
-import { Bot, ListFilter, Search, SquarePen } from 'lucide-react'
+import { Timer, Bot, ListFilter, Search, SquarePen } from 'lucide-react'
 import { ChannelBadge, channelLabel, type ChannelKind } from '@/components/brand'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Avatar, Segmented } from '@/components/ui/misc'
+import { Avatar, Segmented, Tooltip } from '@/components/ui/misc'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from '@/components/ui/overlay'
 import { cn } from '@/lib/utils'
+import { TagChip } from '@/components/tags'
 import { useAppState } from '@/lib/app-state'
+import { TAG_COLORS, useTags } from '@/lib/tags'
 import { contactById, type Conversation, type ConversationStatus } from '@/data/mock'
 
 type Tab = 'minhas' | 'fila' | 'todas'
@@ -35,6 +37,8 @@ export function ConversationList({
   const [tab, setTab] = useState<Tab>(isAnalyst ? 'minhas' : 'todas')
   const [q, setQ] = useState('')
   const [channel, setChannel] = useState<ChannelKind | 'all'>('all')
+  const [tagFilter, setTagFilter] = useState<string | null>(null)
+  const { tags, hasTag, rulesOf } = useTags()
 
   const counts = {
     minhas: conversations.filter((c) => c.assignee === me.id && c.status !== 'resolvida').length,
@@ -43,17 +47,23 @@ export function ConversationList({
   }
 
   const list = useMemo(() => {
-    return conversations.filter((c) => {
+    const filtered = conversations.filter((c) => {
       if (tab === 'minhas' && c.assignee !== me.id) return false
       if (tab === 'fila' && c.assignee) return false
       if (channel !== 'all' && c.channel !== channel) return false
+      if (tagFilter && !hasTag(c.contactId, tagFilter)) return false
       if (q) {
         const contact = contactById(c.contactId)
         if (!(contact.name + c.lastMessage).toLowerCase().includes(q.toLowerCase())) return false
       }
       return true
     })
-  }, [tab, q, channel, conversations, me.id])
+    // Regra das etiquetas: conversas com etiqueta de prioridade (e não resolvidas) sobem para o topo
+    const prio = (c: Conversation) => (c.status !== 'resolvida' && rulesOf(c.contactId).priority ? 1 : 0)
+    return filtered.map((c, i) => ({ c, i })).sort((a, b) => prio(b.c) - prio(a.c) || a.i - b.i).map((x) => x.c)
+  }, [tab, q, channel, tagFilter, conversations, me.id, hasTag, rulesOf])
+
+  const activeTag = tags.find((t) => t.id === tagFilter)
 
   return (
     <section className={cn('flex min-h-0 flex-col border-r border-border bg-surface', className)}>
@@ -62,7 +72,7 @@ export function ConversationList({
           <Input icon={<Search />} placeholder="Buscar conversa" value={q} onChange={(e) => setQ(e.target.value)} />
           <Menu>
             <MenuTrigger asChild>
-              <Button variant={channel === 'all' ? 'outline' : 'soft'} size="icon" aria-label="Filtrar por canal">
+              <Button variant={channel === 'all' && !tagFilter ? 'outline' : 'soft'} size="icon" aria-label="Filtrar por canal ou etiqueta">
                 <ListFilter />
               </Button>
             </MenuTrigger>
@@ -74,12 +84,30 @@ export function ConversationList({
                   {channelLabel(k)}
                 </MenuItem>
               ))}
+              <MenuLabel>Etiqueta</MenuLabel>
+              <MenuItem onSelect={() => setTagFilter(null)}>Todas as etiquetas</MenuItem>
+              {tags.map((t) => (
+                <MenuItem key={t.id} onSelect={() => setTagFilter(t.id)} icon={<span className={cn('ml-1 size-2.5 rounded-full', TAG_COLORS[t.color].dot)} />}>
+                  {t.name}
+                </MenuItem>
+              ))}
             </MenuContent>
           </Menu>
           <Button size="icon" aria-label="Nova conversa">
             <SquarePen />
           </Button>
         </div>
+        {(activeTag || channel !== 'all') && (
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
+            Filtrando:
+            {channel !== 'all' && (
+              <button onClick={() => setChannel('all')} className="inline-flex h-5 items-center gap-1 rounded-full bg-surface-2 px-2 font-medium text-foreground">
+                {channelLabel(channel)} ×
+              </button>
+            )}
+            {activeTag && <TagChip tag={activeTag} onRemove={() => setTagFilter(null)} />}
+          </div>
+        )}
         <Segmented
           value={tab}
           onChange={setTab}
@@ -106,14 +134,19 @@ export function ConversationList({
 function ConversationRow({ conv, active, onClick }: { conv: Conversation; active: boolean; onClick: () => void }) {
   const contact = contactById(conv.contactId)
   const status = statusMeta[conv.status]
+  const { tagsOf, rulesOf } = useTags()
+  const tags = tagsOf(conv.contactId)
+  const rules = rulesOf(conv.contactId)
+  const urgent = rules.priority && conv.status !== 'resolvida'
   return (
     <button
       onClick={onClick}
       className={cn(
-        'group flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors',
+        'group relative flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors',
         active ? 'bg-primary-soft' : 'hover:bg-surface-2'
       )}
     >
+      {urgent && <span className="absolute top-3 bottom-3 left-0 w-[3px] rounded-r-full bg-danger" />}
       <Avatar name={contact.name} size={44} badge={<ChannelBadge kind={conv.channel} size={18} />} />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
@@ -133,11 +166,17 @@ function ConversationRow({ conv, active, onClick }: { conv: Conversation; active
             {conv.status === 'ia' && <Bot className="size-3" />}
             {status.label}
           </span>
-          {conv.tags.slice(0, 1).map((t) => (
-            <span key={t} className="inline-flex h-5 min-w-0 items-center truncate rounded-full border border-border px-2 text-[10.5px] whitespace-nowrap text-muted">
-              {t}
-            </span>
+          {urgent && rules.minSla && conv.unread > 0 && (
+            <Tooltip content={`Responder em até ${rules.minSla} minutos`} description="Prazo definido pela etiqueta do cliente">
+              <span className="inline-flex h-5 shrink-0 items-center gap-0.5 rounded-full bg-danger px-1.5 text-[10.5px] font-semibold whitespace-nowrap text-white">
+                <Timer className="size-3" /> {rules.minSla}min
+              </span>
+            </Tooltip>
+          )}
+          {tags.slice(0, 2).map((t) => (
+            <TagChip key={t.id} tag={t} className="min-w-0" />
           ))}
+          {tags.length > 2 && <span className="text-[10.5px] text-subtle">+{tags.length - 2}</span>}
         </div>
       </div>
     </button>

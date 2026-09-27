@@ -5,6 +5,8 @@ import { Toaster } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { canAccess, homeByRole } from '@/components/layout/nav'
 import { AppStateProvider, useAppState } from '@/lib/app-state'
+import { NotificationsProvider } from '@/lib/notifications'
+import { TagsProvider } from '@/lib/tags'
 import { ThemeProvider, useTheme } from '@/lib/theme'
 import { AdminPage } from '@/pages/admin/AdminPage'
 import { AdminLicensesPage } from '@/pages/admin/AdminLicensesPage'
@@ -20,6 +22,7 @@ import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { InboxPage } from '@/pages/inbox/InboxPage'
 import { KanbanPage } from '@/pages/kanban/KanbanPage'
 import { LoginPage } from '@/pages/LoginPage'
+import { ProfilePage } from '@/pages/profile/ProfilePage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { TeamPage } from '@/pages/team/TeamPage'
 
@@ -47,6 +50,8 @@ export function App() {
       <AppStateProvider>
         <Tooltip.Provider>
           <HashRouter>
+            <NotificationsProvider>
+            <TagsProvider>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route element={<AppShell />}>
@@ -61,6 +66,8 @@ export function App() {
                 <Route path="/inbox" element={<Guard><InboxPage /></Guard>} />
                 <Route path="/agenda" element={<Guard><AgendaPage /></Guard>} />
                 <Route path="/contatos" element={<Guard><ContactsPage /></Guard>} />
+                {/* Todos os perfis */}
+                <Route path="/perfil" element={<Guard><ProfilePage /></Guard>} />
                 {/* Analista */}
                 <Route path="/meu-painel" element={<Guard><MyPerformancePage /></Guard>} />
                 {/* Super Admin (dono do SaaS) */}
@@ -73,6 +80,8 @@ export function App() {
               <Route path="/" element={<Home />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
+            </TagsProvider>
+            </NotificationsProvider>
           </HashRouter>
           <ThemedToaster />
         </Tooltip.Provider>

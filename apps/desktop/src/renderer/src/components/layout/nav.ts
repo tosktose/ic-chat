@@ -78,10 +78,15 @@ export function navFor(role: Role): NavItem[] {
 }
 
 export function navByPath(role: Role, path: string): NavItem | undefined {
+  if (path.startsWith('/perfil')) return { to: '/perfil', label: 'Meu perfil', icon: Settings, group: '' }
   // Prefere o caminho mais específico (ex.: /admin/planos antes de /admin)
   return [...navByRole[role]].sort((a, b) => b.to.length - a.to.length).find((n) => path.startsWith(n.to))
 }
 
+/** Telas que todo usuário logado acessa */
+const COMMON = ['/perfil']
+
 export function canAccess(role: Role, path: string): boolean {
+  if (COMMON.includes(path)) return true
   return navByRole[role].some((n) => path === n.to || path.startsWith(n.to + '/'))
 }

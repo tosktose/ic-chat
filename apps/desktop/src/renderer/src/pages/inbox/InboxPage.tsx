@@ -18,6 +18,8 @@ import { Button } from '@/components/ui/button'
 import { Avatar, EmptyState, Switch, Tooltip } from '@/components/ui/misc'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Sheet } from '@/components/ui/overlay'
 import { useAppState } from '@/lib/app-state'
+import { useNotifications } from '@/lib/notifications'
+import { TAG_COLORS, useTags } from '@/lib/tags'
 import { useMediaQuery } from '@/lib/use-media'
 import { cn } from '@/lib/utils'
 import { contactById, conversations, userById, users, type Message } from '@/data/mock'
@@ -110,30 +112,53 @@ function ChatPane({
 }) {
   const conv = conversations.find((c) => c.id === convId)!
   const contact = contactById(conv.contactId)
-  const { license, me, signature } = useAppState()
+  const { license, me, signature, myDisplayName, resolveUser } = useAppState()
+  const { notify } = useNotifications()
+  const { rulesOf } = useTags()
+  const tagRules = rulesOf(conv.contactId)
   const [messages, setMessages] = useState<Message[]>(conv.messages)
   const [aiOn, setAiOn] = useState(conv.aiEnabled)
   const [assignee, setAssignee] = useState(conv.assignee)
   const endRef = useRef<HTMLDivElement>(null)
   const status = statusMeta[conv.status]
-  const agent = userById(assignee)
+  const agent = resolveUser(userById(assignee))
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' })
   }, [messages])
+
+  // Regra "IA não responde": desliga a IA desta conversa enquanto a etiqueta existir
+  useEffect(() => {
+    if (tagRules.pauseAi) setAiOn(false)
+  }, [tagRules.pauseAi])
+
+  // Regra "Direcionar para": quando a etiqueta é aplicada, a conversa vai para o analista definido
+  const lastAssignRule = useRef(tagRules.assignTo)
+  useEffect(() => {
+    const target = tagRules.assignTo
+    if (target && target !== lastAssignRule.current && target !== assignee) {
+      const u = resolveUser(userById(target))
+      setAssignee(target)
+      setMessages((m) => [...m, { id: crypto.randomUUID(), from: 'system', kind: 'system', text: `Etiqueta direcionou a conversa para ${u?.name.split(' ')[0]}`, time: now() }])
+    }
+    lastAssignRule.current = target
+  }, [tagRules.assignTo])
 
   const now = () => new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
   const firstName = (n: string) => n.split(' ')[0]
 
   // O WhatsApp é um só (da empresa); o que muda é quem responde. Fica registrado na conversa.
   const assignTo = (userId: string) => {
-    const target = userById(userId)!
+    const target = resolveUser(userById(userId))!
     const text =
       userId === me.id
-        ? `${firstName(me.name)} assumiu o atendimento`
-        : `${firstName(me.name)} transferiu para ${firstName(target.name)}`
+        ? `${myDisplayName} assumiu o atendimento`
+        : `${myDisplayName} transferiu para ${firstName(target.name)}`
     setAssignee(userId)
     setMessages((m) => [...m, { id: crypto.randomUUID(), from: 'system', kind: 'system', text, time: now() }])
+    if (userId !== me.id) {
+      notify({ kind: 'equipe', title: 'Conversa transferida', body: `${contact.name} agora está com ${firstName(target.name)}.`, link: `/inbox?c=${conv.id}` })
+    }
   }
 
   const send = (text: string, note: boolean) => {
@@ -141,7 +166,7 @@ function ChatPane({
     if (!note && assignee !== me.id) assignTo(me.id)
     setMessages((m) => [
       ...m,
-      { id: crypto.randomUUID(), from: 'agent', author: firstName(me.name), kind: note ? 'note' : 'text', text, time: now(), status: 'sent' }
+      { id: crypto.randomUUID(), from: 'agent', author: myDisplayName, kind: note ? 'note' : 'text', text, time: now(), status: 'sent' }
     ])
   }
 
@@ -173,11 +198,15 @@ function ChatPane({
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
-          <Tooltip content={aiOn ? 'IA respondendo nesta conversa' : 'IA pausada nesta conversa'} side="bottom">
+          <Tooltip
+            content={tagRules.pauseAi ? 'IA bloqueada por etiqueta' : aiOn ? 'IA respondendo nesta conversa' : 'IA pausada nesta conversa'}
+            description={tagRules.pauseAi ? 'Uma etiqueta do cliente manda a conversa direto para a equipe' : undefined}
+            side="bottom"
+          >
             <label className="hidden cursor-pointer items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-[12.5px] font-medium whitespace-nowrap @md:flex">
               <Bot className={cn('size-4', aiOn ? 'text-violet-500' : 'text-subtle')} />
               <span className="hidden @3xl:inline">IA</span>
-              <Switch checked={aiOn} onCheckedChange={setAiOn} aria-label="IA nesta conversa" />
+              <Switch checked={aiOn} onCheckedChange={(v) => !tagRules.pauseAi && setAiOn(v)} aria-label="IA nesta conversa" />
             </label>
           </Tooltip>
 
@@ -220,7 +249,7 @@ function ChatPane({
                 .filter((u) => u.id !== assignee && u.role === 'analista')
                 .map((u) => (
                   <MenuItem key={u.id} icon={<ArrowRightLeft />} onSelect={() => assignTo(u.id)}>
-                    {u.name}
+                    {resolveUser(u).name}
                   </MenuItem>
                 ))}
               <MenuSeparator />
@@ -230,6 +259,18 @@ function ChatPane({
           </Menu>
         </div>
       </header>
+
+      {/* Avisos fixos das etiquetas do cliente */}
+      {tagRules.alerts.length > 0 && (
+        <div className="flex flex-col gap-1 border-b border-border bg-surface px-3 py-2 md:px-4">
+          {tagRules.alerts.map((a) => (
+            <div key={a.tag.id} className={cn('flex items-start gap-2 rounded-lg px-3 py-1.5 text-[12.5px] font-medium', TAG_COLORS[a.tag.color].chip)}>
+              <span className="mt-[5px] size-1.5 shrink-0 rounded-full bg-current" />
+              <span><b>{a.tag.name}:</b> {a.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Mensagens */}
       <div className="chat-pattern scroll-thin flex-1 overflow-y-auto px-3 py-4 md:px-8">
@@ -251,7 +292,7 @@ function ChatPane({
       <Composer
         disabled={license.state === 'restrito'}
         onSend={send}
-        senderName={signature ? firstName(me.name) : undefined}
+        senderName={signature ? myDisplayName : undefined}
         companyNumber="(11) 98765-4321"
       />
     </section>

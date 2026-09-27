@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarPlus, CircleAlert, Clock } from 'lucide-react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { Switch } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
 import { useAppState } from '@/lib/app-state'
+import { useNotifications } from '@/lib/notifications'
 import { brl, cn } from '@/lib/utils'
 import { contactById, contacts, professionals, services, TODAY } from '@/data/mock'
 
@@ -25,13 +25,14 @@ const toHHMM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${
  */
 export function NewAppointmentDialog() {
   const { apptDialog, closeNewAppointment, appointments, addAppointment } = useAppState()
+  const { notify } = useNotifications()
   const [contactId, setContactId] = useState(contacts[0].id)
   const [serviceId, setServiceId] = useState(services[0].id)
   const [proId, setProId] = useState(professionals[0].id)
   const [date, setDate] = useState(TODAY)
   const [time, setTime] = useState('')
   const [notes, setNotes] = useState('')
-  const [notify, setNotify] = useState(true)
+  const [sendConfirmation, setSendConfirmation] = useState(true)
 
   // Ao abrir, já preenche com o cliente da conversa e o profissional preferido dele
   useEffect(() => {
@@ -86,8 +87,11 @@ export function NewAppointmentDialog() {
     const c = contactById(contactId)
     const pro = professionals.find((p) => p.id === proId)!
     closeNewAppointment()
-    toast.success('Horário agendado', {
-      description: `${c.name} · ${service.name} com ${pro.name.split(' ')[0]} às ${toHHMM(start)}${notify ? ' · confirmação enviada por WhatsApp' : ''}`
+    notify({
+      kind: 'agenda',
+      title: 'Horário agendado',
+      body: `${c.name} · ${service.name} com ${pro.name.split(' ')[0]} às ${toHHMM(start)}${sendConfirmation ? ' · confirmação enviada por WhatsApp' : ''}`,
+      link: '/agenda'
     })
   }
 
@@ -175,7 +179,7 @@ export function NewAppointmentDialog() {
             <p className="text-[13.5px] font-medium">Enviar confirmação por WhatsApp</p>
             <p className="text-xs text-muted">E lembrete automático 24h antes</p>
           </div>
-          <Switch checked={notify} onCheckedChange={setNotify} />
+          <Switch checked={sendConfirmation} onCheckedChange={setSendConfirmation} />
         </label>
         {start !== null && !conflict && (
           <div className="flex items-center justify-between rounded-xl bg-primary-soft px-4 py-3 text-[13.5px] text-primary sm:col-span-2">

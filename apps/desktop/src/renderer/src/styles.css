@@ -232,3 +232,21 @@
 html[data-density='compact'] {
   font-size: 14.5px;
 }
+
+/* Seletor de emojis com as cores do IC Chat */
+.icchat-emoji .EmojiPickerReact {
+  --epr-bg-color: var(--surface);
+  --epr-category-label-bg-color: color-mix(in srgb, var(--surface) 92%, transparent);
+  --epr-hover-bg-color: var(--surface-2);
+  --epr-focus-bg-color: var(--primary-soft);
+  --epr-highlight-color: var(--primary);
+  --epr-search-input-bg-color: var(--surface-2);
+  --epr-search-input-bg-color-active: var(--surface);
+  --epr-search-border-color: var(--primary);
+  --epr-picker-border-color: transparent;
+  --epr-text-color: var(--foreground);
+  --epr-category-icon-active-color: var(--primary);
+  --epr-emoji-size: 28px;
+  font-family: var(--font-sans);
+  border-radius: 0 !important;
+}

@@ -27,7 +27,17 @@ interface AppState {
   /** Perfil logado: define o painel e o menu que a pessoa vê */
   role: Role
   me: User
+  /** Nome que o cliente vê nas mensagens (padrão: primeiro nome) */
+  myDisplayName: string
+  myPhone?: string
+  /** Salva nome, nome exibido e celular do usuário logado — reflete no sistema todo */
+  updateMyProfile: (p: ProfileOverride) => void
+  /** Aplica as alterações de perfil a qualquer usuário (listas, conversas, painel) */
+  resolveUser: <U extends User | undefined>(u: U) => U
   signIn: (role: Role) => void
+  /** Foto do usuário logado (data URL) */
+  myPhoto?: string
+  setMyPhoto: (url?: string) => void
   /** Agendamentos (em memória até o Core estar ligado) */
   appointments: Appointment[]
   addAppointment: (a: Omit<Appointment, 'id'>) => void
@@ -48,6 +58,12 @@ interface AppState {
   setSidebarHidden: (v: boolean) => void
   commandOpen: boolean
   setCommandOpen: (v: boolean) => void
+}
+
+export interface ProfileOverride {
+  name?: string
+  displayName?: string
+  phone?: string
 }
 
 const Ctx = createContext<AppState | null>(null)
@@ -80,6 +96,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [commandOpen, setCommandOpen] = useState(false)
   const [appointments, setAppointments] = useState<Appointment[]>(seedAppointments)
   const [signature, setSignature] = useState(true)
+  const [photos, setPhotos] = useState<Record<string, string | undefined>>({})
+  const [profiles, setProfiles] = useState<Record<string, ProfileOverride>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('icchat.profiles') ?? '{}')
+    } catch {
+      return {}
+    }
+  })
+  const resolveUser = <U extends User | undefined>(u: U): U =>
+    (u && profiles[u.id]?.name ? { ...u, name: profiles[u.id].name } : u) as U
   const [apptDialog, setApptDialog] = useState<{ open: boolean; contactId?: string }>({ open: false })
   const [role, setRole] = useState<Role>(() => {
     try {
@@ -94,7 +120,42 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider
       value={{
         role,
-        me: sessionUsers[role],
+        me: resolveUser(sessionUsers[role]),
+        myDisplayName:
+          profiles[sessionUsers[role].id]?.displayName || resolveUser(sessionUsers[role]).name.split(' ')[0],
+        myPhone: profiles[sessionUsers[role].id]?.phone,
+        resolveUser,
+        updateMyProfile: (p) => {
+          const id = sessionUsers[role].id
+          setProfiles((all) => {
+            const next = { ...all, [id]: { ...all[id], ...p } }
+            try {
+              localStorage.setItem('icchat.profiles', JSON.stringify(next))
+            } catch {
+              /* ignore */
+            }
+            return next
+          })
+        },
+        myPhoto:
+          photos[sessionUsers[role].id] ??
+          (() => {
+            try {
+              return localStorage.getItem(`icchat.photo.${sessionUsers[role].id}`) ?? undefined
+            } catch {
+              return undefined
+            }
+          })(),
+        setMyPhoto: (url) => {
+          const id = sessionUsers[role].id
+          setPhotos((p) => ({ ...p, [id]: url }))
+          try {
+            if (url) localStorage.setItem(`icchat.photo.${id}`, url)
+            else localStorage.removeItem(`icchat.photo.${id}`)
+          } catch {
+            /* sem espaço: mantém só nesta sessão */
+          }
+        },
         appointments,
         addAppointment: (a) => setAppointments((list) => [...list, { ...a, id: crypto.randomUUID() }]),
         setAppointmentStatus: (id, status) =>

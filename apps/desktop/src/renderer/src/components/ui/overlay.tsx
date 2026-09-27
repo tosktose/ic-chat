@@ -4,6 +4,14 @@ import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip } from './misc'
 
+
+/** Ao abrir, não coloca foco no primeiro botão (evita abrir a dica "Fechar" sozinha); foca o painel. */
+const focusPanel = (e: Event) => {
+  e.preventDefault()
+  const el = e.currentTarget as HTMLElement
+  if (!el.contains(document.activeElement)) el.focus()
+}
+
 /* ---------------- Dialog (modal central; vira "folha" de baixo no celular) ---------------- */
 export function Dialog({
   open,
@@ -27,6 +35,7 @@ export function Dialog({
       <RDialog.Portal>
         <RDialog.Overlay className="fixed inset-0 z-50 animate-fade-in bg-slate-950/40 backdrop-blur-[2px]" />
         <RDialog.Content
+          onOpenAutoFocus={focusPanel}
           className={cn(
             'fixed z-50 flex max-h-[92dvh] w-full flex-col bg-surface shadow-(--shadow-pop) outline-none',
             'inset-x-0 bottom-0 animate-slide-up rounded-t-2xl',
@@ -83,6 +92,7 @@ export function Sheet({
       <RDialog.Portal>
         <RDialog.Overlay className="fixed inset-0 z-50 animate-fade-in bg-slate-950/40" />
         <RDialog.Content
+          onOpenAutoFocus={focusPanel}
           className={cn(
             'fixed inset-y-0 z-50 flex w-[88vw] max-w-sm flex-col bg-surface shadow-(--shadow-pop) outline-none',
             side === 'right' ? 'right-0 animate-slide-in-right' : 'left-0 animate-slide-in-left',

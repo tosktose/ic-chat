@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import {
-  Bell,
   ChevronsUpDown,
   CircleAlert,
   KeyRound,
@@ -20,6 +19,7 @@ import { Avatar, Badge, Tooltip } from '@/components/ui/misc'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Sheet } from '@/components/ui/overlay'
 import { CommandPalette } from '@/components/layout/CommandPalette'
 import { NewAppointmentDialog } from '@/components/NewAppointmentDialog'
+import { NotificationBell } from '@/components/layout/NotificationBell'
 import { navByPath, navFor, roleLabel, type NavItem } from '@/components/layout/nav'
 import { useAppState } from '@/lib/app-state'
 import { useTheme } from '@/lib/theme'
@@ -255,12 +255,7 @@ function TopBar() {
         <LicensePill onClick={() => navigate(role === 'gerente' ? '/config?tab=licenca' : '/inbox')} state={license.state} days={license.daysLeft} />
       )}
 
-      <Tooltip content="Notificações" description="3 novas" side="bottom">
-        <button className="relative flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-foreground" aria-label="Notificações">
-          <Bell className="size-[18px]" />
-          <span className="absolute top-2 right-2 size-2 rounded-full bg-danger ring-2 ring-surface" />
-        </button>
-      </Tooltip>
+      <NotificationBell />
 
       <UserMenu />
     </header>
@@ -288,7 +283,7 @@ function LicensePill({ state, days, onClick }: { state: string; days: number; on
 
 function UserMenu() {
   const { theme, setTheme } = useTheme()
-  const { me, role } = useAppState()
+  const { me, role, myPhoto } = useAppState()
   const navigate = useNavigate()
   const [status, setStatus] = useState<'online' | 'away' | 'busy'>('online')
   const statusLabel = { online: 'Disponível', away: 'Ausente', busy: 'Ocupado' }
@@ -297,7 +292,7 @@ function UserMenu() {
     <Menu>
       <MenuTrigger asChild>
         <button className="flex items-center gap-2 rounded-lg p-1 hover:bg-surface-2 md:pr-2" aria-label="Minha conta">
-          <Avatar name={me.name} size={32} presence={status} />
+          <Avatar name={me.name} src={myPhoto} size={32} presence={status} />
           <div className="hidden text-left leading-tight lg:block">
             <p className="text-[13px] font-semibold">{me.name}</p>
             <p className="text-[11px] text-muted">{roleLabel[role]} · {statusLabel[status]}</p>
@@ -338,7 +333,7 @@ function UserMenu() {
           ))}
         </div>
         <MenuSeparator />
-        <MenuItem icon={<UserRound />}>Meu perfil</MenuItem>
+        <MenuItem icon={<UserRound />} onSelect={() => navigate('/perfil')}>Meu perfil</MenuItem>
         <MenuItem icon={<LogOut />} danger onSelect={() => navigate('/login')}>
           Sair
         </MenuItem>
