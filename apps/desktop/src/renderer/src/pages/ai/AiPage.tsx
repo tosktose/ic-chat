@@ -6,22 +6,20 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  FileText,
   Hand,
   KeyRound,
-  Plus,
   SendHorizontal,
   ShieldCheck,
   Sparkles,
   Tag,
-  Trash2
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Page } from '@/components/layout/Page'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select, Textarea } from '@/components/ui/input'
-import { Badge, Card, CardHeader, Progress, Segmented, Switch } from '@/components/ui/misc'
+import { Card, CardHeader, Progress, Segmented, Switch } from '@/components/ui/misc'
 import { cn } from '@/lib/utils'
+import { KnowledgeCard } from './KnowledgeCard'
 
 const PROVIDERS = {
   anthropic: { label: 'Anthropic (Claude)', models: ['claude-sonnet-5', 'claude-haiku-4-5', 'claude-opus-5-5'] },
@@ -128,34 +126,7 @@ export function AiPage() {
           </Card>
 
           {/* Base de conhecimento */}
-          <Card>
-            <CardHeader
-              title="Base de conhecimento"
-              description="O que a IA sabe sobre o seu negócio"
-              action={<Button variant="outline" size="sm"><Plus /> Adicionar</Button>}
-            />
-            <div className="flex flex-col gap-2 px-5 pb-5">
-              {[
-                { icon: Tag, name: 'Serviços e preços', meta: '24 serviços · sincronizado com o cadastro', auto: true },
-                { icon: BookOpen, name: 'Perguntas frequentes', meta: '12 perguntas' },
-                { icon: FileText, name: 'Política de cancelamento.pdf', meta: 'PDF · 84 KB' },
-                { icon: FileText, name: 'Endereço, horários e estacionamento', meta: 'Texto' }
-              ].map((k) => (
-                <div key={k.name} className="flex items-center gap-3 rounded-xl border border-border p-3">
-                  <span className="flex size-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
-                    <k.icon className="size-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13.5px] font-medium">{k.name}</p>
-                    <p className="truncate text-xs text-muted">{k.meta}</p>
-                  </div>
-                  {k.auto ? <Badge tone="success">Automático</Badge> : (
-                    <Button variant="ghost" size="icon-sm" aria-label="Remover"><Trash2 /></Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </Card>
+          <KnowledgeCard />
 
           {/* O que a IA pode fazer */}
           <Card>

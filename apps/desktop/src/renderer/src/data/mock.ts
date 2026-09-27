@@ -47,6 +47,9 @@ export interface Message {
   duration?: string
   fileName?: string
   fileSize?: string
+  /** Conteúdo real (foto, vídeo, áudio, documento) enviado pelo app */
+  src?: string
+  mime?: string
   imageTone?: string
   time: string
   day?: string

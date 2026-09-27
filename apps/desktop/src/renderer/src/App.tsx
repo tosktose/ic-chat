@@ -6,6 +6,8 @@ import { AppShell } from '@/components/layout/AppShell'
 import { canAccess, homeByRole } from '@/components/layout/nav'
 import { AppStateProvider, useAppState } from '@/lib/app-state'
 import { CompanyProvider } from '@/lib/company'
+import { DataProvider } from '@/lib/data'
+import { GoogleProvider } from '@/lib/google'
 import { NotificationsProvider } from '@/lib/notifications'
 import { TagsProvider } from '@/lib/tags'
 import { ThemeProvider, useTheme } from '@/lib/theme'
@@ -51,6 +53,8 @@ export function App() {
     <ThemeProvider>
       <AppStateProvider>
       <CompanyProvider>
+      <DataProvider>
+      <GoogleProvider>
         <Tooltip.Provider>
           <HashRouter>
             <NotificationsProvider>
@@ -89,6 +93,8 @@ export function App() {
           </HashRouter>
           <ThemedToaster />
         </Tooltip.Provider>
+      </GoogleProvider>
+      </DataProvider>
       </CompanyProvider>
       </AppStateProvider>
     </ThemeProvider>

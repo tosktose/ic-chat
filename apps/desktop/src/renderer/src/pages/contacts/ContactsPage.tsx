@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { toast } from 'sonner'
 import { Download, MessageSquare, Search, Upload, UserPlus } from 'lucide-react'
 import { Page } from '@/components/layout/Page'
 import { Button } from '@/components/ui/button'
@@ -8,13 +9,18 @@ import { Avatar, Card } from '@/components/ui/misc'
 import { TagChip } from '@/components/tags'
 import { TAG_COLORS, useTags } from '@/lib/tags'
 import { brl, cn, formatPhone } from '@/lib/utils'
-import { contacts, conversations } from '@/data/mock'
+import { ImportContactsDialog, NewContactDialog } from '@/components/ContactDialogs'
+import { useData } from '@/lib/data'
+import { exportCsv } from '@/lib/report/csv'
 import { useCompany } from '@/lib/company'
 
 export function ContactsPage() {
   const [q, setQ] = useState('')
   const [tagFilter, setTagFilter] = useState<string | null>(null)
   const { professionalById } = useCompany()
+  const { contacts, conversations, openConversation } = useData()
+  const [newOpen, setNewOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const navigate = useNavigate()
   const { tags, tagsOf, hasTag, countOf } = useTags()
   const list = contacts.filter(
@@ -24,7 +30,32 @@ export function ContactsPage() {
   )
   const openChat = (contactId: string) => {
     const conv = conversations.find((v) => v.contactId === contactId)
-    navigate(conv ? `/inbox?c=${conv.id}` : '/inbox')
+    navigate(`/inbox?c=${conv ? conv.id : openConversation(contactId)}`)
+  }
+
+  const exportList = async () => {
+    const cols = [
+      { key: 'name', label: 'Nome' },
+      { key: 'phone', label: 'Telefone' },
+      { key: 'email', label: 'E-mail' },
+      { key: 'tags', label: 'Etiquetas' },
+      { key: 'pro', label: 'Profissional preferido' },
+      { key: 'visits', label: 'Visitas' },
+      { key: 'spent', label: 'Gasto total' },
+      { key: 'since', label: 'Cliente desde' }
+    ]
+    const rows = list.map((c) => ({
+      name: c.name,
+      phone: formatPhone(c.phone),
+      email: c.email ?? '',
+      tags: tagsOf(c.id).map((t) => t.name).join(', '),
+      pro: professionalById(c.favoriteProfessional)?.name ?? '',
+      visits: String(c.visits),
+      spent: brl.format(c.spent),
+      since: c.since
+    }))
+    const r = await exportCsv(cols, rows, `contatos-${new Date().toISOString().slice(0, 10)}.csv`)
+    if (r.ok) toast.success(`${rows.length} contatos exportados`)
   }
 
   return (
@@ -33,9 +64,9 @@ export function ContactsPage() {
       description={`${contacts.length} clientes cadastrados`}
       actions={
         <>
-          <Button variant="outline"><Upload /> <span className="hidden sm:inline">Importar</span></Button>
-          <Button variant="outline"><Download /> <span className="hidden sm:inline">Exportar</span></Button>
-          <Button><UserPlus /> Novo contato</Button>
+          <Button variant="outline" onClick={() => setImportOpen(true)} tooltip="Importar planilha CSV"><Upload /> <span className="hidden sm:inline">Importar</span></Button>
+          <Button variant="outline" onClick={exportList} tooltip="Planilha com os contatos filtrados"><Download /> <span className="hidden sm:inline">Exportar</span></Button>
+          <Button onClick={() => setNewOpen(true)}><UserPlus /> Novo contato</Button>
         </>
       }
     >
@@ -134,6 +165,8 @@ export function ContactsPage() {
           </button>
         ))}
       </div>
+      <NewContactDialog open={newOpen} onOpenChange={setNewOpen} />
+      <ImportContactsDialog open={importOpen} onOpenChange={setImportOpen} />
     </Page>
   )
 }

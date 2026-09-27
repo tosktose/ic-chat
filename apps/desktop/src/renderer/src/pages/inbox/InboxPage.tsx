@@ -10,6 +10,7 @@ import {
   PanelRight,
   PanelRightClose,
   PanelRightOpen,
+  RotateCcw,
   Tag,
   UserCheck
 } from 'lucide-react'
@@ -22,7 +23,10 @@ import { useNotifications } from '@/lib/notifications'
 import { TAG_COLORS, useTags } from '@/lib/tags'
 import { useMediaQuery } from '@/lib/use-media'
 import { cn } from '@/lib/utils'
-import { contactById, conversations, userById, users, type Message } from '@/data/mock'
+import { toast } from 'sonner'
+import { useCompany } from '@/lib/company'
+import { useData } from '@/lib/data'
+import { userById, users } from '@/data/mock'
 import { Composer } from './Composer'
 import { ContactPanel } from './ContactPanel'
 import { ConversationList, statusMeta } from './ConversationList'
@@ -31,6 +35,7 @@ import { MessageBubble } from './MessageBubble'
 export function InboxPage() {
   const [params, setParams] = useSearchParams()
   const { role, me } = useAppState()
+  const { conversations } = useData()
   const isMdUp = useMediaQuery('(min-width: 768px)')
   const wide = useMediaQuery('(min-width: 1280px)')
   // Analista só vê as conversas dele e a fila; gerente vê todas
@@ -110,26 +115,36 @@ function ChatPane({
   onTogglePanel: () => void
   panelVisible: boolean
 }) {
+  const { conversations, contactById, updateConversation, appendMessage } = useData()
+  const { info } = useCompany()
   const conv = conversations.find((c) => c.id === convId)!
   const contact = contactById(conv.contactId)
   const { license, me, signature, myDisplayName, resolveUser } = useAppState()
   const { notify } = useNotifications()
   const { rulesOf } = useTags()
   const tagRules = rulesOf(conv.contactId)
-  const [messages, setMessages] = useState<Message[]>(conv.messages)
-  const [aiOn, setAiOn] = useState(conv.aiEnabled)
-  const [assignee, setAssignee] = useState(conv.assignee)
+  const messages = conv.messages
+  const aiOn = conv.aiEnabled
+  const assignee = conv.assignee
   const endRef = useRef<HTMLDivElement>(null)
   const status = statusMeta[conv.status]
   const agent = resolveUser(userById(assignee))
+  const firstName = (n: string) => n.split(' ')[0]
+  const system = (text: string) => appendMessage(conv.id, { from: 'system', kind: 'system', text })
+  const setAiOn = (v: boolean) => updateConversation(conv.id, { aiEnabled: v })
+
+  // Ao abrir a conversa, as mensagens ficam como lidas
+  useEffect(() => {
+    if (conv.unread) updateConversation(conv.id, { unread: 0 })
+  }, [conv.id])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' })
-  }, [messages])
+  }, [messages.length])
 
   // Regra "IA não responde": desliga a IA desta conversa enquanto a etiqueta existir
   useEffect(() => {
-    if (tagRules.pauseAi) setAiOn(false)
+    if (tagRules.pauseAi && aiOn) setAiOn(false)
   }, [tagRules.pauseAi])
 
   // Regra "Direcionar para": quando a etiqueta é aplicada, a conversa vai para o analista definido
@@ -138,36 +153,64 @@ function ChatPane({
     const target = tagRules.assignTo
     if (target && target !== lastAssignRule.current && target !== assignee) {
       const u = resolveUser(userById(target))
-      setAssignee(target)
-      setMessages((m) => [...m, { id: crypto.randomUUID(), from: 'system', kind: 'system', text: `Etiqueta direcionou a conversa para ${u?.name.split(' ')[0]}`, time: now() }])
+      updateConversation(conv.id, { assignee: target, status: conv.status === 'resolvida' ? 'humano' : conv.status })
+      system(`Etiqueta direcionou a conversa para ${firstName(u?.name ?? 'analista')}`)
     }
     lastAssignRule.current = target
   }, [tagRules.assignTo])
 
-  const now = () => new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-  const firstName = (n: string) => n.split(' ')[0]
-
   // O WhatsApp é um só (da empresa); o que muda é quem responde. Fica registrado na conversa.
   const assignTo = (userId: string) => {
     const target = resolveUser(userById(userId))!
-    const text =
-      userId === me.id
-        ? `${myDisplayName} assumiu o atendimento`
-        : `${myDisplayName} transferiu para ${firstName(target.name)}`
-    setAssignee(userId)
-    setMessages((m) => [...m, { id: crypto.randomUUID(), from: 'system', kind: 'system', text, time: now() }])
+    updateConversation(conv.id, { assignee: userId, status: conv.status === 'nova' || conv.status === 'ia' ? 'humano' : conv.status })
+    system(userId === me.id ? `${myDisplayName} assumiu o atendimento` : `${myDisplayName} transferiu para ${firstName(target.name)}`)
     if (userId !== me.id) {
       notify({ kind: 'equipe', title: 'Conversa transferida', body: `${contact.name} agora está com ${firstName(target.name)}.`, link: `/inbox?c=${conv.id}` })
     }
   }
 
+  const resolve = () => {
+    updateConversation(conv.id, { status: 'resolvida' })
+    system(`${myDisplayName} marcou como resolvida`)
+    toast.success('Conversa resolvida', { description: contact.name })
+  }
+  const reopen = () => {
+    updateConversation(conv.id, { status: 'humano', assignee: me.id })
+    system(`${myDisplayName} reabriu a conversa`)
+  }
+
+  const ensureOwner = () => {
+    if (assignee !== me.id) assignTo(me.id)
+    if (conv.status === 'resolvida' || conv.status === 'nova') updateConversation(conv.id, { status: 'aguardando' })
+  }
+
   const send = (text: string, note: boolean) => {
     // Quem responde sem ter assumido passa a ser o responsável
-    if (!note && assignee !== me.id) assignTo(me.id)
-    setMessages((m) => [
-      ...m,
-      { id: crypto.randomUUID(), from: 'agent', author: myDisplayName, kind: note ? 'note' : 'text', text, time: now(), status: 'sent' }
-    ])
+    if (!note) ensureOwner()
+    appendMessage(conv.id, { from: 'agent', author: myDisplayName, kind: note ? 'note' : 'text', text, status: 'sent' })
+  }
+
+  const sendFile = (file: File, caption?: string) => {
+    ensureOwner()
+    const src = URL.createObjectURL(file)
+    const size = file.size > 1024 * 1024 ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(file.size / 1024))} KB`
+    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+      appendMessage(conv.id, { from: 'agent', author: myDisplayName, kind: 'image', src, mime: file.type, text: caption, fileName: file.name, status: 'sent' })
+    } else {
+      appendMessage(conv.id, { from: 'agent', author: myDisplayName, kind: 'document', src, mime: file.type, fileName: file.name, fileSize: size, status: 'sent' })
+    }
+  }
+
+  const sendAudio = (blob: Blob, seconds: number) => {
+    ensureOwner()
+    appendMessage(conv.id, {
+      from: 'agent',
+      author: myDisplayName,
+      kind: 'audio',
+      src: URL.createObjectURL(blob),
+      duration: `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`,
+      status: 'sent'
+    })
   }
 
   return (
@@ -210,12 +253,16 @@ function ChatPane({
             </label>
           </Tooltip>
 
-          {assignee !== me.id ? (
+          {conv.status === 'resolvida' ? (
+            <Button size="sm" variant="outline" onClick={reopen} className="hidden @md:inline-flex">
+              <RotateCcw /> Reabrir
+            </Button>
+          ) : assignee !== me.id ? (
             <Button size="sm" onClick={() => assignTo(me.id)} className="hidden @md:inline-flex">
               <UserCheck /> Assumir
             </Button>
           ) : (
-            <Button size="sm" variant="success" className="hidden @md:inline-flex">
+            <Button size="sm" variant="success" onClick={resolve} className="hidden @md:inline-flex">
               <CheckCircle2 /> Resolver
             </Button>
           )}
@@ -239,9 +286,13 @@ function ChatPane({
             </MenuTrigger>
             <MenuContent>
               <div className="@md:hidden">
-                <MenuItem icon={<UserCheck />} onSelect={() => assignTo(me.id)}>Assumir conversa</MenuItem>
-                <MenuItem icon={<CheckCircle2 />}>Marcar como resolvida</MenuItem>
-                <MenuItem icon={<Bot />} onSelect={() => setAiOn((v) => !v)}>{aiOn ? 'Pausar IA' : 'Ativar IA'}</MenuItem>
+                {assignee !== me.id && <MenuItem icon={<UserCheck />} onSelect={() => assignTo(me.id)}>Assumir conversa</MenuItem>}
+                {conv.status === 'resolvida' ? (
+                  <MenuItem icon={<RotateCcw />} onSelect={reopen}>Reabrir conversa</MenuItem>
+                ) : (
+                  <MenuItem icon={<CheckCircle2 />} onSelect={resolve}>Marcar como resolvida</MenuItem>
+                )}
+                <MenuItem icon={<Bot />} onSelect={() => !tagRules.pauseAi && setAiOn(!aiOn)}>{aiOn ? 'Pausar IA' : 'Ativar IA'}</MenuItem>
                 <MenuSeparator />
               </div>
               <MenuLabel>Transferir para</MenuLabel>
@@ -253,7 +304,7 @@ function ChatPane({
                   </MenuItem>
                 ))}
               <MenuSeparator />
-              <MenuItem icon={<Tag />}>Adicionar etiqueta</MenuItem>
+              <MenuItem icon={<Tag />} onSelect={onTogglePanel}>Etiquetas do cliente</MenuItem>
               <MenuItem icon={<PanelRight />} onSelect={onTogglePanel}>Dados do cliente</MenuItem>
             </MenuContent>
           </Menu>
@@ -275,6 +326,11 @@ function ChatPane({
       {/* Mensagens */}
       <div className="chat-pattern scroll-thin flex-1 overflow-y-auto px-3 py-4 md:px-8">
         <div className="mx-auto flex max-w-3xl flex-col">
+          {messages.length === 0 && (
+            <div className="my-10 flex justify-center">
+              <span className="rounded-lg bg-surface px-4 py-2 text-[13px] text-muted shadow-sm">Nova conversa com {contact.name}. Envie a primeira mensagem.</span>
+            </div>
+          )}
           {messages.map((m) => (
             <div key={m.id}>
               {m.day && (
@@ -292,8 +348,10 @@ function ChatPane({
       <Composer
         disabled={license.state === 'restrito'}
         onSend={send}
+        onSendFile={sendFile}
+        onSendAudio={sendAudio}
         senderName={signature ? myDisplayName : undefined}
-        companyNumber="(11) 98765-4321"
+        companyNumber={info.phone}
       />
     </section>
   )

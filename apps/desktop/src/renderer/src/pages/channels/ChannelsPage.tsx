@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { ExternalLink, Info, Plus, QrCode, RefreshCw, ShieldAlert, ShieldCheck, Smartphone, Unplug } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ExternalLink, Loader2, Info, Plus, QrCode, RefreshCw, ShieldAlert, ShieldCheck, Smartphone, Unplug } from 'lucide-react'
 import { toast } from 'sonner'
 import { ChannelBadge, GoogleIcon } from '@/components/brand'
 import { Page } from '@/components/layout/Page'
@@ -7,10 +7,19 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { Avatar, Badge, Card, CardHeader } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
+import { cn } from '@/lib/utils'
 import { useCompany } from '@/lib/company'
+import { useGoogle } from '@/lib/google'
+import { GoogleCalendarDialog } from '@/components/GoogleCalendarDialog'
 
 export function ChannelsPage() {
-  const { professionals } = useCompany()
+  const { professionals, info } = useCompany()
+  const google = useGoogle()
+  // Estado da conexão por QR (no sistema real vem do Core/Baileys em tempo real)
+  const [wa, setWa] = useState<'conectado' | 'reconectando' | 'desconectado'>('conectado')
+  const [confirmOff, setConfirmOff] = useState(false)
+  const [official, setOfficial] = useState<{ phoneId: string } | null>(null)
+  const [googleOpen, setGoogleOpen] = useState(false)
   const [qrOpen, setQrOpen] = useState(false)
   const [officialOpen, setOfficialOpen] = useState(false)
 
@@ -32,15 +41,39 @@ export function ChannelsPage() {
           </div>
           <div className="mx-5 flex items-center gap-3 rounded-xl border border-border p-3">
             <span className="relative flex size-2.5">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
-              <span className="relative inline-flex size-2.5 rounded-full bg-success" />
+              {wa === 'conectado' && <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />}
+              <span className={cn('relative inline-flex size-2.5 rounded-full', wa === 'conectado' ? 'bg-success' : wa === 'reconectando' ? 'bg-warning' : 'bg-danger')} />
             </span>
-            <div className="flex-1">
-              <p className="text-[13.5px] font-semibold">(11) 98765-4321 · Studio Bella</p>
-              <p className="text-xs text-muted">Conectado há 12 dias · última mensagem há 1 min</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13.5px] font-semibold">{info.phone} · {info.name}</p>
+              <p className="text-xs text-muted">
+                {wa === 'conectado' ? 'Conectado · última mensagem há 1 min' : wa === 'reconectando' ? 'Reconectando…' : 'Desconectado: as mensagens não estão chegando'}
+              </p>
             </div>
-            <Button variant="ghost" size="icon-sm" aria-label="Reconectar"><RefreshCw /></Button>
-            <Button variant="ghost" size="icon-sm" aria-label="Desconectar"><Unplug /></Button>
+            {wa === 'desconectado' ? (
+              <Button size="sm" onClick={() => setQrOpen(true)}>Conectar</Button>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Reconectar"
+                  disabled={wa === 'reconectando'}
+                  onClick={() => {
+                    setWa('reconectando')
+                    setTimeout(() => {
+                      setWa('conectado')
+                      toast.success('WhatsApp reconectado')
+                    }, 2000)
+                  }}
+                >
+                  {wa === 'reconectando' ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+                </Button>
+                <Button variant="ghost" size="icon-sm" className="hover:text-danger" aria-label="Desconectar" onClick={() => setConfirmOff(true)}>
+                  <Unplug />
+                </Button>
+              </>
+            )}
           </div>
           <div className="m-5 mt-3 flex gap-2.5 rounded-xl bg-warning-soft p-3 text-[12.5px] text-warning">
             <ShieldAlert className="mt-0.5 size-4 shrink-0" />
@@ -71,7 +104,14 @@ export function ChannelsPage() {
             ))}
           </ul>
           <div className="mt-auto border-t border-border p-4 pt-4">
-            <Button className="w-full" onClick={() => setOfficialOpen(true)}>Conectar WhatsApp Oficial</Button>
+            {official ? (
+              <div className="flex items-center gap-2">
+                <Badge tone="success" size="md"><ShieldCheck /> Conectado · ID {official.phoneId}</Badge>
+                <Button variant="ghost" size="sm" className="ml-auto text-danger" onClick={() => { setOfficial(null); toast.success('WhatsApp Oficial desconectado') }}>Desconectar</Button>
+              </div>
+            ) : (
+              <Button className="w-full" onClick={() => setOfficialOpen(true)}>Conectar WhatsApp Oficial</Button>
+            )}
           </div>
         </Card>
       </div>
@@ -89,22 +129,68 @@ export function ChannelsPage() {
           title={<span className="flex items-center gap-2"><GoogleIcon className="size-5" /> Google Agenda</span>}
           description="Cada profissional conecta a própria agenda. Os horários sincronizam nos dois sentidos."
         />
-        <div className="grid gap-2 px-5 pb-5 sm:grid-cols-2">
-          {professionals.map((p, i) => (
-            <div key={p.id} className="flex items-center gap-3 rounded-xl border border-border p-3">
-              <Avatar name={p.name} size={34} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13.5px] font-medium">{p.name}</p>
-                <p className="truncate text-xs text-muted">{i < 3 ? `${p.name.split(' ')[0].toLowerCase()}@gmail.com` : 'Não conectado'}</p>
+        <div className="grid gap-2 px-5 sm:grid-cols-2">
+          {professionals.filter((p) => p.active).map((p) => {
+            const cal = google.config.calendars[p.id]
+            return (
+              <div key={p.id} className="flex items-center gap-3 rounded-xl border border-border p-3">
+                <Avatar name={p.name} size={34} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13.5px] font-medium">{p.name}</p>
+                  <p className="truncate text-xs text-muted">{cal ? cal.email : 'Não conectado'}</p>
+                </div>
+                {cal ? <Badge tone="success">Sincronizado</Badge> : <Badge>Pendente</Badge>}
               </div>
-              {i < 3 ? <Badge tone="success">Sincronizado</Badge> : <Button size="sm" variant="outline">Conectar</Button>}
-            </div>
-          ))}
+            )
+          })}
+        </div>
+        <div className="flex justify-end px-5 py-4">
+          <Button onClick={() => setGoogleOpen(true)}><GoogleIcon className="size-4" /> Configurar sincronização</Button>
         </div>
       </Card>
+      <GoogleCalendarDialog open={googleOpen} onOpenChange={setGoogleOpen} />
 
-      <QrDialog open={qrOpen} onOpenChange={setQrOpen} />
-      <OfficialDialog open={officialOpen} onOpenChange={setOfficialOpen} />
+      <QrDialog
+        open={qrOpen}
+        onOpenChange={setQrOpen}
+        onConnected={() => {
+          setWa('conectado')
+          setQrOpen(false)
+          toast.success('WhatsApp conectado', { description: 'As conversas começaram a chegar no Atendimento.' })
+        }}
+      />
+      <OfficialDialog
+        open={officialOpen}
+        onOpenChange={setOfficialOpen}
+        onConnected={(phoneId) => {
+          setOfficial({ phoneId })
+          setOfficialOpen(false)
+          toast.success('WhatsApp Oficial conectado', { description: `Número ${phoneId}` })
+        }}
+      />
+      <Dialog
+        open={confirmOff}
+        onOpenChange={setConfirmOff}
+        title="Desconectar o WhatsApp?"
+        description="As mensagens param de chegar no IC Chat até você conectar de novo. O histórico continua salvo."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setConfirmOff(false)}>Cancelar</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setWa('desconectado')
+                setConfirmOff(false)
+                toast.success('WhatsApp desconectado')
+              }}
+            >
+              <Unplug /> Desconectar
+            </Button>
+          </>
+        }
+      >
+        <span />
+      </Dialog>
     </Page>
   )
 }
@@ -156,9 +242,67 @@ function FakeQr() {
   )
 }
 
-function QrDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function QrDialog({ open, onOpenChange, onConnected }: { open: boolean; onOpenChange: (v: boolean) => void; onConnected: () => void }) {
+  const [mode, setMode] = useState<'qr' | 'codigo'>('qr')
+  const [phone, setPhone] = useState('')
+  const [code, setCode] = useState<string | null>(null)
+  const [seconds, setSeconds] = useState(20)
+  useEffect(() => {
+    if (!open) {
+      setMode('qr')
+      setCode(null)
+      setPhone('')
+      return
+    }
+    // O código QR se renova a cada 20 segundos
+    const t = setInterval(() => setSeconds((s) => (s <= 1 ? 20 : s - 1)), 1000)
+    return () => clearInterval(t)
+  }, [open])
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title="Conectar WhatsApp" description="Escaneie o código com o celular que tem o WhatsApp da empresa.">
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Conectar WhatsApp"
+      description={mode === 'qr' ? 'Escaneie o código com o celular que tem o WhatsApp da empresa.' : 'Conecte digitando um código no celular, sem câmera.'}
+      footer={
+        <>
+          <Button variant="ghost" className="mr-auto" onClick={() => setMode(mode === 'qr' ? 'codigo' : 'qr')}>
+            {mode === 'qr' ? <><Smartphone /> Conectar com código de 8 dígitos</> : <><QrCode /> Voltar para o QR Code</>}
+          </Button>
+          <Button onClick={onConnected} tooltip="Demonstração: simula a leitura do código no celular">Já conectei no celular</Button>
+        </>
+      }
+    >
+      {mode === 'codigo' ? (
+        <div className="flex flex-col gap-4 pb-2">
+          <Field label="Número do WhatsApp da empresa" hint="Com DDD. O código aparece aqui para você digitar no celular.">
+            <div className="flex gap-2">
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 90000-0000" />
+              <Button
+                disabled={phone.replace(/\D/g, '').length < 10}
+                onClick={() => {
+                  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+                  const pick = () => abc[Math.floor(Math.random() * abc.length)]
+                  setCode(Array.from({ length: 8 }, pick).join(''))
+                }}
+              >
+                Gerar código
+              </Button>
+            </div>
+          </Field>
+          {code && (
+            <div className="rounded-xl bg-surface-2 p-4 text-center">
+              <p className="text-xs text-muted">Digite no celular</p>
+              <p className="mt-1 font-mono text-3xl font-bold tracking-[0.25em]">{code.slice(0, 4)}-{code.slice(4)}</p>
+            </div>
+          )}
+          <ol className="flex flex-col gap-2 text-[13px] text-muted">
+            <li>1. No celular, abra o WhatsApp → <b>Aparelhos conectados</b> → <b>Conectar aparelho</b></li>
+            <li>2. Toque em <b>Conectar com número de telefone</b></li>
+            <li>3. Digite o código acima</li>
+          </ol>
+        </div>
+      ) : (
       <div className="flex flex-col items-center gap-6 pb-2 sm:flex-row sm:items-start">
         <div className="relative size-56 shrink-0 rounded-2xl border border-border bg-white p-3 shadow-sm">
           <FakeQr />
@@ -179,18 +323,21 @@ function QrDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boo
             </li>
           ))}
           <li className="mt-1 flex items-center gap-2 text-xs text-muted">
-            <RefreshCw className="size-3.5 animate-spin [animation-duration:3s]" /> O código atualiza a cada 20 segundos
+            <RefreshCw className="size-3.5 animate-spin [animation-duration:3s]" /> Novo código em {seconds}s
           </li>
-          <button className="flex items-center gap-2 text-left text-[13px] font-medium text-primary hover:underline">
-            <Smartphone className="size-4" /> Prefiro conectar com código de 8 dígitos
-          </button>
         </ol>
       </div>
+      )}
     </Dialog>
   )
 }
 
-function OfficialDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function OfficialDialog({ open, onOpenChange, onConnected }: { open: boolean; onOpenChange: (v: boolean) => void; onConnected: (phoneId: string) => void }) {
+  const [token, setToken] = useState('')
+  const [phoneId, setPhoneId] = useState('')
+  const [waba, setWaba] = useState('')
+  const [testing, setTesting] = useState(false)
+  const valid = token.trim().length > 20 && /^\d{6,}$/.test(phoneId.trim()) && /^\d{6,}$/.test(waba.trim())
   return (
     <Dialog
       open={open}
@@ -200,7 +347,18 @@ function OfficialDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
       footer={
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={() => { onOpenChange(false); toast.success('Conexão testada com sucesso') }}>Testar e conectar</Button>
+          <Button
+            disabled={!valid || testing}
+            onClick={() => {
+              setTesting(true)
+              setTimeout(() => {
+                setTesting(false)
+                onConnected(phoneId.trim())
+              }, 1500)
+            }}
+          >
+            {testing ? <Loader2 className="animate-spin" /> : null} Testar e conectar
+          </Button>
         </>
       }
     >
@@ -215,14 +373,14 @@ function OfficialDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
       </div>
       <div className="flex flex-col gap-4">
         <Field label="Token de acesso permanente" hint="Gerado em Usuários do sistema no Meta Business">
-          <Input type="password" placeholder="EAAG…" />
+          <Input type="password" placeholder="EAAG…" value={token} onChange={(e) => setToken(e.target.value)} />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="ID do número (Phone Number ID)">
-            <Input placeholder="1234567890" />
+            <Input placeholder="1234567890" value={phoneId} onChange={(e) => setPhoneId(e.target.value)} />
           </Field>
           <Field label="ID da conta (WABA ID)">
-            <Input placeholder="9876543210" />
+            <Input placeholder="9876543210" value={waba} onChange={(e) => setWaba(e.target.value)} />
           </Field>
         </div>
         <Field label="URL do webhook (copie para a Meta)">

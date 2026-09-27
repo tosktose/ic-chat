@@ -13,17 +13,24 @@ import {
 import { EmojiPopover } from '@/components/EmojiPicker'
 import { Button } from '@/components/ui/button'
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui/overlay'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/lib/company'
+
+const MAX_FILE = 16 * 1024 * 1024 // limite do WhatsApp para mídia
 
 export function Composer({
   disabled,
   onSend,
+  onSendFile,
+  onSendAudio,
   senderName,
   companyNumber
 }: {
   disabled?: boolean
   onSend: (text: string, note: boolean) => void
+  onSendFile: (file: File, caption?: string) => void
+  onSendAudio: (blob: Blob, seconds: number) => void
   /** Nome que o cliente vê (assinatura). Sem nome = mensagem sai sem assinatura. */
   senderName?: string
   companyNumber: string
@@ -34,6 +41,53 @@ export function Composer({
   const [recording, setRecording] = useState(false)
   const [seconds, setSeconds] = useState(0)
   const ref = useRef<HTMLTextAreaElement>(null)
+  const mediaRef = useRef<HTMLInputElement>(null)
+  const docRef = useRef<HTMLInputElement>(null)
+  const recorder = useRef<MediaRecorder | null>(null)
+  const chunks = useRef<Blob[]>([])
+  const discard = useRef(false)
+  const secondsRef = useRef(0)
+  secondsRef.current = seconds
+
+  const pickFiles = (files: FileList | null) => {
+    if (!files) return
+    for (const f of Array.from(files)) {
+      if (f.size > MAX_FILE) {
+        toast.error(`“${f.name}” passa de 16 MB`, { description: 'O WhatsApp não aceita arquivos maiores.' })
+        continue
+      }
+      onSendFile(f, text.trim() || undefined)
+    }
+    setText('')
+  }
+
+  // Gravação real pelo microfone (MediaRecorder). O Core converte para OGG/Opus ao enviar ao WhatsApp.
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const rec = new MediaRecorder(stream)
+      chunks.current = []
+      discard.current = false
+      rec.ondataavailable = (e) => e.data.size && chunks.current.push(e.data)
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop())
+        if (!discard.current && chunks.current.length) {
+          onSendAudio(new Blob(chunks.current, { type: rec.mimeType || 'audio/webm' }), Math.max(1, secondsRef.current))
+        }
+      }
+      rec.start()
+      recorder.current = rec
+      setRecording(true)
+    } catch {
+      toast.error('Não foi possível usar o microfone', { description: 'Verifique se o microfone está conectado e liberado para o IC Chat.' })
+    }
+  }
+  const stopRecording = (send: boolean) => {
+    discard.current = !send
+    recorder.current?.stop()
+    recorder.current = null
+    setRecording(false)
+  }
 
   // Cresce conforme o texto (até 6 linhas)
   useEffect(() => {
@@ -82,7 +136,16 @@ export function Composer({
   }
 
   return (
-    <div className="pb-safe relative border-t border-border bg-surface px-3 pt-2 pb-3 md:px-4">
+    <div
+      className="pb-safe relative border-t border-border bg-surface px-3 pt-2 pb-3 md:px-4"
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault()
+        pickFiles(e.dataTransfer.files)
+      }}
+    >
+      <input ref={mediaRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => { pickFiles(e.target.files); e.target.value = '' }} />
+      <input ref={docRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip" multiple className="hidden" onChange={(e) => { pickFiles(e.target.files); e.target.value = '' }} />
       {/* Respostas rápidas com "/" */}
       {showQuick && quick.length > 0 && (
         <div className="absolute right-3 bottom-full left-3 mb-2 animate-slide-up overflow-hidden rounded-xl border border-border bg-surface shadow-(--shadow-pop) md:right-4 md:left-4">
@@ -140,10 +203,10 @@ export function Composer({
               <span key={i} className="w-[3px] animate-pulse rounded-full bg-danger/50" style={{ height: 6 + ((i * 7) % 16), animationDelay: `${i * 40}ms` }} />
             ))}
           </div>
-          <Button variant="ghost" size="icon-sm" onClick={() => setRecording(false)} aria-label="Descartar áudio">
+          <Button variant="ghost" size="icon-sm" onClick={() => stopRecording(false)} aria-label="Descartar áudio">
             <Trash2 />
           </Button>
-          <Button size="icon" className="rounded-full" onClick={() => setRecording(false)} aria-label="Enviar áudio">
+          <Button size="icon" className="rounded-full" onClick={() => stopRecording(true)} aria-label="Enviar áudio">
             <SendHorizontal />
           </Button>
         </div>
@@ -166,8 +229,8 @@ export function Composer({
               </Button>
             </MenuTrigger>
             <MenuContent align="start">
-              <MenuItem icon={<ImageIcon />}>Foto ou vídeo</MenuItem>
-              <MenuItem icon={<FileText />}>Documento</MenuItem>
+              <MenuItem icon={<ImageIcon />} onSelect={() => mediaRef.current?.click()}>Foto ou vídeo</MenuItem>
+              <MenuItem icon={<FileText />} onSelect={() => docRef.current?.click()}>Documento</MenuItem>
               <MenuItem icon={<Zap />} onSelect={() => setText('/')}>Resposta rápida</MenuItem>
             </MenuContent>
           </Menu>
@@ -176,6 +239,12 @@ export function Composer({
             rows={1}
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onPaste={(e) => {
+              if (e.clipboardData.files.length) {
+                e.preventDefault()
+                pickFiles(e.clipboardData.files)
+              }
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
@@ -190,7 +259,7 @@ export function Composer({
               <SendHorizontal />
             </Button>
           ) : (
-            <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setRecording(true)} aria-label="Gravar áudio" tooltip="Gravar mensagem de voz">
+            <Button variant="ghost" size="icon" className="rounded-full" onClick={startRecording} aria-label="Gravar áudio" tooltip="Gravar mensagem de voz">
                 <Mic />
               </Button>
           )}

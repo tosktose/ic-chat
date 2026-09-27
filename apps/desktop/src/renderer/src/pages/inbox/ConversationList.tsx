@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Avatar, Segmented, Tooltip } from '@/components/ui/misc'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from '@/components/ui/overlay'
 import { cn } from '@/lib/utils'
+import { NewConversationDialog } from '@/components/ContactDialogs'
 import { TagChip } from '@/components/tags'
 import { useAppState } from '@/lib/app-state'
 import { TAG_COLORS, useTags } from '@/lib/tags'
@@ -38,6 +39,7 @@ export function ConversationList({
   const [q, setQ] = useState('')
   const [channel, setChannel] = useState<ChannelKind | 'all'>('all')
   const [tagFilter, setTagFilter] = useState<string | null>(null)
+  const [newOpen, setNewOpen] = useState(false)
   const { tags, hasTag, rulesOf } = useTags()
 
   const counts = {
@@ -93,7 +95,7 @@ export function ConversationList({
               ))}
             </MenuContent>
           </Menu>
-          <Button size="icon" aria-label="Nova conversa">
+          <Button size="icon" aria-label="Nova conversa" onClick={() => setNewOpen(true)}>
             <SquarePen />
           </Button>
         </div>
@@ -127,6 +129,7 @@ export function ConversationList({
           <ConversationRow key={c.id} conv={c} active={c.id === selectedId} onClick={() => onSelect(c.id)} />
         ))}
       </div>
+      <NewConversationDialog open={newOpen} onOpenChange={setNewOpen} onOpen={onSelect} />
     </section>
   )
 }

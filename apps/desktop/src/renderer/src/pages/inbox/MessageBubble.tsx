@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Bot, Check, CheckCheck, Download, FileText, Pause, Play, StickyNote } from 'lucide-react'
 import { Tooltip } from '@/components/ui/misc'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { Message } from '@/data/mock'
 
@@ -53,10 +54,18 @@ export function MessageBubble({ msg }: { msg: Message }) {
         )}
 
         {msg.kind === 'text' && <p className="text-[14px] leading-relaxed break-words whitespace-pre-wrap">{msg.text}</p>}
-        {msg.kind === 'audio' && <AudioPlayer duration={msg.duration ?? '0:10'} outgoing={outgoing} />}
+        {msg.kind === 'audio' && <AudioPlayer duration={msg.duration ?? '0:10'} outgoing={outgoing} src={msg.src} />}
         {msg.kind === 'image' && (
           <div>
-            <div className={cn('aspect-[4/3] w-64 max-w-full rounded-xl bg-gradient-to-br', msg.imageTone)} />
+            {msg.src && msg.mime?.startsWith('video/') ? (
+              <video src={msg.src} controls className="max-h-80 w-72 max-w-full rounded-xl bg-black" />
+            ) : msg.src ? (
+              <a href={msg.src} target="_blank" rel="noreferrer" title="Abrir imagem">
+                <img src={msg.src} alt={msg.fileName ?? 'Imagem'} className="max-h-80 w-72 max-w-full rounded-xl object-cover" />
+              </a>
+            ) : (
+              <div className={cn('aspect-[4/3] w-64 max-w-full rounded-xl bg-gradient-to-br', msg.imageTone)} />
+            )}
             {msg.text && <p className="px-2 pt-1.5 text-[14px]">{msg.text}</p>}
           </div>
         )}
@@ -67,10 +76,20 @@ export function MessageBubble({ msg }: { msg: Message }) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-medium">{msg.fileName}</p>
-              <p className="text-[11px] text-muted">PDF · {msg.fileSize}</p>
+              <p className="text-[11px] text-muted">{(msg.fileName?.split('.').pop() ?? 'arquivo').toUpperCase()} · {msg.fileSize}</p>
             </div>
             <Tooltip content="Baixar arquivo">
-              <button className="rounded-md p-1.5 text-muted hover:bg-surface-2" aria-label="Baixar arquivo">
+              <button
+                className="rounded-md p-1.5 text-muted hover:bg-surface-2"
+                aria-label="Baixar arquivo"
+                onClick={() => {
+                  if (!msg.src) return toast('Arquivo de exemplo', { description: 'Os arquivos reais ficam disponíveis quando o WhatsApp estiver conectado.' })
+                  const a = document.createElement('a')
+                  a.href = msg.src
+                  a.download = msg.fileName ?? 'arquivo'
+                  a.click()
+                }}
+              >
                 <Download className="size-4" />
               </button>
             </Tooltip>
@@ -88,13 +107,38 @@ export function MessageBubble({ msg }: { msg: Message }) {
   )
 }
 
-function AudioPlayer({ duration, outgoing }: { duration: string; outgoing: boolean }) {
+function AudioPlayer({ duration, outgoing, src }: { duration: string; outgoing: boolean; src?: string }) {
   const [playing, setPlaying] = useState(false)
-  const progress = playing ? 0.45 : 0
+  const [progress, setProgress] = useState(0)
+  const audio = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => () => audio.current?.pause(), [])
+
+  const toggle = () => {
+    if (!src) {
+      // Áudio de exemplo: só anima a onda
+      setPlaying((p) => !p)
+      setProgress((p) => (p ? 0 : 0.45))
+      return
+    }
+    if (!audio.current) {
+      const a = new Audio(src)
+      a.ontimeupdate = () => setProgress(a.duration && Number.isFinite(a.duration) ? a.currentTime / a.duration : 0)
+      a.onended = () => {
+        setPlaying(false)
+        setProgress(0)
+      }
+      audio.current = a
+    }
+    if (playing) audio.current.pause()
+    else void audio.current.play()
+    setPlaying(!playing)
+  }
+
   return (
     <div className="flex w-64 max-w-full items-center gap-3 py-1">
       <button
-        onClick={() => setPlaying((p) => !p)}
+        onClick={toggle}
         className={cn(
           'flex size-9 shrink-0 items-center justify-center rounded-full text-white',
           outgoing ? 'bg-primary' : 'bg-whatsapp'

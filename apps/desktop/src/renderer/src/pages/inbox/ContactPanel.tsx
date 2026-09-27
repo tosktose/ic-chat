@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { CalendarPlus, Cake, Clock, Mail, PanelRightClose, Phone, Plus, Scissors, StickyNote, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -9,7 +10,9 @@ import { useAppState } from '@/lib/app-state'
 import { useNotifications } from '@/lib/notifications'
 import { useTags } from '@/lib/tags'
 import { brl, cn, formatPhone } from '@/lib/utils'
-import { contactById, TODAY, type Conversation } from '@/data/mock'
+import { TODAY, type Conversation } from '@/data/mock'
+import { useData } from '@/lib/data'
+import { Select, Textarea } from '@/components/ui/input'
 import { useCompany } from '@/lib/company'
 
 export function ContactPanel({
@@ -26,7 +29,10 @@ export function ContactPanel({
   className?: string
 }) {
   const { appointments, openNewAppointment, role } = useAppState()
-  const { professionalById } = useCompany()
+  const { professionalById, professionals } = useCompany()
+  const { contactById, updateContact } = useData()
+  const [editingNotes, setEditingNotes] = useState(false)
+  const [notesDraft, setNotesDraft] = useState('')
   const { tagsOf, toggleContactTag } = useTags()
   const { notify } = useNotifications()
   const contact = contactById(conv.contactId)
@@ -125,18 +131,66 @@ export function ContactPanel({
         )}
       </Section>
 
-      <Section title="Preferências">
-        <Row icon={<Scissors />} label={fav ? `Prefere ${fav.name}` : 'Sem profissional preferido'} />
+      <Section title="Profissional preferido">
+        <div className="flex items-center gap-2">
+          <Scissors className="size-4 shrink-0 text-subtle" />
+          <Select
+            aria-label="Profissional preferido"
+            value={contact.favoriteProfessional ?? ''}
+            onChange={(e) => {
+              const id = e.target.value || undefined
+              updateContact(contact.id, { favoriteProfessional: id })
+              toast.success(id ? `Direcionado para ${professionalById(id)?.name}` : 'Preferência removida', {
+                description: id ? 'Novos agendamentos e a IA vão sugerir este profissional primeiro.' : undefined
+              })
+            }}
+            className="h-8 text-[13px]"
+          >
+            <option value="">Sem preferência</option>
+            {professionals.filter((p) => p.active).map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </Select>
+        </div>
+        <p className="text-[11.5px] text-muted">
+          {fav ? `Novos agendamentos e a IA sugerem ${fav.name.split(' ')[0]} primeiro.` : 'Escolha para direcionar os próximos atendimentos.'}
+        </p>
       </Section>
 
-      {contact.notes && (
-        <Section title="Observações">
-          <div className="flex gap-2 rounded-xl border border-note-border bg-note p-3 text-[13px] leading-relaxed">
-            <StickyNote className="mt-0.5 size-4 shrink-0 text-warning" />
-            {contact.notes}
+      <Section title="Observações">
+        {editingNotes ? (
+          <div className="flex flex-col gap-2">
+            <Textarea autoFocus className="min-h-20 text-[13px]" value={notesDraft} onChange={(e) => setNotesDraft(e.target.value)} placeholder="Ex.: alergia, preferências de horário" />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setEditingNotes(false)}>Cancelar</Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  updateContact(contact.id, { notes: notesDraft.trim() || undefined })
+                  setEditingNotes(false)
+                  toast.success('Observações salvas')
+                }}
+              >
+                Salvar
+              </Button>
+            </div>
           </div>
-        </Section>
-      )}
+        ) : (
+          <button
+            onClick={() => {
+              setNotesDraft(contact.notes ?? '')
+              setEditingNotes(true)
+            }}
+            className={cn(
+              'flex w-full gap-2 rounded-xl border p-3 text-left text-[13px] leading-relaxed',
+              contact.notes ? 'border-note-border bg-note' : 'border-dashed border-border-strong text-muted hover:border-primary hover:text-primary'
+            )}
+          >
+            <StickyNote className="mt-0.5 size-4 shrink-0 text-warning" />
+            {contact.notes ?? 'Adicionar observação'}
+          </button>
+        )}
+      </Section>
     </aside>
   )
 }

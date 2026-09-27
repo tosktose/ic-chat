@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
-import { Bot, CalendarPlus, ChevronLeft, ChevronRight, Clock, Link2, RefreshCw, UserRound } from 'lucide-react'
+import { Bot, CalendarPlus, ChevronLeft, ChevronRight, Clock, Link2, UserRound } from 'lucide-react'
+import { GoogleSyncButton } from '@/components/GoogleCalendarDialog'
+import { addDays, HISTORY } from '@/data/history'
 import { toast } from 'sonner'
 import { GoogleIcon } from '@/components/brand'
 import { Button } from '@/components/ui/button'
@@ -8,11 +10,12 @@ import { Avatar, Badge, Segmented } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
 import { useMediaQuery } from '@/lib/use-media'
 import { brl, cn } from '@/lib/utils'
-import { contactById, TODAY, type Appointment } from '@/data/mock'
+import { contactById, services as seedServices, TODAY, type Appointment } from '@/data/mock'
 import { formatLongDate, toMinutes, useCompany, weekdayOf, type ProfessionalItem } from '@/lib/company'
 import { useAppState } from '@/lib/app-state'
 
 const HOUR_PX = 72
+const HISTORY_SERVICES = Object.fromEntries(seedServices.map((sv) => [sv.id, sv]))
 
 const statusMeta: Record<Appointment['status'], { label: string; tone: 'primary' | 'success' | 'warning' | 'danger' | 'neutral' }> = {
   agendado: { label: 'Agendado', tone: 'neutral' },
@@ -40,8 +43,31 @@ export function AgendaPage() {
   const { professionals: allPros, info } = useCompany()
   const professionals = allPros.filter((p) => p.active)
   const selectedPros = professionals.map((p) => p.id).filter((id) => !hiddenPros.includes(id))
-  const today = info.hours[weekdayOf(TODAY)]
-  const appointments = all.filter((a) => (a.date ?? TODAY) === TODAY)
+  const [day, setDay] = useState(TODAY)
+  const today = info.hours[weekdayOf(day)]
+  // Dias passados mostram o histórico; hoje e dias futuros, os agendamentos marcados
+  const appointments =
+    day < TODAY
+      ? HISTORY.appts
+          .filter((a) => a.date === day)
+          .map((a): Appointment => {
+            const svc = HISTORY_SERVICES[a.serviceId]
+            const [h, m] = a.time.split(':').map(Number)
+            const end = h * 60 + m + (svc?.minutes ?? 60)
+            return {
+              id: a.id,
+              contactId: a.contactId,
+              professionalId: a.professionalId,
+              service: svc?.name ?? 'Serviço',
+              start: a.time,
+              end: `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`,
+              status: a.status === 'cancelado' ? 'faltou' : a.status,
+              price: a.price,
+              origin: a.origin,
+              date: a.date
+            }
+          })
+      : all.filter((a) => (a.date ?? TODAY) === day)
 
   // Atalho da busca rápida: /agenda?novo=1 abre a janela de agendamento
   useEffect(() => {
@@ -66,24 +92,24 @@ export function AgendaPage() {
       <div className="flex flex-col gap-3 border-b border-border bg-surface px-4 py-3 md:px-6">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center">
-            <Button variant="ghost" size="icon-sm" aria-label="Dia anterior">
+            <Button variant="ghost" size="icon-sm" aria-label="Dia anterior" onClick={() => setDay((d) => addDays(d, -1))}>
               <ChevronLeft />
             </Button>
-            <Button variant="outline" size="sm">Hoje</Button>
-            <Button variant="ghost" size="icon-sm" aria-label="Próximo dia">
+            <Button variant="outline" size="sm" onClick={() => setDay(TODAY)} disabled={day === TODAY}>Hoje</Button>
+            <Button variant="ghost" size="icon-sm" aria-label="Próximo dia" onClick={() => setDay((d) => addDays(d, 1))}>
               <ChevronRight />
             </Button>
           </div>
           <div className="mr-auto">
-            <p className="text-[15px] leading-tight font-semibold">{formatLongDate(TODAY)}</p>
+            <p className="text-[15px] leading-tight font-semibold">
+              {formatLongDate(day)}
+              {day === TODAY && <span className="ml-2 text-xs font-medium text-primary">Hoje</span>}
+            </p>
             <p className="text-xs text-muted">
               {dayAppts.length} agendamentos · {brl.format(revenue)} previstos
             </p>
           </div>
-          <Badge tone="success" size="md" className="hidden gap-1.5 lg:inline-flex">
-            <GoogleIcon className="size-3.5" /> Google Agenda sincronizado · há 2 min
-            <RefreshCw className="ml-0.5" />
-          </Badge>
+          <GoogleSyncButton />
           <Segmented
             className="hidden md:inline-flex"
             value={view}
@@ -122,7 +148,7 @@ export function AgendaPage() {
 
       {effectiveView === 'dia' ? (
         today.open ? (
-          <DayGrid pros={pros} appointments={appointments} onOpen={setOpenAppt} hours={today} />
+          <DayGrid pros={pros} appointments={appointments} onOpen={setOpenAppt} hours={today} showNow={day === TODAY} />
         ) : (
           <div className="flex flex-1 items-center justify-center p-6 text-center">
             <div>
@@ -144,8 +170,10 @@ function DayGrid({
   pros,
   appointments,
   onOpen,
-  hours: day
+  hours: day,
+  showNow
 }: {
+  showNow: boolean
   pros: ProfessionalItem[]
   appointments: Appointment[]
   onOpen: (a: Appointment) => void
@@ -245,10 +273,10 @@ function DayGrid({
           ))}
 
           {/* Linha "agora" */}
-          <div className="pointer-events-none absolute right-0 left-14 z-10 flex items-center" style={{ top: nowTop + 12 }}>
+          {showNow && <div className="pointer-events-none absolute right-0 left-14 z-10 flex items-center" style={{ top: nowTop + 12 }}>
             <span className="size-2.5 rounded-full bg-danger" />
             <span className="h-0.5 flex-1 bg-danger" />
-          </div>
+          </div>}
         </div>
       </div>
     </div>
