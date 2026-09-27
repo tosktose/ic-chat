@@ -531,7 +531,7 @@ O código do IC Chat ficará no **GitHub**.
 4. ~~Hospedagem~~ → **Respondido:** tem Supabase (servidor central = Supabase, ver 0.2). **Falta:** o Painel Super Admin (web) ficará hospedado onde? (sugestão: Vercel/Netlify grátis ou `admin.itacondo.com.br`)
 5. ~~Meta/CNPJ~~ → **Respondido:** ainda sem CNPJ; o MVP é para vender e depois formalizar (ver 0.1). **Falta:** o salão piloto tem CNPJ? (para usar o WhatsApp Oficial com as credenciais dele)
 19. **Mac:** você tem um Mac para testar? Topa a conta **Apple Developer** (pessoa física, US$ 99/ano) para assinar o app?
-20. **GitHub:** qual conta/organização vai ter o repositório? Posso já criar o repositório privado `ic-chat`, ou prefere você mesmo criar?
+20. ~~GitHub~~ → **Feito:** repositório **privado** [tosktose/ic-chat](https://github.com/tosktose/ic-chat), branch `main`.
 6. **Agenda:** cada profissional tem sua própria conta Google, ou a empresa terá uma conta com várias agendas?
 7. **Comissões / financeiro:** o gerente precisa ver comissão por profissional, caixa, pagamentos? (Muitos sistemas de salão têm isso — pode ser um módulo futuro.)
 8. **Agendamento online** por link (cliente marca sozinho numa página) — entra no MVP?
