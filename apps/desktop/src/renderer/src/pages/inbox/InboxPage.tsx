@@ -27,6 +27,7 @@ import { toast } from 'sonner'
 import { useCompany } from '@/lib/company'
 import { useData } from '@/lib/data'
 import { useWhatsApp } from '@/lib/whatsapp'
+import { useAi, waitingFor } from '@/lib/ai'
 import { userById, users } from '@/data/mock'
 import { Composer } from './Composer'
 import { ContactPanel } from './ContactPanel'
@@ -119,6 +120,8 @@ function ChatPane({
   const { conversations, contactById, updateConversation, appendMessage, updateMessage, saveMedia } = useData()
   const { info } = useCompany()
   const wa = useWhatsApp()
+  const ai = useAi()
+  const queuePos = ai.queue.findIndex((c) => c.id === convId) + 1
   const conv = conversations.find((c) => c.id === convId)!
   const contact = contactById(conv.contactId)
   const { license, me, signature, myDisplayName, resolveUser } = useAppState()
@@ -133,7 +136,12 @@ function ChatPane({
   const agent = resolveUser(userById(assignee))
   const firstName = (n: string) => n.split(' ')[0]
   const system = (text: string) => appendMessage(conv.id, { from: 'system', kind: 'system', text })
-  const setAiOn = (v: boolean) => updateConversation(conv.id, { aiEnabled: v })
+  // Ligar a IA devolve a conversa para ela; desligar com a IA atendendo manda para a fila da URA
+  const setAiOn = (v: boolean) => {
+    if (v) return ai.giveBackToAi(conv.id)
+    if (!conv.assignee && (conv.status === 'nova' || conv.status === 'ia')) return ai.handoff(conv.id, 'IA pausada pela equipe')
+    updateConversation(conv.id, { aiEnabled: false })
+  }
 
   // Ao abrir a conversa, as mensagens ficam como lidas
   useEffect(() => {
@@ -164,7 +172,7 @@ function ChatPane({
   // O WhatsApp é um só (da empresa); o que muda é quem responde. Fica registrado na conversa.
   const assignTo = (userId: string) => {
     const target = resolveUser(userById(userId))!
-    updateConversation(conv.id, { assignee: userId, status: conv.status === 'nova' || conv.status === 'ia' ? 'humano' : conv.status })
+    updateConversation(conv.id, { assignee: userId, assignedAt: Date.now(), aiEnabled: false, status: conv.status === 'nova' || conv.status === 'ia' ? 'humano' : conv.status })
     system(userId === me.id ? `${myDisplayName} assumiu o atendimento` : `${myDisplayName} transferiu para ${firstName(target.name)}`)
     if (userId !== me.id) {
       notify({ kind: 'equipe', title: 'Conversa transferida', body: `${contact.name} agora está com ${firstName(target.name)}.`, link: `/inbox?c=${conv.id}` })
@@ -206,7 +214,7 @@ function ChatPane({
   const send = (text: string, note: boolean) => {
     // Quem responde sem ter assumido passa a ser o responsável
     if (!note) ensureOwner()
-    const id = appendMessage(conv.id, { from: 'agent', author: myDisplayName, kind: note ? 'note' : 'text', text, status: 'sent' })
+    const id = appendMessage(conv.id, { from: 'agent', author: myDisplayName, by: me.id, kind: note ? 'note' : 'text', text, status: 'sent' })
     // O número é um só; a assinatura mostra ao cliente quem está respondendo
     if (!note) deliver(id, () => wa.sendText(conv, contact.phone, signature ? `*${myDisplayName}:*
 ${text}` : text))
@@ -223,8 +231,8 @@ ${text}` : text))
     const size = file.size > 1024 * 1024 ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(file.size / 1024))} KB`
     const visual = file.type.startsWith('image/') || file.type.startsWith('video/')
     const id = visual
-      ? appendMessage(conv.id, { from: 'agent', author: myDisplayName, kind: 'image', src, mime: file.type, text: caption, fileName: file.name, status: 'sent' })
-      : appendMessage(conv.id, { from: 'agent', author: myDisplayName, kind: 'document', src, mime: file.type, fileName: file.name, fileSize: size, status: 'sent' })
+      ? appendMessage(conv.id, { from: 'agent', author: myDisplayName, by: me.id, kind: 'image', src, mime: file.type, text: caption, fileName: file.name, status: 'sent' })
+      : appendMessage(conv.id, { from: 'agent', author: myDisplayName, by: me.id, kind: 'document', src, mime: file.type, fileName: file.name, fileSize: size, status: 'sent' })
     const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'document'
     deliver(id, () => wa.sendMedia(conv, contact.phone, { blob: file, mime: file.type || 'application/octet-stream', fileName: file.name, caption, kind }))
   }
@@ -240,6 +248,7 @@ ${text}` : text))
     const id = appendMessage(conv.id, {
       from: 'agent',
       author: myDisplayName,
+      by: me.id,
       kind: 'audio',
       src,
       duration: `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`,
@@ -261,7 +270,7 @@ ${text}` : text))
             <div className="min-w-0">
               <p className="truncate text-[15px] font-semibold">{contact.name}</p>
               <p className="truncate text-xs text-muted">
-                {channelLabel(conv.channel)} · {agent ? `com ${agent.name.split(' ')[0]}` : 'sem responsável'}
+                {channelLabel(conv.channel)} · {agent ? `com ${agent.name.split(' ')[0]}` : queuePos ? `${queuePos}º na fila da URA · ${waitingFor(conv)}` : conv.status === 'ia' ? `com ${ai.config.name} (IA)` : 'sem responsável'}
               </p>
             </div>
           </button>
@@ -376,6 +385,11 @@ ${text}` : text))
               <MessageBubble msg={m} />
             </div>
           ))}
+          {ai.typing.includes(conv.id) && (
+            <p className="ml-auto flex items-center gap-1.5 rounded-full bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-600 dark:text-violet-300">
+              <Bot className="size-3.5" /> {ai.config.name} está digitando…
+            </p>
+          )}
           <div ref={endRef} />
         </div>
       </div>

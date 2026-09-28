@@ -67,15 +67,16 @@ export function WhatsAppProvider({ children }: { children: ReactNode }) {
         fileSize: m.fileSize,
         duration: m.seconds ? `${Math.floor(m.seconds / 60)}:${String(m.seconds % 60).padStart(2, '0')}` : undefined,
         time,
+        at: m.timestamp,
         waId: m.id,
         status: m.fromMe ? 'sent' : undefined
       })
       if (!m.fromMe) {
         const isOpen = openConvRef.current === convId
-        Object.assign(patch, {
-          unread: isOpen ? 0 : conv.unread + 1,
-          status: conv.status === 'resolvida' ? 'nova' : conv.status
-        })
+        Object.assign(patch, { unread: isOpen ? 0 : conv.unread + 1 })
+        // Cliente voltou depois de resolvida: novo atendimento, começa pela IA/URA
+        if (conv.status === 'resolvida')
+          Object.assign(patch, { status: 'nova', assignee: undefined, aiEnabled: true, queuedAt: undefined, handoffReason: undefined, assignedAt: undefined })
         if (!isOpen) {
           const preview = m.kind === 'text' ? m.text : m.kind === 'audio' ? '🎤 Áudio' : m.kind === 'image' ? '📷 Foto' : `📄 ${m.fileName}`
           notify({ kind: 'mensagem', title: contact.name, body: preview ?? '', link: `/inbox?c=${convId}` })

@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, sessio
 import { unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import * as ai from './ai'
 import * as db from './db'
 import * as gcal from './google'
 import * as wa from './whatsapp'
@@ -51,8 +52,8 @@ function createWindow(): BrowserWindow {
     show: false,
     title: 'IC Chat',
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#0b1020' : '#f5f7fb',
-    // Empacotado, o Windows usa o .ico embutido no .exe; em desenvolvimento usamos o PNG transparente
-    ...(app.isPackaged ? {} : { icon: join(__dirname, '../../build/icon-256.png') }),
+    // Ícone da janela e da barra de tarefas (empacotado: .ico copiado para resources; desenvolvimento: PNG)
+    icon: app.isPackaged ? join(process.resourcesPath, 'icon.ico') : join(__dirname, '../../build/icon-256.png'),
     // Barra de título integrada ao app: no Windows os botões nativos ficam por cima (overlay),
     // no macOS os "semáforos" ficam à esquerda.
     titleBarStyle: 'hidden',
@@ -234,6 +235,12 @@ app.whenReady().then(() => {
     b64(media?.base64)
     return wa.sendMedia(String(to), media)
   })
+  handle('ai:status', () => ai.status())
+  handle('ai:setKey', (provider: unknown, key: unknown) => ai.setKey(provider, key))
+  handle('ai:clearKey', (provider: unknown) => ai.clearKey(provider))
+  handle('ai:test', (provider: unknown, model: unknown) => ai.test(provider, model))
+  handle('ai:reply', (provider: unknown, model: unknown, system: unknown, turns: unknown) => ai.reply(provider, model, system, turns))
+
   handle('gcal:status', () => gcal.status())
   handle('gcal:setCredentials', (id: string, secret: string) => gcal.setCredentials(String(id), String(secret)))
   handle('gcal:connect', (proId: string) => gcal.connect(String(proId)))

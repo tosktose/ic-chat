@@ -4,7 +4,7 @@
 import type { ChannelKind } from '@/components/brand'
 import { contacts, services, TODAY } from './mock'
 
-export type ApptStatus = 'concluido' | 'faltou' | 'cancelado'
+export type ApptStatus = 'agendado' | 'concluido' | 'faltou' | 'cancelado'
 export type ApptOrigin = 'ia' | 'manual' | 'link'
 
 export interface ApptRecord {
@@ -14,6 +14,8 @@ export interface ApptRecord {
   contactId: string
   professionalId: string
   serviceId: string
+  /** Nome do serviço (agendamentos reais guardam o nome) */
+  serviceName?: string
   price: number
   status: ApptStatus
   origin: ApptOrigin
@@ -25,9 +27,10 @@ export interface ChatRecord {
   time: string
   contactId: string
   channel: ChannelKind
-  /** 'ia' quando a IA resolveu sozinha; senão o id do analista */
+  /** 'ia' quando a IA resolveu sozinha; 'fila' quando ninguém respondeu; senão o id do analista */
   handledBy: string
-  firstResponseSec: number
+  /** null quando ainda não houve resposta */
+  firstResponseSec: number | null
   resolved: boolean
   booked: boolean
 }
@@ -68,6 +71,7 @@ const CHANNELS: ChannelKind[] = ['whatsapp', 'whatsapp', 'whatsapp', 'whatsapp_o
 function build(): { appts: ApptRecord[]; chats: ChatRecord[] } {
   const r = rng(20260927)
   const pick = <T,>(a: T[]) => a[Math.floor(r() * a.length)]
+  const people = contacts.length ? contacts : [{ id: 'c1' }]
   const appts: ApptRecord[] = []
   const chats: ChatRecord[] = []
   for (let back = 59; back >= 0; back--) {
@@ -87,7 +91,7 @@ function build(): { appts: ApptRecord[]; chats: ChatRecord[] } {
         id: `a-${date}-${i}`,
         date,
         time: `${String(hour).padStart(2, '0')}:${r() > 0.5 ? '30' : '00'}`,
-        contactId: pick(contacts).id,
+        contactId: pick(people).id,
         professionalId: pro,
         serviceId: sid,
         price: svc.price,
@@ -103,7 +107,7 @@ function build(): { appts: ApptRecord[]; chats: ChatRecord[] } {
         id: `c-${date}-${i}`,
         date,
         time: `${String(8 + Math.floor(r() * 13)).padStart(2, '0')}:${String(Math.floor(r() * 60)).padStart(2, '0')}`,
-        contactId: pick(contacts).id,
+        contactId: pick(people).id,
         channel: pick(CHANNELS),
         handledBy: ai ? 'ia' : pick(ANALYSTS),
         firstResponseSec: ai ? 3 + Math.floor(r() * 12) : 40 + Math.floor(r() * 260),
@@ -117,4 +121,9 @@ function build(): { appts: ApptRecord[]; chats: ChatRecord[] } {
   return { appts, chats }
 }
 
-export const HISTORY = build()
+let cache: ReturnType<typeof build> | null = null
+/** Histórico de exemplo, montado só quando alguma tela pede (demonstração no navegador) */
+export function demoHistory() {
+  cache ??= build()
+  return cache
+}

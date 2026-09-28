@@ -56,6 +56,10 @@ export interface Message {
   status?: 'sent' | 'delivered' | 'read' | 'error'
   /** ID da mensagem no WhatsApp (para confirmar entrega/leitura) */
   waId?: string
+  /** Momento exato (ms desde 1970): base dos indicadores do painel e dos relatórios */
+  at?: number
+  /** Usuário da equipe que enviou (id) */
+  by?: string
 }
 
 export interface Conversation {
@@ -74,6 +78,12 @@ export interface Conversation {
   waJid?: string
   /** Etapa escolhida no Kanban (quando diferente da que o status indica) */
   kanbanStage?: KanbanStage
+  /** Quando a conversa foi aberta (ms) */
+  createdAt?: number
+  /** URA: quando entrou na fila de atendimento humano, por quê, e quando foi encaminhada */
+  queuedAt?: number
+  handoffReason?: string
+  assignedAt?: number
 }
 
 export interface Appointment {
@@ -83,7 +93,7 @@ export interface Appointment {
   service: string
   start: string // HH:mm
   end: string
-  status: 'agendado' | 'confirmado' | 'em_atendimento' | 'concluido' | 'faltou'
+  status: 'agendado' | 'confirmado' | 'em_atendimento' | 'concluido' | 'faltou' | 'cancelado'
   price: number
   origin: 'ia' | 'manual' | 'link'
   /** AAAA-MM-DD; sem data = hoje (demonstração) */
@@ -91,6 +101,9 @@ export interface Appointment {
   notes?: string
   /** Evento criado no Google Agenda do profissional */
   googleEventId?: string
+  /** Quando foi marcado (ms) e por quem (id do usuário) */
+  createdAt?: number
+  createdBy?: string
 }
 
 export interface Service {

@@ -23,6 +23,8 @@ export interface WaIncomingDTO {
   timestamp: number
 }
 
+export type AiProviderId = 'anthropic' | 'openai' | 'google' | 'openrouter'
+
 export interface GEventDTO {
   id: string
   summary: string
@@ -65,6 +67,18 @@ declare global {
           media: { base64: string; mime: string; fileName?: string; caption?: string; kind: 'image' | 'video' | 'document' | 'audio' }
         ) => Promise<Result<{ id: string; jid: string }>>
         on: (cb: (e: { type: 'state' | 'message' | 'ack'; payload: unknown }) => void) => () => void
+      }
+      ai: {
+        status: () => Promise<Result<Record<AiProviderId, { masked: string; checkedAt?: number } | null>>>
+        setKey: (provider: AiProviderId, key: string) => Promise<Result<void>>
+        clearKey: (provider: AiProviderId) => Promise<Result<void>>
+        test: (provider: AiProviderId, model: string) => Promise<Result<{ text: string; tokens: number }>>
+        reply: (
+          provider: AiProviderId,
+          model: string,
+          system: string,
+          turns: { role: 'user' | 'assistant'; content: string }[]
+        ) => Promise<Result<{ text: string; tokens: number }>>
       }
       gcal: {
         status: () => Promise<Result<{ hasCredentials: boolean; clientId: string; accounts: Record<string, string> }>>

@@ -24,7 +24,7 @@ const SEED: Item[] = [
   { id: 'k3', kind: 'texto', title: 'Estacionamento', content: 'Temos estacionamento conveniado na rua de trás, com 1 hora grátis para clientes.' }
 ]
 
-function load(): Item[] {
+export function loadKnowledge(): Item[] {
   try {
     const raw = localStorage.getItem(KEY)
     return raw ? JSON.parse(raw) : SEED
@@ -39,7 +39,7 @@ const LABEL = { texto: 'Texto', faq: 'Pergunta e resposta', arquivo: 'Arquivo' }
 /** Base de conhecimento da IA: o que ela sabe sobre o negócio (além do cadastro de serviços) */
 export function KnowledgeCard() {
   const { services, hoursText, info } = useCompany()
-  const [items, setItems] = useState<Item[]>(load)
+  const [items, setItems] = useState<Item[]>(loadKnowledge)
   const [editing, setEditing] = useState<Item | 'new' | null>(null)
   useEffect(() => {
     try {

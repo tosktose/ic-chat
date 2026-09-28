@@ -26,7 +26,7 @@ const toHHMM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${
  * ou pela busca rápida. Sugere horários livres do profissional e bloqueia conflitos.
  */
 export function NewAppointmentDialog() {
-  const { apptDialog, closeNewAppointment, appointments, addAppointment, updateAppointment, myDisplayName } = useAppState()
+  const { apptDialog, closeNewAppointment, appointments, addAppointment, updateAppointment, myDisplayName, me } = useAppState()
   const wa = useWhatsApp()
   const google = useGoogle()
   const { notify } = useNotifications()
@@ -136,7 +136,7 @@ export function NewAppointmentDialog() {
 Se precisar remarcar, é só responder esta mensagem.`
       const convId = openConversation(contactId)
       const conv = conversations.find((x) => x.id === convId)
-      const msgId = appendMessage(convId, { from: 'agent', author: myDisplayName, kind: 'text', text, status: 'sent' })
+      const msgId = appendMessage(convId, { from: 'agent', author: myDisplayName, by: me.id, kind: 'text', text, status: 'sent' })
       if (!wa.available) {
         confirmNote = ' · confirmação registrada na conversa'
       } else if (wa.state.status === 'conectado' && conv) {

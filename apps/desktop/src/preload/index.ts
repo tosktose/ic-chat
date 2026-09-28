@@ -41,6 +41,14 @@ const api = {
     }
   },
   /** Google Agenda (OAuth + API do Calendar) */
+  ai: {
+    status: () => call('ai:status'),
+    setKey: (provider: string, key: string) => call('ai:setKey', provider, key),
+    clearKey: (provider: string) => call('ai:clearKey', provider),
+    test: (provider: string, model: string) => call('ai:test', provider, model),
+    reply: (provider: string, model: string, system: string, turns: { role: 'user' | 'assistant'; content: string }[]) =>
+      call('ai:reply', provider, model, system, turns)
+  },
   gcal: {
     status: () => call('gcal:status'),
     setCredentials: (id: string, secret: string) => call('gcal:setCredentials', id, secret),

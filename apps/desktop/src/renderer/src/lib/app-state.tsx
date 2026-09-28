@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { appointments as seedAppointments, sessionUsers, type Appointment, type Role, type User } from '@/data/mock'
 
 /** Estados da licença (seção 5.8 do documento do projeto) */
@@ -34,12 +34,18 @@ interface AppState {
   updateMyProfile: (p: ProfileOverride) => void
   /** Aplica as alterações de perfil a qualquer usuário (listas, conversas, painel) */
   resolveUser: <U extends User | undefined>(u: U) => U
+  /** Meu status: define se a URA pode me encaminhar clientes */
+  myPresence: 'online' | 'away' | 'busy'
+  setMyPresence: (p: 'online' | 'away' | 'busy') => void
   signIn: (role: Role) => void
   /** Foto do usuário logado (data URL) */
   myPhoto?: string
   setMyPhoto: (url?: string) => void
   /** Agendamentos (em memória até o Core estar ligado) */
+  /** Agendamentos ativos (sem os cancelados) */
   appointments: Appointment[]
+  /** Todos, inclusive cancelados (relatórios e indicadores) */
+  appointmentLog: Appointment[]
   addAppointment: (a: Omit<Appointment, 'id'>) => Appointment
   updateAppointment: (id: string, patch: Partial<Appointment>) => void
   /** 'cancelado' remove o horário da agenda */
@@ -105,6 +111,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     void window.icchat!.db.load().then((r) => r.ok && setAppointments(r.data.appointments as Appointment[]))
   }, [appMode])
   const saveAppt = (a: Appointment) => void window.icchat?.db.upsert('appointment', a.id, a)
+  const activeAppointments = useMemo(() => appointments.filter((a) => a.status !== 'cancelado'), [appointments])
   const [signature, setSignature] = useState(true)
   const [photos, setPhotos] = useState<Record<string, string | undefined>>({})
   const [profiles, setProfiles] = useState<Record<string, ProfileOverride>>(() => {
@@ -114,8 +121,21 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       return {}
     }
   })
-  const resolveUser = <U extends User | undefined>(u: U): U =>
-    (u && profiles[u.id]?.name ? { ...u, name: profiles[u.id].name } : u) as U
+  const [myPresence, setPresenceState] = useState<'online' | 'away' | 'busy'>(() => {
+    try {
+      const p = localStorage.getItem('icchat.presence')
+      return p === 'away' || p === 'busy' ? p : 'online'
+    } catch {
+      return 'online'
+    }
+  })
+  const resolveUser = <U extends User | undefined>(u: U): U => {
+    if (!u) return u
+    let out: User = u
+    if (profiles[u.id]?.name) out = { ...out, name: profiles[u.id].name! }
+    if (u.id === sessionUsers[role].id) out = { ...out, presence: myPresence }
+    return out as U
+  }
   const [apptDialog, setApptDialog] = useState<{ open: boolean; contactId?: string }>({ open: false })
   const [role, setRole] = useState<Role>(() => {
     try {
@@ -131,6 +151,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       value={{
         role,
         me: resolveUser(sessionUsers[role]),
+        myPresence,
+        setMyPresence: (p) => {
+          setPresenceState(p)
+          try {
+            localStorage.setItem('icchat.presence', p)
+          } catch {
+            /* ignore */
+          }
+        },
         myDisplayName:
           profiles[sessionUsers[role].id]?.displayName || resolveUser(sessionUsers[role]).name.split(' ')[0],
         myPhone: profiles[sessionUsers[role].id]?.phone,
@@ -166,9 +195,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             /* sem espaço: mantém só nesta sessão */
           }
         },
-        appointments,
+        appointments: activeAppointments,
+        appointmentLog: appointments,
         addAppointment: (a) => {
-          const appt = { ...a, id: crypto.randomUUID() }
+          const appt: Appointment = { createdAt: Date.now(), createdBy: sessionUsers[role].id, ...a, id: crypto.randomUUID() }
           setAppointments((list) => [...list, appt])
           saveAppt(appt)
           return appt
@@ -184,10 +214,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           ),
         setAppointmentStatus: (id, status) =>
           setAppointments((list) => {
-            if (status === 'cancelado') {
-              void window.icchat?.db.remove('appointment', id)
-              return list.filter((a) => a.id !== id)
-            }
+            if (status === 'cancelado' && !appMode) return list.filter((a) => a.id !== id)
             return list.map((a) => {
               if (a.id !== id) return a
               const next = { ...a, status }

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Timer, Bot, ListFilter, Search, SquarePen } from 'lucide-react'
+import { BellRing, Timer, Bot, ListFilter, Search, SquarePen } from 'lucide-react'
 import { ChannelBadge, channelLabel, type ChannelKind } from '@/components/brand'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { NewConversationDialog } from '@/components/ContactDialogs'
 import { TagChip } from '@/components/tags'
 import { useAppState } from '@/lib/app-state'
+import { useAi, waitingFor } from '@/lib/ai'
 import { TAG_COLORS, useTags } from '@/lib/tags'
 import { contactById, type Conversation, type ConversationStatus } from '@/data/mock'
 
@@ -41,6 +42,8 @@ export function ConversationList({
   const [tagFilter, setTagFilter] = useState<string | null>(null)
   const [newOpen, setNewOpen] = useState(false)
   const { tags, hasTag, rulesOf } = useTags()
+  const ai = useAi()
+  const queuePos = useMemo(() => new Map(ai.queue.map((c, i) => [c.id, i + 1])), [ai.queue])
 
   const counts = {
     minhas: conversations.filter((c) => c.assignee === me.id && c.status !== 'resolvida').length,
@@ -62,8 +65,13 @@ export function ConversationList({
     })
     // Regra das etiquetas: conversas com etiqueta de prioridade (e não resolvidas) sobem para o topo
     const prio = (c: Conversation) => (c.status !== 'resolvida' && rulesOf(c.contactId).priority ? 1 : 0)
-    return filtered.map((c, i) => ({ c, i })).sort((a, b) => prio(b.c) - prio(a.c) || a.i - b.i).map((x) => x.c)
-  }, [tab, q, channel, tagFilter, conversations, me.id, hasTag, rulesOf])
+    // Na fila: primeiro quem está na URA, na ordem de atendimento
+    const pos = (c: Conversation) => (tab === 'fila' ? queuePos.get(c.id) ?? 9999 : 0)
+    return filtered
+      .map((c, i) => ({ c, i }))
+      .sort((a, b) => pos(a.c) - pos(b.c) || prio(b.c) - prio(a.c) || a.i - b.i)
+      .map((x) => x.c)
+  }, [tab, q, channel, tagFilter, conversations, me.id, hasTag, rulesOf, queuePos])
 
   const activeTag = tags.find((t) => t.id === tagFilter)
 
@@ -110,6 +118,23 @@ export function ConversationList({
             {activeTag && <TagChip tag={activeTag} onRemove={() => setTagFilter(null)} />}
           </div>
         )}
+        {ai.queue.length > 0 && (
+          <button
+            onClick={() => setTab('fila')}
+            className="flex items-center gap-2.5 rounded-xl border border-warning/40 bg-warning-soft px-3 py-2 text-left text-[12.5px] transition-colors hover:border-warning"
+          >
+            <span className="relative flex size-7 shrink-0 items-center justify-center rounded-full bg-warning text-white">
+              <span className="absolute inset-0 animate-ping rounded-full bg-warning/50" />
+              <BellRing className="relative size-3.5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <b className="block">
+                {ai.queue.length} {ai.queue.length === 1 ? 'cliente aguarda' : 'clientes aguardam'} na URA
+              </b>
+              <span className="block truncate text-muted">Atendimento especializado · o 1º espera {waitingFor(ai.queue[0])}</span>
+            </span>
+          </button>
+        )}
         <Segmented
           value={tab}
           onChange={setTab}
@@ -126,7 +151,7 @@ export function ConversationList({
       <div className="scroll-thin flex-1 overflow-y-auto px-2 pb-2">
         {list.length === 0 && <p className="px-4 py-10 text-center text-sm text-muted">Nenhuma conversa aqui 🎉</p>}
         {list.map((c) => (
-          <ConversationRow key={c.id} conv={c} active={c.id === selectedId} onClick={() => onSelect(c.id)} />
+          <ConversationRow key={c.id} conv={c} active={c.id === selectedId} onClick={() => onSelect(c.id)} queuePos={queuePos.get(c.id)} typing={ai.typing.includes(c.id)} aiName={ai.config.name} />
         ))}
       </div>
       <NewConversationDialog open={newOpen} onOpenChange={setNewOpen} onOpen={onSelect} />
@@ -134,7 +159,21 @@ export function ConversationList({
   )
 }
 
-function ConversationRow({ conv, active, onClick }: { conv: Conversation; active: boolean; onClick: () => void }) {
+function ConversationRow({
+  conv,
+  active,
+  onClick,
+  queuePos,
+  typing,
+  aiName
+}: {
+  conv: Conversation
+  active: boolean
+  onClick: () => void
+  queuePos?: number
+  typing?: boolean
+  aiName: string
+}) {
   const contact = contactById(conv.contactId)
   const status = statusMeta[conv.status]
   const { tagsOf, rulesOf } = useTags()
@@ -157,7 +196,9 @@ function ConversationRow({ conv, active, onClick }: { conv: Conversation; active
           <span className={cn('shrink-0 text-[11px]', conv.unread ? 'font-semibold text-primary' : 'text-subtle')}>{conv.lastTime}</span>
         </div>
         <div className="mt-0.5 flex items-center gap-2">
-          <p className={cn('flex-1 truncate text-[13px]', conv.unread ? 'text-foreground' : 'text-muted')}>{conv.lastMessage}</p>
+          <p className={cn('flex-1 truncate text-[13px]', typing ? 'text-violet-600 dark:text-violet-300' : conv.unread ? 'text-foreground' : 'text-muted')}>
+            {typing ? `${aiName} está digitando…` : conv.lastMessage}
+          </p>
           {conv.unread > 0 && (
             <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-white">
               {conv.unread}
@@ -169,6 +210,13 @@ function ConversationRow({ conv, active, onClick }: { conv: Conversation; active
             {conv.status === 'ia' && <Bot className="size-3" />}
             {status.label}
           </span>
+          {queuePos && (
+            <Tooltip content={conv.handoffReason ? `Motivo: ${conv.handoffReason}` : 'Aguardando atendimento da equipe'} description="Ordem de atendimento da URA">
+              <span className="inline-flex h-5 shrink-0 items-center gap-1 rounded-full bg-warning px-2 text-[10.5px] font-semibold whitespace-nowrap text-white">
+                {queuePos}º na fila · {waitingFor(conv)}
+              </span>
+            </Tooltip>
+          )}
           {urgent && rules.minSla && conv.unread > 0 && (
             <Tooltip content={`Responder em até ${rules.minSla} minutos`} description="Prazo definido pela etiqueta do cliente">
               <span className="inline-flex h-5 shrink-0 items-center gap-0.5 rounded-full bg-danger px-1.5 text-[10.5px] font-semibold whitespace-nowrap text-white">

@@ -294,9 +294,8 @@ function LicensePill({ state, days, onClick }: { state: string; days: number; on
 
 function UserMenu() {
   const { theme, setTheme } = useTheme()
-  const { me, role, myPhoto } = useAppState()
+  const { me, role, myPhoto, myPresence: status, setMyPresence: setStatus } = useAppState()
   const navigate = useNavigate()
-  const [status, setStatus] = useState<'online' | 'away' | 'busy'>('online')
   const statusLabel = { online: 'Disponível', away: 'Ausente', busy: 'Ocupado' }
 
   return (

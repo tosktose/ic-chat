@@ -62,6 +62,21 @@ function normalizeContact(c: Partial<Contact>): Contact {
   return { since: '', visits: 0, spent: 0, ...c, id: String(c.id), name: c.name || 'Contato', phone: c.phone ?? '', tags: Array.isArray(c.tags) ? c.tags : [] }
 }
 
+const WEEKDAYS_PT = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
+/** Data/hora aproximada das mensagens de exemplo ("Hoje 09:31", "Ontem 19:20", "Segunda 11:20") */
+function demoTimestamp(m: Message): number {
+  const d = new Date()
+  const day = (m.day ?? 'Hoje').toLowerCase()
+  if (day.startsWith('ontem')) d.setDate(d.getDate() - 1)
+  else if (!day.startsWith('hoje')) {
+    const wd = WEEKDAYS_PT.findIndex((w) => day.startsWith(w.slice(0, 3)))
+    if (wd >= 0) d.setDate(d.getDate() - (((d.getDay() - wd + 7) % 7) || 7))
+  }
+  const [h, min] = (m.time || '12:00').split(':').map(Number)
+  d.setHours(h || 0, min || 0, 0, 0)
+  return d.getTime()
+}
+
 function preview(m: Omit<Message, 'id' | 'time'>): string {
   const who = m.from === 'agent' ? 'Você: ' : m.from === 'ai' ? 'IA: ' : ''
   if (m.kind === 'audio') return `${who}🎤 Áudio`
@@ -181,9 +196,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
           unread: 0,
           lastMessage: 'Nova conversa',
           lastTime: now(),
-          aiEnabled: false,
+          // A IA pode fazer o primeiro atendimento (se estiver ligada em Assistente IA)
+          aiEnabled: true,
           tags: [],
-          messages: []
+          messages: [],
+          createdAt: Date.now()
         }
         conversationList.unshift(conv)
         saveConversation(conv)
@@ -231,7 +248,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       appendMessage: (id, msg) => {
         const c = conversationList.find((x) => x.id === id)
         if (!c) return ''
-        const full: Message = { ...msg, id: crypto.randomUUID(), time: msg.time ?? now() } as Message
+        const full: Message = { ...msg, id: crypto.randomUUID(), time: msg.time ?? now(), at: msg.at ?? Date.now() } as Message
         c.messages = [...c.messages, full]
         if (msg.kind !== 'system' && msg.kind !== 'note') {
           c.lastMessage = preview(msg)
@@ -263,6 +280,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
         for (const conv of structuredClone(DEMO_CONVERSATIONS)) {
           if (conversationList.some((x) => x.id === conv.id)) continue
+          conv.messages = conv.messages.map((m) => ({ ...m, at: m.at ?? demoTimestamp(m) }))
+          conv.createdAt = conv.messages[0]?.at ?? Date.now()
           conversationList.push(conv)
           saveConversation(conv)
           conv.messages.forEach((m) => saveMessage(conv.id, m))

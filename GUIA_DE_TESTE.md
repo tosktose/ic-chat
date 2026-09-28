@@ -62,17 +62,40 @@ Para desconectar: **Canais → ícone de desconectar** (ou pelo celular, em Apar
    ele aparece como bloco “Google” e o horário fica indisponível no agendamento.
 6. Cancelar um horário no IC Chat remove o evento do Google.
 
-## 5. O que ainda é demonstração nesta versão
+## 5. Testar a IA e a fila da URA
+
+1. Crie uma chave de API no provedor (ex.: [console.anthropic.com](https://console.anthropic.com/settings/keys)).
+2. **Assistente IA** → escolha provedor e modelo → cole a chave → **Salvar** (ela é testada na hora).
+3. Converse com a IA no quadro **Testar** (resposta real, nada é enviado nem agendado).
+4. Ligue a chave **IA atendendo** no topo. A partir daí, cliente novo no WhatsApp é atendido pela IA:
+   ela responde com base nos serviços, preços, horários livres e na base de conhecimento, e pode **marcar horários** sozinha.
+5. Quando precisa de alguém (pedido do cliente, reclamação, dúvida etc.), a IA avisa o cliente e **transfere**:
+   a conversa entra na **fila da URA** (aviso amarelo piscando no Atendimento, com a posição de cada cliente).
+6. A URA encaminha, por ordem de chegada, para o **analista Disponível há mais tempo livre** (com menos conversas abertas),
+   com notificação e som. Ninguém disponível → o cliente espera na fila e todos são avisados.
+   Seu status (Disponível / Ausente / Ocupado) fica no menu do seu nome, no topo.
+7. No chat, a chave **IA** devolve a conversa para a IA; desligar manda para a fila.
+
+## 6. Números do painel e relatórios
+
+Painel do gerente, Relatórios e Meu desempenho usam os **dados reais** deste computador:
+- **Conversas**: cada atendimento (um novo começa quando o cliente escreve depois de 8h de silêncio).
+- **1ª resposta**: da primeira mensagem do cliente até a primeira resposta (equipe ou IA).
+- **Concluídos**: horários da agenda que já passaram sem falta marcada; **faltas** e **cancelados** também contam.
+- Visitas e gasto de cada cliente somam os horários realizados.
+Os números começam do zero na instalação e crescem com o uso.
+
+## 7. O que ainda é demonstração nesta versão
 
 - Login, usuários, empresas e licenças (Super Admin) ainda não usam servidor: e-mails de convite,
   de nova senha e de chave de licença não são enviados (a chave gerada é **copiada** para você enviar).
-- **Painel do gerente**, **Relatórios** e **Meu desempenho** mostram números de demonstração
-  (aviso amarelo na tela) — passam a usar os atendimentos reais na próxima versão.
-- A IA ainda não responde sozinha e a fila da URA ainda não distribui para o analista mais livre.
+- A **equipe** (analistas) ainda é a lista de exemplo: a presença dos outros analistas vem do cadastro;
+  a sua é real. Com o servidor, cada analista entra no próprio computador.
+- A IA não ouve áudios (pede para o cliente escrever).
 - WhatsApp Oficial (API da Meta), Instagram e Messenger ainda não enviam mensagens.
 - Modalidade Nuvem (Supabase) / servidor na rede: só a tela de escolha, os dados ficam neste computador.
 
-## 6. Onde ficam os dados do app
+## 8. Onde ficam os dados do app
 
 `%APPDATA%\IC Chat\`
 
@@ -82,8 +105,9 @@ Para desconectar: **Canais → ícone de desconectar** (ou pelo celular, em Apar
 | `media\` | Fotos, áudios e documentos enviados e recebidos |
 | `whatsapp-auth\` | Sessão do WhatsApp (apague para desconectar à força) |
 | `google.json` | Credenciais e autorizações do Google, **criptografadas** pelo Windows |
+| `ai.json` | Chave de API da IA, **criptografada** pelo Windows (nunca volta para a tela) |
 
-## 7. Segurança desta versão
+## 9. Segurança desta versão
 
 - Interface isolada do sistema (sem acesso a Node), com política de conteúdo (CSP) que bloqueia
   scripts e conexões externas; links externos só abrem no navegador e só `https`, `mailto` e `tel`.

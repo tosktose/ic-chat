@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useContactStats } from '@/lib/metrics'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { Download, MessageSquare, Search, Upload, UserPlus } from 'lucide-react'
@@ -15,6 +16,7 @@ import { exportCsv } from '@/lib/report/csv'
 import { useCompany } from '@/lib/company'
 
 export function ContactsPage() {
+  const stats = useContactStats()
   const [q, setQ] = useState('')
   const [tagFilter, setTagFilter] = useState<string | null>(null)
   const { professionalById } = useCompany()
@@ -50,8 +52,8 @@ export function ContactsPage() {
       email: c.email ?? '',
       tags: tagsOf(c.id).map((t) => t.name).join(', '),
       pro: professionalById(c.favoriteProfessional)?.name ?? '',
-      visits: String(c.visits),
-      spent: brl.format(c.spent),
+      visits: String(stats(c).visits),
+      spent: brl.format(stats(c).spent),
       since: c.since
     }))
     const r = await exportCsv(cols, rows, `contatos-${new Date().toISOString().slice(0, 10)}.csv`)
@@ -129,8 +131,8 @@ export function ContactsPage() {
                   </div>
                 </td>
                 <td className="hidden px-3 py-3 text-muted xl:table-cell">{professionalById(c.favoriteProfessional)?.name ?? '—'}</td>
-                <td className="px-3 py-3 text-right tabular-nums">{c.visits}</td>
-                <td className="px-3 py-3 text-right font-medium tabular-nums">{brl.format(c.spent)}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{stats(c).visits}</td>
+                <td className="px-3 py-3 text-right font-medium tabular-nums">{brl.format(stats(c).spent)}</td>
                 <td className="px-3 py-3">
                   <Button variant="ghost" size="icon-sm" onClick={() => openChat(c.id)} aria-label="Abrir conversa">
                     <MessageSquare />
@@ -159,7 +161,7 @@ export function ContactsPage() {
               )}
             </div>
             <div className="text-right">
-              <p className="text-[13px] font-semibold">{c.visits}</p>
+              <p className="text-[13px] font-semibold">{stats(c).visits}</p>
               <p className="text-[11px] text-muted">visitas</p>
             </div>
           </button>

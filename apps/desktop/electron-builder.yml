@@ -10,6 +10,10 @@ files:
   - package.json
   - '!out/web/**'
 # O ffmpeg (conversão de áudio do WhatsApp) precisa ficar fora do .asar para ser executado
+# Ícone também fora do .exe, para a janela e a barra de tarefas
+extraResources:
+  - from: build/icon.ico
+    to: icon.ico
 asarUnpack:
   - '**/node_modules/ffmpeg-static/**'
 # Segurança do executável: não roda como Node, ignora NODE_OPTIONS/--inspect,

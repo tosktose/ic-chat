@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { useContactStats } from '@/lib/metrics'
 import { useSearchParams } from 'react-router'
 import { Bot, CalendarPlus, ChevronLeft, ChevronRight, Clock, Link2, UserRound } from 'lucide-react'
 import { GoogleSyncButton } from '@/components/GoogleCalendarDialog'
 import { useGoogle } from '@/lib/google'
-import { addDays, HISTORY } from '@/data/history'
+import { addDays, demoHistory } from '@/data/history'
 import { toast } from 'sonner'
 import { GoogleIcon } from '@/components/brand'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,7 @@ import { brl, cn } from '@/lib/utils'
 import { contactById, services as seedServices, TODAY, type Appointment } from '@/data/mock'
 import { formatLongDate, toMinutes, useCompany, weekdayOf, type ProfessionalItem } from '@/lib/company'
 import { useAppState } from '@/lib/app-state'
+import { APP_MODE } from '@/lib/data'
 
 const HOUR_PX = 72
 const HISTORY_SERVICES = Object.fromEntries(seedServices.map((sv) => [sv.id, sv]))
@@ -23,7 +25,8 @@ const statusMeta: Record<Appointment['status'], { label: string; tone: 'primary'
   confirmado: { label: 'Confirmado', tone: 'primary' },
   em_atendimento: { label: 'Em atendimento', tone: 'warning' },
   concluido: { label: 'Concluído', tone: 'success' },
-  faltou: { label: 'Faltou', tone: 'danger' }
+  faltou: { label: 'Faltou', tone: 'danger' },
+  cancelado: { label: 'Cancelado', tone: 'neutral' }
 }
 
 const originIcon = { ia: Bot, manual: UserRound, link: Link2 }
@@ -52,8 +55,8 @@ export function AgendaPage() {
   const today = info.hours[weekdayOf(day)]
   // Dias passados mostram o histórico; hoje e dias futuros, os agendamentos marcados
   const appointments =
-    day < TODAY
-      ? HISTORY.appts
+    day < TODAY && !APP_MODE
+      ? demoHistory().appts
           .filter((a) => a.date === day)
           .map((a): Appointment => {
             const svc = HISTORY_SERVICES[a.serviceId]
@@ -361,6 +364,7 @@ function AppointmentDialog({ appt, onClose }: { appt: Appointment | null; onClos
   const { professionalById } = useCompany()
   const { setAppointmentStatus, openNewAppointment } = useAppState()
   const google = useGoogle()
+  const stats = useContactStats()
   if (!appt) return null
   const dropFromGoogle = () =>
     google.removeAppointment(appt).catch((e: Error) => toast.error('Não foi possível remover do Google Agenda', { description: e.message }))
@@ -402,7 +406,7 @@ function AppointmentDialog({ appt, onClose }: { appt: Appointment | null; onClos
         <Avatar name={c.name} size={44} />
         <div className="flex-1">
           <p className="font-semibold">{c.name}</p>
-          <p className="text-[13px] text-muted">{c.visits} visitas{c.since ? ` · cliente desde ${c.since}` : ''}</p>
+          <p className="text-[13px] text-muted">{stats(c).visits} visitas{c.since ? ` · cliente desde ${c.since}` : ''}</p>
         </div>
         <Badge tone={statusMeta[appt.status].tone} size="md">{statusMeta[appt.status].label}</Badge>
       </div>

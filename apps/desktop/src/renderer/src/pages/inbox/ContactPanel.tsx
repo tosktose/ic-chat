@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useContactStats } from '@/lib/metrics'
 import type { ReactNode } from 'react'
 import { CalendarPlus, Cake, Clock, Mail, PanelRightClose, Phone, Plus, Scissors, StickyNote, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -28,6 +29,7 @@ export function ContactPanel({
   onCollapse?: () => void
   className?: string
 }) {
+  const stats = useContactStats()
   const { appointments, openNewAppointment, role } = useAppState()
   const { professionalById, professionals } = useCompany()
   const { contactById, updateContact } = useData()
@@ -43,6 +45,7 @@ export function ContactPanel({
     .sort((a, b) => ((a.date ?? TODAY) + a.start).localeCompare((b.date ?? TODAY) + b.start))[0]
   const nextPro = professionalById(next?.professionalId)
 
+  const st = stats(contact)
   return (
     <aside className={cn('scroll-thin flex flex-col overflow-y-auto bg-surface', className)}>
       <div className="relative flex flex-col items-center px-5 pt-6 pb-5 text-center">
@@ -91,9 +94,9 @@ export function ContactPanel({
 
       <div className="grid grid-cols-3 border-y border-border text-center">
         {[
-          ['Visitas', contact.visits],
-          ['Gasto total', brl.format(contact.spent).replace(',00', '')],
-          ['Ticket médio', contact.visits ? brl.format(contact.spent / contact.visits).replace(',00', '') : '—']
+          ['Visitas', st.visits],
+          ['Gasto total', brl.format(st.spent).replace(',00', '')],
+          ['Ticket médio', st.visits ? brl.format(st.spent / st.visits).replace(',00', '') : '—']
         ].map(([label, value], i) => (
           <div key={String(label)} className={cn('px-2 py-3', i < 2 && 'border-r border-border')}>
             <p className="text-[15px] font-semibold">{value}</p>

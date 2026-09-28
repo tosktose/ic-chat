@@ -12,6 +12,7 @@ import { SaasProvider } from '@/lib/saas'
 import { NotificationsProvider } from '@/lib/notifications'
 import { TagsProvider } from '@/lib/tags'
 import { WhatsAppProvider } from '@/lib/whatsapp'
+import { AiProvider } from '@/lib/ai'
 import { ThemeProvider, useTheme } from '@/lib/theme'
 import { LoginPage } from '@/pages/LoginPage'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -85,6 +86,7 @@ export function App() {
             <NotificationsProvider>
             <TagsProvider>
             <WhatsAppProvider>
+            <AiProvider>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route element={<AppShell />}>
@@ -114,6 +116,7 @@ export function App() {
               <Route path="/" element={<Home />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
+            </AiProvider>
             </WhatsAppProvider>
             </TagsProvider>
             </NotificationsProvider>

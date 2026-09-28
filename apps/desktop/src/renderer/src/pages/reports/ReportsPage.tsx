@@ -15,7 +15,6 @@ import {
 import { toast } from 'sonner'
 import { channelLabel, type ChannelKind } from '@/components/brand'
 import { Page } from '@/components/layout/Page'
-import { DemoDataNotice } from '@/components/DemoDataNotice'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select } from '@/components/ui/input'
 import { Card, Segmented } from '@/components/ui/misc'
@@ -26,7 +25,8 @@ import { exportCsv } from '@/lib/report/csv'
 import { exportPdf } from '@/lib/report/export-pdf'
 import { buildTableReport, type CellValue, type ReportColumn } from '@/lib/report/table-report'
 import { cn } from '@/lib/utils'
-import { addDays, dateFromIso, HISTORY, type ApptOrigin, type ApptStatus } from '@/data/history'
+import { addDays, dateFromIso, type ApptOrigin, type ApptStatus } from '@/data/history'
+import { avgFirstResponse, fmtSec, useRecords } from '@/lib/metrics'
 import { contactById, services as seedServices, TODAY, users } from '@/data/mock'
 
 type Kind = 'agendamentos' | 'conversas' | 'profissionais' | 'analistas'
@@ -40,6 +40,7 @@ const KINDS: { value: Kind; label: string; icon: ReactNode; description: string 
 ]
 
 const STATUS: Record<ApptStatus, { label: string; cls: string; pdf: string }> = {
+  agendado: { label: 'Agendado', cls: 'bg-primary-soft text-primary', pdf: 't-info' },
   concluido: { label: 'Concluído', cls: 'bg-success-soft text-success', pdf: 't-good' },
   faltou: { label: 'Faltou', cls: 'bg-danger-soft text-danger', pdf: 't-bad' },
   cancelado: { label: 'Cancelado', cls: 'bg-surface-3 text-muted', pdf: 't-neutral' }
@@ -47,7 +48,6 @@ const STATUS: Record<ApptStatus, { label: string; cls: string; pdf: string }> = 
 const ORIGIN: Record<ApptOrigin, string> = { ia: 'Assistente IA', manual: 'Equipe', link: 'Link de agendamento' }
 
 const fmtDate = (iso: string) => iso.split('-').reverse().join('/')
-const fmtSec = (s: number) => (s < 60 ? `${Math.round(s)}s` : `${Math.floor(s / 60)}m ${String(Math.round(s % 60)).padStart(2, '0')}s`)
 const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '—')
 const PAGE = 25
 
@@ -69,6 +69,7 @@ export function ReportsPage() {
   const [f, setF] = useState({ pro: '', service: '', status: '', origin: '', channel: '', handler: '' })
   const [page, setPage] = useState(0)
   const [busy, setBusy] = useState<'pdf' | 'csv' | null>(null)
+  const records = useRecords()
 
   const range = useMemo(() => {
     switch (preset) {
@@ -90,7 +91,7 @@ export function ReportsPage() {
 
   const serviceName = (id: string) => services.find((s) => s.id === id)?.name ?? seedServices.find((s) => s.id === id)?.name ?? 'Serviço'
   const proName = (id: string) => professionalById(id)?.name ?? 'Profissional removido'
-  const handlerName = (id: string) => (id === 'ia' ? 'Assistente IA' : resolveUser(users.find((u) => u.id === id))?.name ?? 'Analista')
+  const handlerName = (id: string) => (id === 'ia' ? 'Assistente IA' : id === 'fila' ? 'Sem resposta (fila)' : resolveUser(users.find((u) => u.id === id))?.name ?? 'Analista')
   const analysts = users.filter((u) => u.role === 'analista').map(resolveUser)
 
   const set = (k: keyof typeof f, v: string) => {
@@ -105,7 +106,7 @@ export function ReportsPage() {
   // ------------------------------------------------------------ dados filtrados
   const appts = useMemo(
     () =>
-      HISTORY.appts.filter(
+      records.appts.filter(
         (a) =>
           a.date >= range.from &&
           a.date <= range.to &&
@@ -114,11 +115,11 @@ export function ReportsPage() {
           (!f.status || a.status === f.status) &&
           (!f.origin || a.origin === f.origin)
       ),
-    [range, f]
+    [range, f, records]
   )
   const chats = useMemo(
     () =>
-      HISTORY.chats.filter(
+      records.chats.filter(
         (c) =>
           c.date >= range.from &&
           c.date <= range.to &&
@@ -126,7 +127,7 @@ export function ReportsPage() {
           (!f.handler || c.handledBy === f.handler) &&
           (!f.status || (f.status === 'resolvida' ? c.resolved : !c.resolved))
       ),
-    [range, f]
+    [range, f, records]
   )
 
   const perDay = <T extends { date: string }>(list: T[], value: (x: T) => number) => {
@@ -167,7 +168,7 @@ export function ReportsPage() {
             date: { text: fmtDate(a.date) },
             time: { text: a.time },
             client: { text: contactById(a.contactId).name },
-            service: { text: serviceName(a.serviceId) },
+            service: { text: a.serviceName ?? serviceName(a.serviceId) },
             pro: { text: proName(a.professionalId) },
             origin: { text: ORIGIN[a.origin] },
             status: badge(STATUS[a.status].label, STATUS[a.status].cls, STATUS[a.status].pdf),
@@ -187,7 +188,7 @@ export function ReportsPage() {
 
     if (kind === 'conversas') {
       const ai = chats.filter((c) => c.handledBy === 'ia')
-      const avg = chats.length ? chats.reduce((s, c) => s + c.firstResponseSec, 0) / chats.length : 0
+      const avg = avgFirstResponse(chats)
       return {
         columns: [
           { key: 'date', label: 'Data' },
@@ -286,10 +287,11 @@ export function ReportsPage() {
     }
 
     // analistas
-    const handlers = ['ia', ...analysts.map((a) => a.id)].filter((h) => !f.handler || h === f.handler)
+    const extra = [...new Set(chats.map((c) => c.handledBy))].filter((h) => h !== 'ia' && !analysts.some((a) => a.id === h))
+    const handlers = ['ia', ...analysts.map((a) => a.id), ...extra].filter((h) => !f.handler || h === f.handler)
     const list = handlers.map((h) => {
       const mine = chats.filter((c) => c.handledBy === h)
-      const avg = mine.length ? mine.reduce((s, c) => s + c.firstResponseSec, 0) / mine.length : 0
+      const avg = avgFirstResponse(mine)
       return { h, total: mine.length, avg, booked: mine.filter((c) => c.booked).length, resolved: mine.filter((c) => c.resolved).length }
     })
     return {
@@ -389,7 +391,6 @@ export function ReportsPage() {
         </>
       }
     >
-      <DemoDataNotice />
       {/* Tipo de relatório */}
       <div className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
         {KINDS.map((k) => (
