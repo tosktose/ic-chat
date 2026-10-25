@@ -5,6 +5,7 @@ import {
   FileBarChart,
   Gauge,
   KeyRound,
+  Coins,
   Layers,
   LayoutDashboard,
   MessageSquare,
@@ -42,6 +43,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: '/admin', label: 'Empresas', icon: Building2, group: 'IC Chat SaaS', mobile: true },
     { to: '/admin/usuarios', label: 'Usuários', icon: Users, group: 'IC Chat SaaS', mobile: true },
     { to: '/admin/licencas', label: 'Licenças e tokens', short: 'Licenças', icon: KeyRound, group: 'IC Chat SaaS', mobile: true },
+    { to: '/admin/creditos', label: 'Créditos de IA', short: 'Créditos', icon: Coins, group: 'IC Chat SaaS', mobile: true },
     { to: '/admin/planos', label: 'Planos', icon: Layers, group: 'IC Chat SaaS' },
     { to: '/admin/sistema', label: 'Configurações do sistema', short: 'Sistema', icon: ServerCog, group: 'IC Chat SaaS' }
   ],

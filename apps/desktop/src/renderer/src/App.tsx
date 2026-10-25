@@ -18,6 +18,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const AdminPage = lazy(() => import('@/pages/admin/AdminPage').then((m) => ({ default: m.AdminPage })))
+const AdminCreditsPage = lazy(() => import('@/pages/admin/AdminCreditsPage').then((m) => ({ default: m.AdminCreditsPage })))
 const AdminLicensesPage = lazy(() => import('@/pages/admin/AdminLicensesPage').then((m) => ({ default: m.AdminLicensesPage })))
 const AdminPlansPage = lazy(() => import('@/pages/admin/AdminPlansPage').then((m) => ({ default: m.AdminPlansPage })))
 const AdminSystemPage = lazy(() => import('@/pages/admin/AdminSystemPage').then((m) => ({ default: m.AdminSystemPage })))
@@ -114,6 +115,7 @@ export function App() {
                 <Route path="/admin" element={<Guard><AdminPage /></Guard>} />
                 <Route path="/admin/usuarios" element={<Guard><AdminUsersPage /></Guard>} />
                 <Route path="/admin/licencas" element={<Guard><AdminLicensesPage /></Guard>} />
+                <Route path="/admin/creditos" element={<Guard><AdminCreditsPage /></Guard>} />
                 <Route path="/admin/planos" element={<Guard><AdminPlansPage /></Guard>} />
                 <Route path="/admin/sistema" element={<Guard><AdminSystemPage /></Guard>} />
               </Route>

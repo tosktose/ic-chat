@@ -12,6 +12,16 @@
 //   Facebook   POST /me/messages            recipient: { comment_id }
 //              permissões: pages_messaging + pages_manage_engagement
 //
+// A resposta PÚBLICA no próprio comentário é outra chamada, separada do direct:
+//
+//   Instagram  POST /{ig-comment-id}/replies?message=...
+//              permissão: instagram_business_manage_comments
+//   Facebook   POST /{comment-id}/comments
+//              permissão: pages_manage_engagement
+//
+// As duas juntas são o padrão do mercado: responde à vista de todos para dar
+// prova social, e manda a oferta no privado.
+//
 // Em ambas: 7 dias de janela a partir do comentário, UMA mensagem por
 // comentário, e só se a pessoa responder abre a janela de 24h para conversar.
 // Esses limites não são detalhe: são o que decide se a régua funciona.
@@ -28,10 +38,17 @@ export interface RegraCaptacao {
   id: string
   ativa: boolean
   rede: RedeSocial
-  /** Post específico ou todos os posts da conta. */
+  /**
+   * Cada post tem a sua própria régua: é assim que o mercado usa. Uma campanha
+   * por publicação, com gatilho e oferta próprios, em vez de uma regra geral.
+   */
+  escopo: 'post' | 'todos'
   alvo: string
   /** Palavras que disparam. Vazio = qualquer comentário. */
   gatilhos: string[]
+  /** Resposta à vista de todos, no próprio comentário. Opcional. */
+  respostaPublica?: string
+  /** Mensagem privada no direct. */
   mensagem: string
   /** Etiqueta aplicada ao contato criado. */
   etiqueta?: string
@@ -46,8 +63,10 @@ export const regras: RegraCaptacao[] = [
     id: 'r1',
     ativa: true,
     rede: 'instagram',
+    escopo: 'post',
     alvo: 'Reel · "Antes e depois da escova"',
     gatilhos: ['quero', 'preço', 'valor', 'eu'],
+    respostaPublica: 'Te mandei tudo no direct! 💙',
     mensagem: 'Oi! Vi seu comentário 💙 A escova sai por R$ 180 e tenho horário essa semana. Quer que eu reserve?',
     etiqueta: 'Veio do Reel',
     etapaFunil: 'novo',
@@ -58,8 +77,10 @@ export const regras: RegraCaptacao[] = [
     id: 'r2',
     ativa: true,
     rede: 'instagram',
+    escopo: 'todos',
     alvo: 'Todos os posts',
     gatilhos: ['tabela', 'preços'],
+    respostaPublica: 'Mandei no seu direct 😉',
     mensagem: 'Te mandei a tabela completa aqui no direct! Qualquer dúvida é só responder.',
     etiqueta: 'Pediu tabela',
     capturados7d: 63,
@@ -69,6 +90,7 @@ export const regras: RegraCaptacao[] = [
     id: 'r3',
     ativa: false,
     rede: 'messenger',
+    escopo: 'post',
     alvo: 'Post · "Promoção de outubro"',
     gatilhos: ['promo'],
     mensagem: 'A promoção vale até sexta! Quer garantir o seu horário?',

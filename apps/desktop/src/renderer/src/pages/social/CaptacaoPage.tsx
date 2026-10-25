@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Info, MessageSquarePlus, Plus, Zap } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { Eye, Info, MessageSquarePlus, Plus, Zap } from 'lucide-react'
 import { ChannelBadge } from '@/components/brand'
 import { Page } from '@/components/layout/Page'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,40 @@ import {
   taxaResposta,
   type RegraCaptacao
 } from '@/data/social'
+
+/* ------------------------------------------------------------------ */
+/* Um passo da régua                                                    */
+/* ------------------------------------------------------------------ */
+function Passo({
+  n,
+  titulo,
+  publico,
+  children
+}: {
+  n: number
+  titulo: string
+  publico?: boolean
+  children: ReactNode
+}) {
+  return (
+    <li className="flex gap-2.5">
+      <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-2 text-[11px] font-semibold tabular-nums text-muted">
+        {n}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-subtle uppercase">
+          {titulo}
+          {publico && (
+            <span className="inline-flex items-center gap-0.5 normal-case tracking-normal text-warning">
+              <Eye className="size-3" /> visível a todos
+            </span>
+          )}
+        </p>
+        <div className="mt-1">{children}</div>
+      </div>
+    </li>
+  )
+}
 
 /* ------------------------------------------------------------------ */
 /* Regra: comentário com gatilho vira direct                            */
@@ -31,15 +65,19 @@ function CardRegra({ r, onToggle }: { r: RegraCaptacao; onToggle: () => void }) 
         <ChannelBadge kind={r.rede} size={36} className="ring-0" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{r.alvo}</p>
-          <p className="truncate text-xs text-muted">{redeLabel[r.rede]}</p>
+          <p className="truncate text-xs text-muted">
+            {redeLabel[r.rede]} ·{' '}
+            {r.escopo === 'post' ? 'só neste post' : 'todos os posts'}
+          </p>
         </div>
         <Switch checked={r.ativa} onCheckedChange={onToggle} aria-label="Ligar ou pausar a regra" />
       </header>
 
-      <div className="mt-3 space-y-2">
-        <div>
-          <p className="text-[11px] font-medium tracking-wide text-subtle uppercase">Dispara quando o comentário tem</p>
-          <div className="mt-1 flex flex-wrap gap-1">
+      {/* A régua em passos: é o que o cliente precisa enxergar para confiar
+          no que vai sair no ar em nome dele. */}
+      <ol className="mt-3 space-y-2">
+        <Passo n={1} titulo="Comentário contém">
+          <div className="flex flex-wrap gap-1">
             {r.gatilhos.length ? (
               r.gatilhos.map((g) => (
                 <Badge key={g} tone="primary">
@@ -50,21 +88,29 @@ function CardRegra({ r, onToggle }: { r: RegraCaptacao; onToggle: () => void }) 
               <Badge tone="neutral">qualquer comentário</Badge>
             )}
           </div>
-        </div>
+        </Passo>
 
-        <div>
-          <p className="text-[11px] font-medium tracking-wide text-subtle uppercase">Direct enviado</p>
-          <p className="mt-1 rounded-lg bg-surface-2 p-2.5 text-[13px] leading-snug">{r.mensagem}</p>
-        </div>
+        <Passo n={2} titulo="Responde no comentário" publico>
+          {r.respostaPublica ? (
+            <p className="rounded-lg bg-surface-2 p-2.5 text-[13px] leading-snug">{r.respostaPublica}</p>
+          ) : (
+            <p className="text-[13px] text-subtle">Não responde publicamente</p>
+          )}
+        </Passo>
+
+        <Passo n={3} titulo="Envia no direct">
+          <p className="rounded-lg bg-surface-2 p-2.5 text-[13px] leading-snug">{r.mensagem}</p>
+        </Passo>
 
         {(r.etiqueta || r.etapaFunil) && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] text-subtle">E ainda:</span>
-            {r.etiqueta && <Badge tone="neutral">etiqueta “{r.etiqueta}”</Badge>}
-            {r.etapaFunil && <Badge tone="success">entra no funil</Badge>}
-          </div>
+          <Passo n={4} titulo="E ainda">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {r.etiqueta && <Badge tone="neutral">etiqueta “{r.etiqueta}”</Badge>}
+              {r.etapaFunil && <Badge tone="success">entra no funil</Badge>}
+            </div>
+          </Passo>
         )}
-      </div>
+      </ol>
 
       <footer className="mt-3 flex items-center gap-4 border-t border-border pt-3 text-xs">
         <span className="text-muted">
