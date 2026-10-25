@@ -20,7 +20,18 @@ import type { AiProviderId } from '../../../preload/index.d'
  *   com notificação visual e sonora. Sem ninguém disponível, a conversa espera na fila.
  */
 
-export const AI_PROVIDERS: Record<AiProviderId, { label: string; models: string[]; keyHint: string; keyUrl: string }> = {
+export const AI_PROVIDERS: Record<
+  AiProviderId,
+  { label: string; models: string[]; keyHint: string; keyUrl: string; local?: boolean; nota?: string }
+> = {
+  ollama: {
+    label: 'Ollama (neste computador)',
+    models: ['llama3.2', 'qwen2.5', 'mistral', 'gemma3'],
+    keyHint: '',
+    keyUrl: 'https://ollama.com/download',
+    local: true,
+    nota: 'Sem chave e sem custo por mensagem. A conversa do cliente nao sai deste computador.'
+  },
   anthropic: { label: 'Anthropic (Claude)', models: ['claude-sonnet-5', 'claude-haiku-4-5', 'claude-opus-5-5'], keyHint: 'sk-ant-…', keyUrl: 'https://console.anthropic.com/settings/keys' },
   openai: { label: 'OpenAI (GPT)', models: ['gpt-5-mini', 'gpt-5'], keyHint: 'sk-…', keyUrl: 'https://platform.openai.com/api-keys' },
   google: { label: 'Google (Gemini)', models: ['gemini-2.5-flash', 'gemini-2.5-pro'], keyHint: 'AIza…', keyUrl: 'https://aistudio.google.com/apikey' },

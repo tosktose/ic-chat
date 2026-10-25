@@ -236,6 +236,7 @@ app.whenReady().then(() => {
     return wa.sendMedia(String(to), media)
   })
   handle('ai:status', () => ai.status())
+  handle('ai:localStatus', () => ai.localStatus())
   handle('ai:setKey', (provider: unknown, key: unknown) => ai.setKey(provider, key))
   handle('ai:clearKey', (provider: unknown) => ai.clearKey(provider))
   handle('ai:test', (provider: unknown, model: unknown) => ai.test(provider, model))

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Bot,
   BookOpen,
@@ -184,11 +184,15 @@ function KeyCard() {
   return (
     <Card>
       <CardHeader
-        title="Provedor e chave de API"
-        description="A chave fica criptografada neste computador e nunca é exibida de novo."
+        title={p.local ? 'Provedor de IA' : 'Provedor e chave de API'}
+        description={
+          p.local
+            ? 'A IA roda neste computador. Sem chave, sem mensalidade e sem enviar conversa para fora.'
+            : 'A chave fica criptografada neste computador e nunca é exibida de novo.'
+        }
         action={
           <a href={p.keyUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[13px] font-medium text-primary hover:underline">
-            Criar chave <ExternalLink className="size-3.5" />
+            {p.local ? 'Baixar Ollama' : 'Criar chave'} <ExternalLink className="size-3.5" />
           </a>
         }
       />
@@ -214,7 +218,9 @@ function KeyCard() {
           </Select>
         </Field>
 
-        {!ai.available ? (
+        {p.local ? (
+          <OllamaPanel nota={p.nota} />
+        ) : !ai.available ? (
           <p className="rounded-xl bg-surface-2 p-3.5 text-[13px] text-muted sm:col-span-2">A chave é cadastrada no app instalado (no navegador a IA é só demonstração).</p>
         ) : ai.keyInfo ? (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border p-3.5 sm:col-span-2">
@@ -397,5 +403,70 @@ function AiPreview() {
         <Button type="submit" size="icon" aria-label="Enviar" disabled={busy || !text.trim()}><SendHorizontal /></Button>
       </form>
     </Card>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Ollama: IA rodando na propria maquina                                */
+/* ------------------------------------------------------------------ */
+function OllamaPanel({ nota }: { nota?: string }) {
+  const [estado, setEstado] = useState<{ running: boolean; models: { name: string; sizeGb: number }[] } | null>(null)
+  const [checando, setChecando] = useState(false)
+
+  const checar = useCallback(async () => {
+    setChecando(true)
+    try {
+      const r = await window.icchat?.ai.localStatus()
+      setEstado(r && 'data' in r ? r.data : { running: false, models: [] })
+    } catch {
+      setEstado({ running: false, models: [] })
+    } finally {
+      setChecando(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void checar()
+  }, [checar])
+
+  // No navegador nao existe processo principal: e so demonstracao.
+  if (!window.icchat) {
+    return (
+      <p className="rounded-xl bg-surface-2 p-3.5 text-[13px] text-muted sm:col-span-2">
+        {nota} A detecção do Ollama acontece no app instalado.
+      </p>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-border p-3.5 sm:col-span-2">
+      <div className="flex flex-wrap items-center gap-3">
+        {estado?.running ? (
+          <Badge tone="success"><ShieldCheck className="size-3" /> Ollama ativo</Badge>
+        ) : (
+          <Badge tone="warning">Ollama não encontrado</Badge>
+        )}
+        <span className="text-[13px] text-muted">
+          {estado?.running
+            ? `${estado.models.length} modelo(s) neste computador`
+            : 'Instale o Ollama e baixe um modelo para usar a IA sem custo.'}
+        </span>
+        <Button variant="outline" size="sm" className="ml-auto" disabled={checando} onClick={() => void checar()}>
+          {checando ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} Verificar
+        </Button>
+      </div>
+
+      {estado?.running && estado.models.length > 0 && (
+        <ul className="mt-3 flex flex-wrap gap-1.5">
+          {estado.models.map((m) => (
+            <li key={m.name}>
+              <Badge tone="neutral">{m.name} · {m.sizeGb} GB</Badge>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {nota && <p className="mt-3 text-xs text-subtle">{nota}</p>}
+    </div>
   )
 }

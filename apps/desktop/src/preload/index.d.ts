@@ -23,7 +23,7 @@ export interface WaIncomingDTO {
   timestamp: number
 }
 
-export type AiProviderId = 'anthropic' | 'openai' | 'google' | 'openrouter'
+export type AiProviderId = 'anthropic' | 'openai' | 'google' | 'openrouter' | 'ollama'
 
 export interface GEventDTO {
   id: string
@@ -70,6 +70,8 @@ declare global {
       }
       ai: {
         status: () => Promise<Result<Record<AiProviderId, { masked: string; checkedAt?: number } | null>>>
+        /** Ollama na propria maquina: se esta rodando e quais modelos ja foram baixados. */
+        localStatus: () => Promise<Result<{ running: boolean; models: { name: string; sizeGb: number }[] }>>
         setKey: (provider: AiProviderId, key: string) => Promise<Result<void>>
         clearKey: (provider: AiProviderId) => Promise<Result<void>>
         test: (provider: AiProviderId, model: string) => Promise<Result<{ text: string; tokens: number }>>

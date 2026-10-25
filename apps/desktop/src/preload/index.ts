@@ -43,6 +43,7 @@ const api = {
   /** Google Agenda (OAuth + API do Calendar) */
   ai: {
     status: () => call('ai:status'),
+    localStatus: () => call('ai:localStatus'),
     setKey: (provider: string, key: string) => call('ai:setKey', provider, key),
     clearKey: (provider: string) => call('ai:clearKey', provider),
     test: (provider: string, model: string) => call('ai:test', provider, model),

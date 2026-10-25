@@ -5,7 +5,16 @@ import { app, safeStorage } from 'electron'
 import { join } from 'node:path'
 import { readFile, writeFile } from 'node:fs/promises'
 
-export type AiProvider = 'anthropic' | 'openai' | 'google' | 'openrouter'
+export type AiProvider = 'anthropic' | 'openai' | 'google' | 'openrouter' | 'ollama'
+
+/**
+ * Ollama roda na propria maquina (MIT, gratuito) e nao usa chave de API.
+ * E o unico provedor em que a conversa do cliente nao sai do computador —
+ * o que sustenta o argumento de LGPD e elimina custo por token.
+ * Fica preso a 127.0.0.1 de proposito: o servidor do Ollama nao tem
+ * autenticacao, entao expor em outra interface abriria a IA para a rede.
+ */
+export const OLLAMA_URL = 'http://127.0.0.1:11434'
 export interface AiTurn {
   role: 'user' | 'assistant'
   content: string
@@ -22,7 +31,9 @@ interface Store {
 
 const file = () => join(app.getPath('userData'), 'ai.json')
 const ENC = 'icchat-enc:'
-const PROVIDERS: AiProvider[] = ['anthropic', 'openai', 'google', 'openrouter']
+const PROVIDERS: AiProvider[] = ['anthropic', 'openai', 'google', 'openrouter', 'ollama']
+/** Provedores que precisam de chave. O Ollama e local e nao precisa. */
+const PROVIDERS_COM_CHAVE = PROVIDERS.filter((p) => p !== 'ollama')
 
 async function load(): Promise<Store> {
   try {
@@ -50,8 +61,34 @@ const assertProvider = (p: unknown): AiProvider => {
 export async function status() {
   const s = await load()
   return Object.fromEntries(
-    PROVIDERS.map((p) => [p, s.keys[p] ? { masked: mask(s.keys[p]!), checkedAt: s.checkedAt?.[p] } : null])
+    PROVIDERS_COM_CHAVE.map((p) => [p, s.keys[p] ? { masked: mask(s.keys[p]!), checkedAt: s.checkedAt?.[p] } : null])
   ) as Record<AiProvider, { masked: string; checkedAt?: number } | null>
+}
+
+/**
+ * Detecta o Ollama na maquina e lista os modelos ja baixados.
+ * Nao lanca erro quando nao ha nada instalado: a ausencia e uma resposta
+ * valida, e a interface usa isso para oferecer a instalacao.
+ */
+export async function localStatus(): Promise<{
+  running: boolean
+  models: { name: string; sizeGb: number }[]
+}> {
+  try {
+    const res = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(1500) })
+    if (!res.ok) return { running: false, models: [] }
+    const j = (await res.json()) as { models?: { name: string; size?: number }[] }
+    return {
+      running: true,
+      models: (j.models ?? []).map((m) => ({
+        name: m.name,
+        sizeGb: Math.round(((m.size ?? 0) / 1e9) * 10) / 10
+      }))
+    }
+  } catch {
+    // Servidor fora do ar, porta fechada ou Ollama nao instalado.
+    return { running: false, models: [] }
+  }
 }
 
 export async function setKey(provider: unknown, key: unknown) {
@@ -118,6 +155,24 @@ export async function reply(provider: unknown, model: unknown, system: unknown, 
   if (!Array.isArray(turns)) throw new Error('Conversa inválida')
   const msgs = normalize(turns as AiTurn[])
   if (!msgs.length) throw new Error('Conversa vazia')
+  if (p === 'ollama') {
+    const j = await post(
+      `${OLLAMA_URL}/api/chat`,
+      {},
+      {
+        model,
+        stream: false,
+        options: { num_predict: maxTokens },
+        messages: [{ role: 'system', content: system }, ...msgs]
+      }
+    )
+    const m = j.message as { content?: string } | undefined
+    // Ollama devolve contagem de tokens separada por entrada e saida.
+    const entrada = Number(j.prompt_eval_count ?? 0)
+    const saida = Number(j.eval_count ?? 0)
+    return { text: (m?.content ?? '').trim(), tokens: entrada + saida }
+  }
+
   const key = (await load()).keys[p]
   if (!key) throw new Error('Cadastre a chave de API do provedor em Assistente IA')
 
