@@ -1,6 +1,7 @@
 import { AlertTriangle, Coins, TrendingUp, Zap } from 'lucide-react'
 import { Page } from '@/components/layout/Page'
 import { Badge, Switch } from '@/components/ui/misc'
+import { StatCard, StatGrid } from '@/components/ui/stats'
 import { Button } from '@/components/ui/button'
 import { brl, cn } from '@/lib/utils'
 import { tenants } from '@/data/saas'
@@ -41,36 +42,35 @@ export function AdminCreditsPage() {
         </Button>
       }
     >
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-soft">
-          <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
-            <Zap className="size-3.5" /> Consumo no mês
-          </p>
-          <p className="mt-1 text-2xl font-bold tabular-nums">{num.format(consumo)}</p>
-          <p className="mt-1 text-xs text-subtle">créditos em {saldos.length} empresas</p>
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-soft">
-          <p className="text-xs font-medium text-muted">Custo com o provedor</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-danger">{brl.format(custoTotal)}</p>
-          <p className="mt-1 text-xs text-subtle">{brl.format(PRECO.custoPorCredito)} por crédito</p>
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-soft">
-          <p className="text-xs font-medium text-muted">Receita de excedente</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums">{brl.format(receitaTotal)}</p>
-          <p className="mt-1 text-xs text-subtle">{brl.format(PRECO.vendaPorCredito)} por crédito avulso</p>
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-soft">
-          <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
-            <TrendingUp className="size-3.5" /> Margem
-          </p>
-          <p className={cn('mt-1 text-2xl font-bold tabular-nums', margem >= 0 ? 'text-success' : 'text-danger')}>
-            {brl.format(margem)}
-          </p>
-          <p className="mt-1 text-xs text-subtle">
-            {margem < 0 ? 'no prejuízo neste mês' : 'receita menos custo'}
-          </p>
-        </div>
-      </div>
+      <StatGrid className="mb-5">
+        <StatCard
+          icon={<Zap />}
+          label="Consumo no mês"
+          value={num.format(consumo)}
+          hint={`créditos em ${saldos.length} empresas`}
+          trend={[4100, 4900, 5600, 6200, 7100, 8000, 8793]}
+        />
+        <StatCard
+          label="Custo com o provedor"
+          value={brl.format(custoTotal)}
+          hint={`${brl.format(PRECO.custoPorCredito)} por crédito`}
+          tone="danger"
+          trend={[36, 44, 50, 55, 63, 72, 79]}
+        />
+        <StatCard
+          label="Receita de excedente"
+          value={brl.format(receitaTotal)}
+          hint={`${brl.format(PRECO.vendaPorCredito)} por crédito avulso`}
+          trend={[12, 18, 24, 31, 40, 50, 59]}
+        />
+        <StatCard
+          icon={<TrendingUp />}
+          label="Margem"
+          value={brl.format(margem)}
+          hint={margem < 0 ? 'no prejuízo neste mês' : 'receita menos custo'}
+          tone={margem >= 0 ? 'success' : 'danger'}
+        />
+      </StatGrid>
 
       {esgotados > 0 && (
         <div className="mb-5 flex items-center gap-3 rounded-xl border border-warning/30 bg-warning-soft p-3.5">

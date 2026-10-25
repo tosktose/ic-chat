@@ -4,6 +4,7 @@ import { ChannelBadge } from '@/components/brand'
 import { Page } from '@/components/layout/Page'
 import { Button } from '@/components/ui/button'
 import { Badge, Switch } from '@/components/ui/misc'
+import { StatCard, StatGrid } from '@/components/ui/stats'
 import { cn } from '@/lib/utils'
 import {
   LIMITES,
@@ -149,32 +150,38 @@ export function CaptacaoPage() {
         </Button>
       }
     >
-      {/* Indicadores */}
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-soft">
-          <p className="text-xs font-medium text-muted">Comentários capturados</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums">{capturados}</p>
-          <p className="mt-1 text-xs text-subtle">últimos 7 dias</p>
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-soft">
-          <p className="text-xs font-medium text-muted">Viraram conversa</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-success">{responderam}</p>
-          <p className="mt-1 text-xs text-subtle">responderam o direct</p>
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-soft">
-          <p className="text-xs font-medium text-muted">Taxa de resposta</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-primary">{taxaGeral}%</p>
-          <p className="mt-1 text-xs text-subtle">do comentário ao direct</p>
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-soft">
-          <p className="text-xs font-medium text-muted">Regras ligadas</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums">
-            {ativas.length}
-            <span className="text-base font-medium text-subtle"> / {regras.length}</span>
-          </p>
-          <p className="mt-1 text-xs text-subtle">em {new Set(ativas.map((r) => r.rede)).size} rede(s)</p>
-        </div>
-      </div>
+      <StatGrid className="mb-5">
+        <StatCard
+          label="Comentários capturados"
+          value={capturados}
+          hint="últimos 7 dias"
+          trend={[18, 24, 21, 33, 29, 41, 45]}
+        />
+        <StatCard
+          label="Viraram conversa"
+          value={responderam}
+          hint="responderam o direct"
+          tone="success"
+          trend={[6, 9, 8, 14, 13, 18, 22]}
+        />
+        <StatCard
+          label="Taxa de resposta"
+          value={`${taxaGeral}%`}
+          hint="do comentário ao direct"
+          tone="primary"
+          trend={[33, 37, 38, 42, 44, 43, 48]}
+        />
+        <StatCard
+          label="Regras ligadas"
+          value={
+            <>
+              {ativas.length}
+              <span className="text-base font-medium text-subtle"> / {regras.length}</span>
+            </>
+          }
+          hint={`em ${new Set(ativas.map((r) => r.rede)).size} rede(s)`}
+        />
+      </StatGrid>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_22rem]">
         {/* Regras */}

@@ -14,6 +14,7 @@ import { AlertTriangle, Plus, TrendingUp } from 'lucide-react'
 import { Page } from '@/components/layout/Page'
 import { Button } from '@/components/ui/button'
 import { Avatar, Badge, Segmented } from '@/components/ui/misc'
+import { StatCard, StatGrid } from '@/components/ui/stats'
 import { cn } from '@/lib/utils'
 import { contactById, userById } from '@/data/mock'
 import {
@@ -192,38 +193,35 @@ export function FunilPage() {
         </>
       }
     >
-      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-soft">
-          <p className="text-xs font-medium text-muted">Em aberto</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums">
-            {brl.format(emAberto.reduce((s, n) => s + n.valor, 0))}
-          </p>
-          <p className="mt-1 text-xs text-subtle">{emAberto.length} negócios no funil</p>
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-soft">
-          <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
-            <TrendingUp className="size-3.5" /> Previsão ponderada
-          </p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-primary">
-            {brl.format(previsao(visiveis))}
-          </p>
-          <p className="mt-1 text-xs text-subtle">Pela chance de cada negócio</p>
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-soft">
-          <p className="text-xs font-medium text-muted">Ganho no período</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-success">{brl.format(ganhos)}</p>
-          <p className="mt-1 text-xs text-subtle">
-            {visiveis.filter((n) => n.etapa === 'ganho').length} fechados
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-surface p-4 shadow-soft">
-          <p className="text-xs font-medium text-muted">Parados</p>
-          <p className={cn('mt-1 text-2xl font-bold tabular-nums', parados && 'text-warning')}>
-            {parados}
-          </p>
-          <p className="mt-1 text-xs text-subtle">Passaram do prazo da etapa</p>
-        </div>
-      </div>
+      <StatGrid className="mb-5">
+        <StatCard
+          label="Em aberto"
+          value={brl.format(emAberto.reduce((s, n) => s + n.valor, 0))}
+          hint={`${emAberto.length} negócios no funil`}
+          trend={[7.2, 8.1, 7.9, 9.4, 10.6, 11.2, 11.9]}
+        />
+        <StatCard
+          icon={<TrendingUp />}
+          label="Previsão ponderada"
+          value={brl.format(previsao(visiveis))}
+          hint="Pela chance de cada negócio"
+          tone="primary"
+          trend={[4.1, 4.6, 5.2, 5.0, 6.1, 6.4, 6.9]}
+        />
+        <StatCard
+          label="Ganho no período"
+          value={brl.format(ganhos)}
+          hint={`${visiveis.filter((n) => n.etapa === 'ganho').length} fechados`}
+          tone="success"
+          trend={[0.3, 0.5, 0.5, 0.9, 1.0, 1.2, 1.3]}
+        />
+        <StatCard
+          label="Parados"
+          value={parados}
+          hint="Passaram do prazo da etapa"
+          tone={parados ? 'warning' : 'default'}
+        />
+      </StatGrid>
 
       <DndContext
         sensors={sensores}

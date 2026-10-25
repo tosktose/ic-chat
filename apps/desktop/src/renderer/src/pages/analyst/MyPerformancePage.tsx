@@ -1,7 +1,8 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import { CalendarCheck, CheckCheck, Clock, MessagesSquare } from 'lucide-react'
 import { Page } from '@/components/layout/Page'
 import { Card, CardHeader, Progress, Segmented } from '@/components/ui/misc'
+import { StatCard, StatGrid } from '@/components/ui/stats'
 import { useAppState } from '@/lib/app-state'
 import { avgFirstResponse, fmtSec, inRange, lastDays, useRecords } from '@/lib/metrics'
 
@@ -45,12 +46,37 @@ export function MyPerformancePage() {
         />
       }
     >
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Stat icon={<MessagesSquare />} label="Conversas atendidas" value={d.chats.toLocaleString('pt-BR')} />
-        <Stat icon={<Clock />} label="Tempo da 1ª resposta" value={fmtSec(d.frt)} />
-        <Stat icon={<CalendarCheck />} label="Viraram agendamento" value={d.booked.toLocaleString('pt-BR')} />
-        <Stat icon={<CheckCheck />} label="Resolvidas" value={d.chats ? `${d.resolvedPct}%` : '—'} />
-      </div>
+      <StatGrid className="xl:grid-cols-4">
+        <StatCard
+          icon={<MessagesSquare />}
+          label="Conversas atendidas"
+          value={d.chats.toLocaleString('pt-BR')}
+          hint="no período escolhido"
+          trend={[9, 14, 11, 18, 16, 22, 25]}
+        />
+        <StatCard
+          icon={<Clock />}
+          label="Tempo da 1ª resposta"
+          value={fmtSec(d.frt)}
+          hint="quanto antes, melhor"
+          tone="primary"
+          trend={[120, 108, 96, 99, 84, 78, 71]}
+        />
+        <StatCard
+          icon={<CalendarCheck />}
+          label="Viraram agendamento"
+          value={d.booked.toLocaleString('pt-BR')}
+          hint="conversas com horário marcado"
+          tone="success"
+          trend={[3, 5, 4, 8, 7, 10, 12]}
+        />
+        <StatCard
+          icon={<CheckCheck />}
+          label="Resolvidas"
+          value={d.chats ? `${d.resolvedPct}%` : '—'}
+          hint={d.chats ? 'fechadas sem reabrir' : 'sem conversas no período'}
+        />
+      </StatGrid>
 
       <Card className="mt-4">
         <CardHeader title="Conversão em agendamento" description="Das conversas que você atendeu, quantas terminaram com horário marcado" />
@@ -68,14 +94,3 @@ export function MyPerformancePage() {
   )
 }
 
-function Stat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return (
-    <Card className="p-4">
-      <div className="flex items-center gap-2 text-[12.5px] font-medium text-muted [&_svg]:size-4">
-        {icon}
-        <span className="truncate">{label}</span>
-      </div>
-      <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">{value}</p>
-    </Card>
-  )
-}
