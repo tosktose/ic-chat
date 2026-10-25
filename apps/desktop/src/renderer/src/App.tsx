@@ -29,6 +29,7 @@ const ChannelsPage = lazy(() => import('@/pages/channels/ChannelsPage').then((m)
 const ContactsPage = lazy(() => import('@/pages/contacts/ContactsPage').then((m) => ({ default: m.ContactsPage })))
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })))
 const InboxPage = lazy(() => import('@/pages/inbox/InboxPage').then((m) => ({ default: m.InboxPage })))
+const FunilPage = lazy(() => import('@/pages/funil/FunilPage').then((m) => ({ default: m.FunilPage })))
 const KanbanPage = lazy(() => import('@/pages/kanban/KanbanPage').then((m) => ({ default: m.KanbanPage })))
 const ProfilePage = lazy(() => import('@/pages/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const ReportsPage = lazy(() => import('@/pages/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })))
@@ -93,6 +94,7 @@ export function App() {
                 {/* Gerente */}
                 <Route path="/dashboard" element={<Guard><DashboardPage /></Guard>} />
                 <Route path="/kanban" element={<Guard><KanbanPage /></Guard>} />
+                <Route path="/funil" element={<Guard><FunilPage /></Guard>} />
                 <Route path="/ia" element={<Guard><AiPage /></Guard>} />
                 <Route path="/canais" element={<Guard><ChannelsPage /></Guard>} />
                 <Route path="/relatorios" element={<Guard><ReportsPage /></Guard>} />

@@ -13,6 +13,7 @@ import {
   Settings,
   Sparkles,
   SquareKanban,
+  Target,
   Users,
   type LucideIcon
 } from 'lucide-react'
@@ -48,6 +49,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: '/inbox', label: 'Atendimento', icon: MessageSquare, group: 'Gestão', mobile: true },
     { to: '/agenda', label: 'Agenda', icon: CalendarDays, group: 'Gestão', mobile: true },
     { to: '/kanban', label: 'Kanban IA', short: 'Kanban', icon: SquareKanban, group: 'Gestão', mobile: true },
+    { to: '/funil', label: 'Funil de vendas', short: 'Funil', icon: Target, group: 'Gestão', mobile: true },
     { to: '/contatos', label: 'Contatos', icon: BookUser, group: 'Gestão' },
     { to: '/relatorios', label: 'Relatórios', icon: FileBarChart, group: 'Gestão' },
     { to: '/ia', label: 'Assistente IA', short: 'IA', icon: Sparkles, group: 'Configuração' },

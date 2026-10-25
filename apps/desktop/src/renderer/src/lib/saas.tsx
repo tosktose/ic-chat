@@ -5,6 +5,7 @@ import {
   tenants as tenantList,
   tenantUsers as userList,
   type LicenseKey,
+  type Modality,
   type Plan,
   type Tenant,
   type TenantStatus,
@@ -44,6 +45,8 @@ export interface NewTenantInput {
   document: string
   segment: string
   plan: Plan
+  /** O que esta empresa comprou: suporte, funil de vendas ou os dois. */
+  modality: Modality
   mode: 'Local' | 'Nuvem'
   kind: LicenseKey['kind']
   managerName: string
@@ -124,6 +127,7 @@ export function SaasProvider({ children }: { children: ReactNode }) {
           document: i.document,
           segment: i.segment,
           plan: i.plan,
+          modality: i.modality,
           mode: i.mode,
           status: trial ? 'teste' : 'ativa',
           expires: fmt(exp),

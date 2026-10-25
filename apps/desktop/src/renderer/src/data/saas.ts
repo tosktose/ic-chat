@@ -4,12 +4,28 @@
 export type TenantStatus = 'ativa' | 'teste' | 'vencendo' | 'carencia' | 'restrito' | 'suspensa'
 export type Plan = 'Start' | 'Pro' | 'Business'
 
+/**
+ * O que a empresa comprou. Definido pelo Super Admin na venda e é o que decide
+ * quais telas o cliente enxerga — não é rótulo, é controle de acesso.
+ *  - suporte: caixa de entrada e Kanban de status de atendimento
+ *  - vendas:  funil de negócios com valor em R$ e previsão de receita
+ *  - completo: os dois, com alternância
+ */
+export type Modality = 'suporte' | 'vendas' | 'completo'
+
+export const modalityCfg: Record<Modality, { label: string; short: string; tone: 'primary' | 'success' | 'neutral'; hint: string }> = {
+  suporte: { label: 'Suporte', short: 'Suporte', tone: 'primary', hint: 'Atendimento multicanal e Kanban de status' },
+  vendas: { label: 'Funil de vendas', short: 'Vendas', tone: 'success', hint: 'Negócios com valor, etapas e previsão de receita' },
+  completo: { label: 'Completo', short: 'Completo', tone: 'neutral', hint: 'Atendimento e funil de vendas no mesmo sistema' }
+}
+
 export interface Tenant {
   id: string
   name: string
   document: string
   segment: string
   plan: Plan
+  modality: Modality
   mode: 'Local' | 'Nuvem'
   status: TenantStatus
   expires: string
@@ -23,13 +39,13 @@ export interface Tenant {
 }
 
 export const tenants: Tenant[] = [
-  { id: 't1', name: 'Studio Bella', document: '12.345.678/0001-90', segment: 'Salão', plan: 'Pro', mode: 'Local', status: 'teste', expires: '02/10/2026', days: 5, pcs: [2, 10], mrr: 0, version: '0.1.0', online: true, whatsapp: '(11) 98765-4321', email: 'contato@studiobella.com.br' },
-  { id: 't2', name: 'Barbearia do Zé', document: '23.456.789/0001-01', segment: 'Barbearia', plan: 'Start', mode: 'Local', status: 'ativa', expires: '14/12/2026', days: 78, pcs: [3, 3], mrr: 149, version: '0.1.0', online: true, whatsapp: '(11) 97777-1234', email: 'ze@barbeariadoze.com.br' },
-  { id: 't3', name: 'Clínica Derma+', document: '34.567.890/0001-12', segment: 'Estética', plan: 'Business', mode: 'Nuvem', status: 'ativa', expires: '01/03/2027', days: 155, pcs: [14, null], mrr: 599, version: '0.1.0', online: true, whatsapp: '(21) 99888-7766', email: 'adm@dermamais.com.br' },
-  { id: 't4', name: 'Espaço Bem-Estar', document: '45.678.901/0001-23', segment: 'Estética', plan: 'Pro', mode: 'Nuvem', status: 'vencendo', expires: '30/09/2026', days: 3, pcs: [6, 10], mrr: 299, version: '0.0.9', online: true, whatsapp: '(31) 98111-2233', email: 'contato@bemestar.com.br' },
-  { id: 't5', name: 'Salão Glamour', document: '56.789.012/0001-34', segment: 'Salão', plan: 'Start', mode: 'Local', status: 'carencia', expires: '26/09/2026', days: -1, pcs: [2, 3], mrr: 149, version: '0.0.9', online: false, whatsapp: '(11) 96543-2109', email: 'glamour@email.com' },
-  { id: 't6', name: 'Pet Shop Amigo Fiel', document: '67.890.123/0001-45', segment: 'Pet shop', plan: 'Pro', mode: 'Local', status: 'restrito', expires: '20/09/2026', days: -7, pcs: [4, 10], mrr: 299, version: '0.0.8', online: false, whatsapp: '(41) 99876-5432', email: 'amigofiel@email.com' },
-  { id: 't7', name: 'Nail Design Lu', document: '123.456.789-00', segment: 'Estética', plan: 'Start', mode: 'Local', status: 'suspensa', expires: '10/11/2026', days: 44, pcs: [1, 3], mrr: 149, version: '0.1.0', online: false, whatsapp: '(11) 91234-5678', email: 'lu@naildesign.com' }
+  { id: 't1', name: 'Studio Bella', document: '12.345.678/0001-90', segment: 'Salão', plan: 'Pro', modality: 'completo', mode: 'Local', status: 'teste', expires: '02/10/2026', days: 5, pcs: [2, 10], mrr: 0, version: '0.1.0', online: true, whatsapp: '(11) 98765-4321', email: 'contato@studiobella.com.br' },
+  { id: 't2', name: 'Barbearia do Zé', document: '23.456.789/0001-01', segment: 'Barbearia', plan: 'Start', modality: 'suporte', mode: 'Local', status: 'ativa', expires: '14/12/2026', days: 78, pcs: [3, 3], mrr: 149, version: '0.1.0', online: true, whatsapp: '(11) 97777-1234', email: 'ze@barbeariadoze.com.br' },
+  { id: 't3', name: 'Clínica Derma+', document: '34.567.890/0001-12', segment: 'Estética', plan: 'Business', modality: 'completo', mode: 'Nuvem', status: 'ativa', expires: '01/03/2027', days: 155, pcs: [14, null], mrr: 599, version: '0.1.0', online: true, whatsapp: '(21) 99888-7766', email: 'adm@dermamais.com.br' },
+  { id: 't4', name: 'Espaço Bem-Estar', document: '45.678.901/0001-23', segment: 'Estética', plan: 'Pro', modality: 'vendas', mode: 'Nuvem', status: 'vencendo', expires: '30/09/2026', days: 3, pcs: [6, 10], mrr: 299, version: '0.0.9', online: true, whatsapp: '(31) 98111-2233', email: 'contato@bemestar.com.br' },
+  { id: 't5', name: 'Salão Glamour', document: '56.789.012/0001-34', segment: 'Salão', plan: 'Start', modality: 'suporte', mode: 'Local', status: 'carencia', expires: '26/09/2026', days: -1, pcs: [2, 3], mrr: 149, version: '0.0.9', online: false, whatsapp: '(11) 96543-2109', email: 'glamour@email.com' },
+  { id: 't6', name: 'Pet Shop Amigo Fiel', document: '67.890.123/0001-45', segment: 'Pet shop', plan: 'Pro', modality: 'vendas', mode: 'Local', status: 'restrito', expires: '20/09/2026', days: -7, pcs: [4, 10], mrr: 299, version: '0.0.8', online: false, whatsapp: '(41) 99876-5432', email: 'amigofiel@email.com' },
+  { id: 't7', name: 'Nail Design Lu', document: '123.456.789-00', segment: 'Estética', plan: 'Start', modality: 'suporte', mode: 'Local', status: 'suspensa', expires: '10/11/2026', days: 44, pcs: [1, 3], mrr: 149, version: '0.1.0', online: false, whatsapp: '(11) 91234-5678', email: 'lu@naildesign.com' }
 ]
 
 export const statusCfg: Record<TenantStatus, { label: string; tone: 'success' | 'primary' | 'warning' | 'danger' | 'neutral'; dot: string }> = {

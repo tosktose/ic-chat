@@ -25,7 +25,7 @@ import { Avatar, Badge, Card, Segmented } from '@/components/ui/misc'
 import { Dialog, Sheet } from '@/components/ui/overlay'
 import { NewUserDialog, UserDetailView, UserQuickActions, type DetailUser } from '@/components/UserDetail'
 import { brl, cn } from '@/lib/utils'
-import { randomKey, statusCfg, type Tenant, type TenantUser } from '@/data/saas'
+import { modalityCfg, randomKey, statusCfg, type Modality, type Tenant, type TenantUser } from '@/data/saas'
 import { useSaas } from '@/lib/saas'
 import { useNotifications } from '@/lib/notifications'
 import type { LicenseKey, Plan } from '@/data/saas'
@@ -99,6 +99,7 @@ export function AdminPage() {
                 <th className="px-5 py-2.5">Empresa</th>
                 <th className="px-3 py-2.5">Status</th>
                 <th className="px-3 py-2.5">Plano</th>
+                <th className="px-3 py-2.5">Modalidade</th>
                 <th className="px-3 py-2.5">Usuários</th>
                 <th className="px-3 py-2.5">Vencimento</th>
                 <th className="px-3 py-2.5">PCs</th>
@@ -120,6 +121,11 @@ export function AdminPage() {
                   </td>
                   <td className="px-3 py-3"><Badge tone={statusCfg[t.status].tone}>{statusCfg[t.status].label}</Badge></td>
                   <td className="px-3 py-3 font-medium">{t.plan}</td>
+                  <td className="px-3 py-3">
+                    <Badge tone={modalityCfg[t.modality].tone} title={modalityCfg[t.modality].hint}>
+                      {modalityCfg[t.modality].label}
+                    </Badge>
+                  </td>
                   <td className="px-3 py-3 text-muted tabular-nums">{tenantUsers.filter((u) => u.tenantId === t.id).length}</td>
                   <td className="px-3 py-3">
                     <p className="tabular-nums">{t.expires}</p>
@@ -226,7 +232,8 @@ function NewTenantDialog({ mode, onClose }: { mode: false | 'cliente' | 'teste';
   const trial = mode === 'teste'
   const blank = {
     name: '', document: '', segment: 'Salão', managerName: '', managerEmail: '', whatsapp: '',
-    plan: 'Pro' as Plan, kind: 'Mensal' as LicenseKey['kind'], mode: 'Local' as 'Local' | 'Nuvem'
+    plan: 'Pro' as Plan, kind: 'Mensal' as LicenseKey['kind'], mode: 'Local' as 'Local' | 'Nuvem',
+    modality: 'suporte' as Modality
   }
   const [f, setF] = useState(blank)
   useEffect(() => {
@@ -276,7 +283,37 @@ function NewTenantDialog({ mode, onClose }: { mode: false | 'cliente' | 'teste';
         <Field label="WhatsApp para avisos"><Input placeholder="(11) 90000-0000" value={f.whatsapp} onChange={(e) => set('whatsapp', e.target.value)} /></Field>
         <Field label="Senha provisória" hint="Será trocada no primeiro acesso"><Input readOnly value="Gerada automaticamente" /></Field>
       </Section>
-      <Section n={3} title="Plano e licença">
+      <Section n={3} title="O que a empresa está contratando">
+        <div className="sm:col-span-2">
+          <div className="grid gap-2 sm:grid-cols-3">
+            {(Object.keys(modalityCfg) as Modality[]).map((m) => {
+              const cfg = modalityCfg[m]
+              const ativo = f.modality === m
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => set('modality', m)}
+                  aria-pressed={ativo}
+                  className={cn(
+                    'rounded-xl border p-3 text-left transition-colors',
+                    ativo
+                      ? 'border-primary bg-primary-soft ring-1 ring-primary'
+                      : 'border-border bg-surface hover:border-border-strong'
+                  )}
+                >
+                  <span className={cn('block text-sm font-semibold', ativo && 'text-primary')}>{cfg.label}</span>
+                  <span className="mt-0.5 block text-xs leading-snug text-muted">{cfg.hint}</span>
+                </button>
+              )
+            })}
+          </div>
+          <p className="mt-2 text-xs text-subtle">
+            Define as telas que o cliente enxerga. Pode ser alterado depois, e o sistema do cliente se ajusta no próximo acesso.
+          </p>
+        </div>
+      </Section>
+      <Section n={4} title="Plano e licença">
         <Field label="Plano" hint="Start 3 PCs · Pro 10 PCs · Business ilimitado">
           <Select value={f.plan} onChange={(e) => set('plan', e.target.value as Plan)}><option>Start</option><option>Pro</option><option>Business</option></Select>
         </Field>
@@ -288,7 +325,7 @@ function NewTenantDialog({ mode, onClose }: { mode: false | 'cliente' | 'teste';
             <option value="Anual">Anual</option>
           </Select>
         </Field>
-        <Field label="Modalidade">
+        <Field label="Instalação">
           <Select value={f.mode} onChange={(e) => set('mode', e.target.value as 'Local' | 'Nuvem')}><option value="Local">Local (SQLite)</option><option value="Nuvem">Nuvem (Supabase)</option></Select>
         </Field>
         <Field label="Carência / sem internet" hint="Padrão: 3 dias / 7 dias">
