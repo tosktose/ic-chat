@@ -47,40 +47,43 @@
 }
 
 .dark {
-  --background: #0a0f1c;
-  --surface: #0f1626;
-  --surface-2: #151e32;
-  --surface-3: #1c2740;
-  --border: #1e2a42;
-  --border-strong: #2a3957;
-  --foreground: #e6ebf5;
-  --muted: #8d9ab3;
-  --subtle: #5f6d88;
+  /* Base neutra-fria: o azul fica para a marca, não para o fundo.
+     Degraus de elevação reais (~4% de luminância) para o card descolar do fundo. */
+  --background: #0b0e14;
+  --surface: #12161f;
+  --surface-2: #181d28;
+  --surface-3: #212734;
+  --border: #272e3c;
+  --border-strong: #3b4454;
+  --foreground: #e9edf5;
+  --muted: #9aa5b8;
+  --subtle: #6c7789;
 
-  --primary: #3b7bff;
-  --primary-hover: #5a90ff;
-  --primary-soft: #14264d;
+  --primary: #4d85ff;
+  --primary-hover: #6b9bff;
+  --primary-soft: #182747;
   --primary-foreground: #ffffff;
   --accent: #22d3f5;
 
-  --success: #22c55e;
-  --success-soft: #0f2b1d;
-  --warning: #f59e0b;
-  --warning-soft: #2e2210;
+  --success: #34d399;
+  --success-soft: #11291f;
+  --warning: #fbbf24;
+  --warning-soft: #2a2010;
   --danger: #fb7185;
-  --danger-soft: #3a1420;
-  --note: #2f2a12;
-  --note-border: #5b4e1a;
+  --danger-soft: #331520;
+  --note: #241f14;
+  --note-border: #4d4220;
 
-  --bubble-in: #172036;
-  --bubble-out: #173a86;
-  --chat-bg: #0c1322;
+  --bubble-in: #181d28;
+  --bubble-out: #1d3a73;
+  --chat-bg: #0d1118;
 
-  --ring: #5a90ff;
-  --chart-1: #3b7bff;
-  --chart-2: #0f9f90;
-  --chart-3: #9b6cf7;
-  --shadow-color: 225 60% 2%;
+  --ring: #4d85ff;
+  /* Gráficos: luminosos o bastante para ler sobre fundo escuro */
+  --chart-1: #4d85ff;
+  --chart-2: #2dd4bf;
+  --chart-3: #a78bfa;
+  --shadow-color: 222 70% 2%;
 }
 
 @theme inline {
@@ -218,6 +221,29 @@
   background-color: var(--chat-bg);
   background-image: radial-gradient(color-mix(in srgb, var(--primary) 7%, transparent) 1px, transparent 1px);
   background-size: 18px 18px;
+}
+/* No escuro o ponto azul some; um branco levíssimo dá a mesma textura. */
+.dark .chat-pattern {
+  background-image: radial-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px);
+}
+
+/* Elevação no escuro: sombra sozinha não lê sobre fundo escuro.
+   Uma linha de luz no topo separa a superfície do fundo. */
+.dark .shadow-soft,
+.dark .shadow-pop {
+  --tw-inset-highlight: inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+.dark .shadow-soft {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.05),
+    0 1px 2px hsl(var(--shadow-color) / 0.5),
+    0 2px 10px hsl(var(--shadow-color) / 0.45);
+}
+.dark .shadow-pop {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 6px 16px hsl(var(--shadow-color) / 0.55),
+    0 24px 56px hsl(var(--shadow-color) / 0.6);
 }
 
 .brand-gradient {

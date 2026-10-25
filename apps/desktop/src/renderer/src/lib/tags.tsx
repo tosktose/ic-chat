@@ -3,16 +3,17 @@ import { contacts } from '@/data/mock'
 
 export type TagColor = 'blue' | 'cyan' | 'violet' | 'emerald' | 'amber' | 'rose' | 'orange' | 'slate'
 
-/** Cores das etiquetas: fundo suave + texto, e a bolinha sólida */
+/** Cores das etiquetas: fundo suave + fio de contorno + texto; a bolinha é sólida.
+ *  O contorno dá definição ao chip sem precisar saturar o fundo. */
 export const TAG_COLORS: Record<TagColor, { chip: string; dot: string; label: string }> = {
-  blue: { chip: 'bg-blue-500/12 text-blue-700 dark:text-blue-300', dot: 'bg-blue-500', label: 'Azul' },
-  cyan: { chip: 'bg-cyan-500/12 text-cyan-700 dark:text-cyan-300', dot: 'bg-cyan-500', label: 'Ciano' },
-  violet: { chip: 'bg-violet-500/12 text-violet-700 dark:text-violet-300', dot: 'bg-violet-500', label: 'Roxo' },
-  emerald: { chip: 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-500', label: 'Verde' },
-  amber: { chip: 'bg-amber-500/15 text-amber-700 dark:text-amber-300', dot: 'bg-amber-500', label: 'Amarelo' },
-  rose: { chip: 'bg-rose-500/12 text-rose-700 dark:text-rose-300', dot: 'bg-rose-500', label: 'Vermelho' },
-  orange: { chip: 'bg-orange-500/12 text-orange-700 dark:text-orange-300', dot: 'bg-orange-500', label: 'Laranja' },
-  slate: { chip: 'bg-slate-500/12 text-slate-700 dark:text-slate-300', dot: 'bg-slate-500', label: 'Cinza' }
+  blue: { chip: 'bg-blue-500/10 text-blue-700 ring-1 ring-inset ring-blue-500/20 dark:bg-blue-400/12 dark:text-blue-200 dark:ring-blue-400/25', dot: 'bg-blue-500', label: 'Azul' },
+  cyan: { chip: 'bg-cyan-500/10 text-cyan-700 ring-1 ring-inset ring-cyan-500/20 dark:bg-cyan-400/12 dark:text-cyan-200 dark:ring-cyan-400/25', dot: 'bg-cyan-500', label: 'Ciano' },
+  violet: { chip: 'bg-violet-500/10 text-violet-700 ring-1 ring-inset ring-violet-500/20 dark:bg-violet-400/12 dark:text-violet-200 dark:ring-violet-400/25', dot: 'bg-violet-500', label: 'Roxo' },
+  emerald: { chip: 'bg-emerald-500/10 text-emerald-700 ring-1 ring-inset ring-emerald-500/20 dark:bg-emerald-400/12 dark:text-emerald-200 dark:ring-emerald-400/25', dot: 'bg-emerald-500', label: 'Verde' },
+  amber: { chip: 'bg-amber-500/10 text-amber-700 ring-1 ring-inset ring-amber-500/20 dark:bg-amber-400/12 dark:text-amber-200 dark:ring-amber-400/25', dot: 'bg-amber-500', label: 'Amarelo' },
+  rose: { chip: 'bg-rose-500/10 text-rose-700 ring-1 ring-inset ring-rose-500/20 dark:bg-rose-400/12 dark:text-rose-200 dark:ring-rose-400/25', dot: 'bg-rose-500', label: 'Vermelho' },
+  orange: { chip: 'bg-orange-500/10 text-orange-700 ring-1 ring-inset ring-orange-500/20 dark:bg-orange-400/12 dark:text-orange-200 dark:ring-orange-400/25', dot: 'bg-orange-500', label: 'Laranja' },
+  slate: { chip: 'bg-slate-500/10 text-slate-700 ring-1 ring-inset ring-slate-500/20 dark:bg-slate-400/12 dark:text-slate-200 dark:ring-slate-400/25', dot: 'bg-slate-500', label: 'Cinza' }
 }
 
 /** O que a etiqueta FAZ no sistema (não é só visual) */
