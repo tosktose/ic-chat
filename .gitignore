@@ -29,3 +29,6 @@ Thumbs.db
 
 # Configuração local do Claude Code
 .claude/settings.local.json
+
+# Temporarios do electron-vite
+electron.vite.config.*.mjs
