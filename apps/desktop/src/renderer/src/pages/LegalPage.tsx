@@ -3,8 +3,8 @@ import { Link } from 'react-router'
 import logo from '@/assets/logo-transparent.png'
 import { openCookiePreferences } from '@/lib/consent'
 import { useSeo } from '@/lib/seo'
+import { usePublicSettings } from '@/lib/platform'
 
-const contact = (import.meta.env.VITE_PRIVACY_CONTACT as string | undefined) ?? '[preencher: e-mail do encarregado de dados]'
 
 type Section = { title: string; body: string[] }
 
@@ -17,7 +17,7 @@ const privacy: Section[] = [
   { title: '6. Compartilhamento', body: ['Compartilhamos dados apenas com provedores necessários à operação (hospedagem, banco de dados e autenticação), sob contrato e com medidas de segurança. Não vendemos dados pessoais.'] },
   { title: '7. Retenção', body: ['Mantemos os dados enquanto a conta estiver ativa e pelo prazo necessário para cumprir obrigações legais. Depois disso, eles são excluídos ou anonimizados.'] },
   { title: '8. Seus direitos', body: ['Você pode solicitar confirmação de tratamento, acesso, correção, anonimização, portabilidade, eliminação, informação sobre compartilhamento e revogação do consentimento (art. 18 da LGPD).'] },
-  { title: '9. Contato do encarregado (DPO)', body: [`Para exercer seus direitos ou tirar dúvidas: ${contact}.`] },
+  { title: '9. Contato do encarregado (DPO)', body: ['Para exercer seus direitos ou tirar dúvidas, escreva para {{CONTATO}}.'] },
   { title: '10. Alterações', body: ['Podemos atualizar esta política. A data da última revisão fica no topo desta página.'] }
 ]
 
@@ -33,8 +33,9 @@ const terms: Section[] = [
 ]
 
 export function LegalPage({ kind }: { kind: 'privacidade' | 'termos' }) {
+  const contact = usePublicSettings().support_email || 'o e-mail de suporte informado no site'
   const isPrivacy = kind === 'privacidade'
-  const sections = isPrivacy ? privacy : terms
+  const sections = (isPrivacy ? privacy : terms).map((s) => ({ ...s, body: s.body.map((p) => p.replace('{{CONTATO}}', contact)) }))
   useSeo({ title: isPrivacy ? 'Política de Privacidade — IC Chat' : 'Termos de Uso — IC Chat', path: '/' + kind })
   return (
     <main className="fixed inset-0 overflow-y-auto bg-[#fbfcff] px-5 py-8 text-slate-800 sm:px-8" style={{ colorScheme: 'light' }}>

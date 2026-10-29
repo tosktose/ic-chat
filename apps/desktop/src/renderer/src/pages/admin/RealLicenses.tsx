@@ -135,7 +135,7 @@ export function RealLicenses() {
           <Field label="Empresa" className="sm:col-span-2">
             <Select value={tenant} onChange={(e) => setTenant(e.target.value)}>
               <option value="">Escolha a empresa</option>
-              {tenants.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {tenants.map((t) => <option key={t.id} value={t.id}>{t.name}{t.owner_email ? ` — ${t.owner_email}` : ''}</option>)}
             </Select>
           </Field>
           <Field label="Tipo">

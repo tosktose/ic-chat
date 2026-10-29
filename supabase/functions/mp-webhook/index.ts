@@ -6,8 +6,6 @@
 //   supabase functions deploy mp-webhook --no-verify-jwt
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-const PRICES: Record<string, number> = { start: 79, pro: 149, business: 299 }
-const DAYS = 30
 
 const hex = (buf: ArrayBuffer) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
 
@@ -46,16 +44,18 @@ Deno.serve(async (req) => {
   const pay = await res.json()
 
   const [tenantId, plan] = String(pay.external_reference ?? '').split('|')
-  if (!tenantId || !PRICES[plan]) return new Response('unknown reference') // pagamento que não é nosso
+  if (!tenantId || !plan) return new Response('unknown reference') // pagamento que não é nosso
+
+  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'ic_chat' } })
+  const { data: planRow } = await admin.from('plans').select('price, days').eq('id', plan).maybeSingle()
+  if (!planRow) return new Response('unknown plan')
   // Valor tem que bater com o plano (evita liberar plano caro com pagamento barato)
-  if (pay.status === 'approved' && Number(pay.transaction_amount) < PRICES[plan]) {
+  if (pay.status === 'approved' && Number(pay.transaction_amount) < Number(planRow.price)) {
     console.error('Valor pago menor que o plano', dataId, pay.transaction_amount, plan)
     return new Response('amount mismatch')
   }
-
-  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'ic_chat' } })
   const { error } = await admin.rpc('apply_payment', {
-    p_tenant: tenantId, p_plan: plan, p_days: DAYS, p_provider_payment_id: String(pay.id),
+    p_tenant: tenantId, p_plan: plan, p_days: Number(planRow.days), p_provider_payment_id: String(pay.id),
     p_amount: Number(pay.transaction_amount), p_status: String(pay.status)
   })
   if (error) {

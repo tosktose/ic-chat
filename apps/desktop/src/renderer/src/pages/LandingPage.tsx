@@ -5,14 +5,9 @@ import { InstagramIcon, WhatsAppIcon } from '@/components/brand'
 import logo from '@/assets/logo-transparent.png'
 import { openCookiePreferences } from '@/lib/consent'
 import { useSeo } from '@/lib/seo'
+import { usePlans, usePublicSettings } from '@/lib/platform'
 
 const downloadUrl = import.meta.env.VITE_ICCHAT_DESKTOP_DOWNLOAD_URL as string | undefined
-
-const plans = [
-  { name: 'Start', price: 79, summary: 'Para organizar o atendimento e não perder nenhum contato.', features: ['Até 3 usuários', 'Caixa de entrada e contatos', 'Funil de vendas', 'Agenda e relatórios essenciais'], recommended: false },
-  { name: 'Pro', price: 149, summary: 'Para equipes que querem automatizar e acompanhar resultados.', features: ['Até 10 usuários', 'Tudo do Start', 'Assistente IA e automações', 'Relatórios por canal e conversão'], recommended: true },
-  { name: 'Business', price: 299, summary: 'Para operações em crescimento e mais de uma unidade.', features: ['Usuários ampliados', 'Tudo do Pro', 'Múltiplas unidades', 'Integrações e suporte prioritário'], recommended: false }
-]
 
 const faqs = [
   ['O que acontece depois do teste de 7 dias?', 'Você escolhe o plano que faz sentido para a sua empresa. Sem uma assinatura ativa, o acesso aos dados fica suspenso até a regularização — nada é apagado.'],
@@ -143,6 +138,8 @@ function SectionTitle({ eyebrow, title, copy }: { eyebrow: string; title: string
 
 export function LandingPage() {
   useSeo({ title: 'IC Chat — Atendimento que vira venda', description: 'Atenda pelo WhatsApp e Instagram, organize contatos e acompanhe oportunidades em um CRM simples. Experimente o IC Chat por 7 dias grátis.', path: '/' })
+  const plans = usePlans()
+  const contact = usePublicSettings()
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const scroller = useRef<HTMLElement>(null)
@@ -287,7 +284,7 @@ export function LandingPage() {
                 <p className={`mt-2 min-h-12 text-sm leading-6 ${plan.recommended ? 'text-slate-400' : 'text-slate-600'}`}>{plan.summary}</p>
                 <p className="mt-6 flex items-baseline gap-1"><span className="text-5xl font-semibold tracking-tight">R$ {plan.price}</span><span className={`text-sm ${plan.recommended ? 'text-slate-400' : 'text-slate-500'}`}>/mês</span></p>
                 <p className={`mt-1 text-xs ${plan.recommended ? 'text-slate-500' : 'text-slate-500'}`}>após os 7 dias de teste</p>
-                <Link to={`/cadastro?plano=${plan.name.toLowerCase()}`} className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition ${plan.recommended ? 'bg-white text-slate-950 hover:bg-cyan-300' : 'bg-slate-950 text-white hover:bg-blue-700'}`}>Testar por 7 dias <ArrowRight className="size-4" /></Link>
+                <Link to={`/cadastro?plano=${plan.id}`} className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition ${plan.recommended ? 'bg-white text-slate-950 hover:bg-cyan-300' : 'bg-slate-950 text-white hover:bg-blue-700'}`}>Testar por 7 dias <ArrowRight className="size-4" /></Link>
                 <ul className={`mt-8 flex flex-col gap-3 border-t pt-7 ${plan.recommended ? 'border-white/10' : 'border-slate-100'}`}>
                   {plan.features.map((f) => <li key={f} className={`flex items-start gap-2.5 text-sm ${plan.recommended ? 'text-slate-200' : 'text-slate-700'}`}><Check className={`mt-0.5 size-4 shrink-0 ${plan.recommended ? 'text-cyan-300' : 'text-emerald-600'}`} />{f}</li>)}
                 </ul>
@@ -369,7 +366,7 @@ export function LandingPage() {
             <button onClick={openCookiePreferences} className="hover:text-blue-700">Preferências de cookies</button>
           </div>
         </div>
-        <p className="mx-auto mt-8 max-w-7xl text-xs text-slate-400">© 2026 ItaCondo. Todos os direitos reservados.</p>
+        <p className="mx-auto mt-8 max-w-7xl text-xs text-slate-400">© 2026 ItaCondo. Todos os direitos reservados.{contact.support_email && <> · <a href={`mailto:${contact.support_email}`} className="hover:text-blue-700">{contact.support_email}</a></>}</p>
       </footer>
     </main>
   )

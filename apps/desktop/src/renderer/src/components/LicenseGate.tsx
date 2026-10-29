@@ -7,6 +7,7 @@ import { Field, Input } from '@/components/ui/input'
 import { useAppState } from '@/lib/app-state'
 import { LICENSE_KEY_RE, reasonText } from '@/lib/license'
 import { isWebApp } from '@/lib/supabase'
+import { usePublicSettings, whatsappLink } from '@/lib/platform'
 
 /** Bloqueia o aplicativo instalado enquanto a licença não for válida (chave ausente, vencida, suspensa por falta de pagamento...). */
 export function LicenseGate({ children }: { children: React.ReactNode }) {
@@ -14,6 +15,9 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
   const [key, setKey] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const contact = usePublicSettings()
+  const wa = whatsappLink(contact.support_whatsapp, 'Olá! Preciso de ajuda com a licença do IC Chat.')
+  const supportHref = wa || (contact.support_email ? `mailto:${contact.support_email}?subject=${encodeURIComponent('Licença do IC Chat')}` : '')
 
   if (isWebApp || role === 'superadmin') return <>{children}</>
   if (license.checking) {
@@ -51,9 +55,11 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
           </Field>
           <Button type="submit" size="lg" disabled={!ok || busy}>{busy ? 'Validando…' : 'Ativar neste computador'}</Button>
         </form>
-        <a href="https://wa.me/5511900000000" target="_blank" rel="noreferrer" className="mt-5 flex items-center justify-center gap-2 text-sm text-muted hover:text-foreground">
-          <LifeBuoy className="size-4" /> Falar com o suporte
-        </a>
+        {supportHref && (
+          <a href={supportHref} target="_blank" rel="noreferrer" className="mt-5 flex items-center justify-center gap-2 text-sm text-muted hover:text-foreground">
+            <LifeBuoy className="size-4" /> Falar com o suporte
+          </a>
+        )}
       </div>
     </div>
   )

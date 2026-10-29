@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { listTenants, type AdminTenant } from '@/lib/admin-api'
+import { toast } from 'sonner'
+import { adminError, listMembers, listPlans, listTenants, savePlanRow, type AdminTenant } from '@/lib/admin-api'
 import { isSuperAdmin, useAuth } from '@/lib/auth'
 import { isWebApp, supabase } from '@/lib/supabase'
 import {
@@ -59,6 +60,8 @@ export interface NewTenantInput {
 
 interface Ctx {
   version: number
+  /** Recarrega empresas, usuários e planos do banco (versão web) */
+  reload: () => void
   tenants: Tenant[]
   users: TenantUser[]
   keys: LicenseKey[]
@@ -82,6 +85,7 @@ if (isWebApp) {
   tenantList.splice(0)
   userList.splice(0)
   keyList.splice(0)
+  plans.splice(0)
 }
 
 const statusFromSubscription = (s: AdminTenant['subscription']): { status: TenantStatus; expires: string; days: number; plan: Plan } => {
@@ -101,30 +105,45 @@ export function SaasProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0)
   const bump = () => setVersion((v) => v + 1)
   const { session } = useAuth()
+  const [tick, setTick] = useState(0)
 
   // Super Admin (web): empresas reais do banco
   useEffect(() => {
     if (!isWebApp || !supabase || !isSuperAdmin(session)) return
     let alive = true
-    void listTenants().then((rows) => {
+    void Promise.all([listTenants(), listMembers(), listPlans()]).then(([rows, members, planRows]) => {
       if (!alive) return
-      tenantList.splice(0, tenantList.length, ...rows.map((t): Tenant => ({
-        id: t.id, name: t.name, document: '', segment: '—', modality: 'completo', mode: 'Nuvem', pcs: [0, null], mrr: 0, version: '—', online: false, whatsapp: '', email: '',
-        ...statusFromSubscription(t.subscription)
+      plans.splice(0, plans.length, ...planRows.map((p): PlanDef => ({
+        name: p.name as Plan, price: p.price, mode: `${p.max_devices} computadores`, pcs: p.max_devices, users: p.max_users, features: p.features, highlight: p.highlight
+      })))
+      const priceOf = (name: string) => plans.find((p) => p.name.toLowerCase() === name.toLowerCase())?.price ?? 0
+      tenantList.splice(0, tenantList.length, ...rows.map((t): Tenant => {
+        const st = statusFromSubscription(t.subscription)
+        return {
+          id: t.id, name: t.name, document: '', segment: t.origin_role ? `vem de outro projeto (${t.origin_role})` : '—', modality: 'completo', mode: 'Nuvem',
+          pcs: [t.licenses_active, null], mrr: t.subscription?.status === 'active' ? priceOf(st.plan) : 0, version: '—', online: false, whatsapp: '', email: t.owner_email ?? '',
+          ...st
+        }
+      }))
+      userList.splice(0, userList.length, ...members.map((m): TenantUser => ({
+        id: m.user_id, tenantId: m.tenant_id, name: m.display_name || m.email, email: m.email, role: m.role === 'agent' ? 'analista' : 'gerente', active: true,
+        lastSeen: m.last_sign_in_at ? new Date(m.last_sign_in_at).toLocaleDateString('pt-BR') : 'nunca'
       })))
       bump()
-    }).catch(() => { /* migração ainda não executada: a tela de licenças explica */ })
+    }).catch(() => { /* migrações ainda não executadas: a tela de licenças explica */ })
     return () => { alive = false }
-  }, [session])
+  }, [session, tick])
 
   const value = useMemo<Ctx>(() => {
     const tenantById = (id: string) => tenantList.find((t) => t.id === id)
     return {
       version,
-      tenants: tenantList,
-      users: userList,
-      keys: keyList,
-      plans,
+      reload: () => setTick((n) => n + 1),
+      // Cópias novas a cada mudança: as telas guardam listas em cache e só se atualizam quando a referência muda
+      tenants: [...tenantList],
+      users: [...userList],
+      keys: [...keyList],
+      plans: [...plans],
       renew: (id, days = 30) => {
         const t = tenantById(id)
         if (!t) return
@@ -203,6 +222,12 @@ export function SaasProvider({ children }: { children: ReactNode }) {
         if (i >= 0) plans[i] = p
         else plans.push(p)
         bump()
+        if (isWebApp && supabase) {
+          const id = p.name.toLowerCase() as 'start' | 'pro' | 'business'
+          void savePlanRow({ id, name: p.name, price: p.price, days: 30, max_users: p.users, max_devices: p.pcs ?? 50, summary: '', features: p.features, highlight: Boolean(p.highlight), active: true, sort: ['start', 'pro', 'business'].indexOf(id) + 1 })
+            .then(() => toast.success('Plano salvo no banco'))
+            .catch((e) => toast.error('Não foi possível salvar o plano', { description: adminError(e) }))
+        }
       }
     }
   }, [version])

@@ -6,11 +6,6 @@
 //   SITE_URL          opcional, padrão https://ic-chat-desktop.vercel.app
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-const PLANS: Record<string, { title: string; price: number; days: number }> = {
-  start: { title: 'IC Chat Start · 30 dias', price: 79, days: 30 },
-  pro: { title: 'IC Chat Pro · 30 dias', price: 149, days: 30 },
-  business: { title: 'IC Chat Business · 30 dias', price: 299, days: 30 }
-}
 
 const SITE = (Deno.env.get('SITE_URL') ?? 'https://ic-chat-desktop.vercel.app').replace(/\/$/, '')
 const cors = {
@@ -38,8 +33,11 @@ Deno.serve(async (req) => {
 
   let plan = ''
   try { plan = String((await req.json()).plan ?? '') } catch { /* corpo vazio */ }
-  const chosen = PLANS[plan]
-  if (!chosen) return json({ error: 'plano_invalido' }, 400)
+  // Preço e prazo vêm da tabela ic_chat.plans (editada pelo Super Admin), lida com a chave de serviço
+  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'ic_chat' } })
+  const { data: row } = await admin.from('plans').select('name, price, days, active').eq('id', plan).maybeSingle()
+  if (!row || !row.active) return json({ error: 'plano_invalido' }, 400)
+  const chosen = { title: `IC Chat ${row.name} · ${row.days} dias`, price: Number(row.price), days: Number(row.days) }
 
   // A empresa vem do banco (RLS garante que é a do usuário), não do pedido
   const { data: member } = await supa.from('tenant_members').select('tenant_id, role').eq('user_id', user.id).maybeSingle()

@@ -6,7 +6,8 @@ import { Page } from '@/components/layout/Page'
 import { Button } from '@/components/ui/button'
 import { Badge, Card } from '@/components/ui/misc'
 import { useAppState } from '@/lib/app-state'
-import { startCheckout, PLAN_LIST, type PlanId } from '@/lib/billing'
+import { startCheckout, type PlanId } from '@/lib/billing'
+import { usePlans } from '@/lib/platform'
 import { isWebApp } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +23,7 @@ const stateText = {
 export function SubscribePage() {
   const { license } = useAppState()
   const [busy, setBusy] = useState<PlanId | null>(null)
+  const planList = usePlans()
 
   if (!isWebApp) {
     return (
@@ -49,7 +51,7 @@ export function SubscribePage() {
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        {PLAN_LIST.map((p) => (
+        {planList.map((p) => (
           <Card key={p.id} className={cn('flex flex-col p-6', p.recommended && 'ring-2 ring-primary')}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">{p.name}</h3>

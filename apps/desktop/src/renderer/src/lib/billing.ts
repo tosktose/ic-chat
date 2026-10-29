@@ -2,8 +2,18 @@ import { supabase } from './supabase'
 
 export type PlanId = 'start' | 'pro' | 'business'
 
-/** Valores só para EXIBIR. O preço cobrado de verdade é o da função create-checkout (servidor). */
-export const PLAN_LIST: { id: PlanId; name: string; price: number; summary: string; features: string[]; recommended?: boolean }[] = [
+export interface PublicPlan {
+  id: PlanId
+  name: string
+  price: number
+  summary: string
+  features: string[]
+  recommended?: boolean
+  days?: number
+}
+
+/** Valores padrão (só usados se o banco não responder). O preço cobrado de verdade é o da tabela `plans`, lido pelo servidor. */
+export const PLAN_FALLBACK: PublicPlan[] = [
   { id: 'start', name: 'Start', price: 79, summary: 'Para organizar o atendimento e não perder nenhum contato.', features: ['Até 3 usuários', 'Caixa de entrada e contatos', 'Funil de vendas', 'Agenda e relatórios essenciais'] },
   { id: 'pro', name: 'Pro', price: 149, recommended: true, summary: 'Para equipes que querem automatizar e acompanhar resultados.', features: ['Até 10 usuários', 'Tudo do Start', 'Assistente IA e automações', 'Relatórios por canal e conversão'] },
   { id: 'business', name: 'Business', price: 299, summary: 'Para operações em crescimento e mais de uma unidade.', features: ['Usuários ampliados', 'Tudo do Pro', 'Múltiplas unidades', 'Integrações e suporte prioritário'] }
@@ -14,6 +24,7 @@ const messages: Record<string, string> = {
   nao_autenticado: 'Sua sessão expirou. Entre novamente.',
   apenas_gerentes_podem_assinar: 'Somente gerentes podem contratar o plano.',
   empresa_nao_encontrada: 'Não encontramos a sua empresa. Fale com o suporte.',
+  plano_invalido: 'Este plano não está disponível.',
   mercado_pago_recusou: 'O Mercado Pago não aceitou o pedido. Tente novamente em instantes.'
 }
 

@@ -35,6 +35,16 @@ Para cada tela: ❶ tem mock? ❷ botões funcionam? ❸ salva e persiste após 
 - [x] Relatórios (Excel/CSV baixa; PDF monta a impressão) · [x] Configurações (salvar + recarregar) · [x] Equipe
 - [ ] Agenda (criar agendamento) · [ ] Funil (criar/arrastar negócio) · [ ] Captação · [ ] Assistente IA · [ ] Canais · [ ] Perfil · [ ] Super Admin (usuários, planos, créditos)
 
+## Fase 3b — Super Admin conectado ao banco 🔄
+- [x] Empresas mostram o dono (e-mail) de cada uma; as 4 que apareciam são contas reais do banco compartilhado
+- [x] Renovar / bloquear / liberar empresa gravam no banco (antes só mudavam a tela)
+- [x] Usuários, Planos e Configurações do sistema lidos e gravados no Supabase (migração 20261029_000004_platform_admin.sql)
+- [x] Créditos de IA: sem custo/consumo inventado (aparece vazio até o consumo ser registrado)
+- [x] Removido o "servidor de licenças" de mentira: as licenças são verificadas no próprio Supabase
+- [x] Bug corrigido: tabelas do Super Admin ficavam vazias mesmo com dados (lista em cache)
+- [ ] Executar a migração 4 no banco de produção
+- [ ] WhatsApp de suporte: informar o número em Super Admin → Configurações do sistema
+
 ## Fase 5 — Cobrança com Mercado Pago ⏳ (aguardando o aplicativo do Mercado Pago)
 - [x] 5.1 Tela **Assinar** (/assinar) + retorno do pagamento (/assinar/retorno), atalho no topo e no menu — testada (billing.spec.ts)
 - [x] 5.2 Código pronto: supabase/functions/create-checkout (preço definido no servidor; token só nos Secrets) · ⏳ falta publicar a função e colar o token

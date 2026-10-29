@@ -8,6 +8,7 @@ import { Dialog } from '@/components/ui/overlay'
 import { useAppState, type LicenseState } from '@/lib/app-state'
 import { LICENSE_KEY_RE, reasonText } from '@/lib/license'
 import { isWebApp } from '@/lib/supabase'
+import { usePublicSettings, whatsappLink } from '@/lib/platform'
 
 const stateLabel: Record<LicenseState, string> = {
   ativa: 'Ativa',
@@ -22,6 +23,8 @@ export function LicenseTab() {
   const [keyOpen, setKeyOpen] = useState(false)
   const [newKey, setNewKey] = useState('')
   const [busy, setBusy] = useState(false)
+  const contact = usePublicSettings()
+  const supportHref = whatsappLink(contact.support_whatsapp, 'Olá! Quero renovar a licença do IC Chat.') || (contact.support_email ? `mailto:${contact.support_email}?subject=${encodeURIComponent('Renovar licença do IC Chat')}` : '')
   const keyOk = LICENSE_KEY_RE.test(newKey.trim().toUpperCase())
 
   if (isWebApp) {
@@ -68,9 +71,7 @@ export function LicenseTab() {
         <div className="flex flex-col gap-2 border-t border-border px-5 py-3 sm:flex-row sm:justify-end">
           {license.key && <Button variant="ghost" onClick={() => { deactivateLicense(); toast.success('Chave removida deste computador') }}>Remover chave</Button>}
           <Button variant="outline" onClick={() => setKeyOpen(true)}><KeyRound /> {license.key ? 'Inserir nova chave' : 'Ativar com uma chave'}</Button>
-          <Button onClick={() => window.open('https://wa.me/5511900000000?text=' + encodeURIComponent('Olá! Quero renovar a licença do IC Chat.'), '_blank')}>
-            Falar com o suporte para renovar
-          </Button>
+          {supportHref && <Button onClick={() => window.open(supportHref, '_blank')}>Falar com o suporte para renovar</Button>}
         </div>
       </Card>
 

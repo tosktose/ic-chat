@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { isWebApp } from '@/lib/supabase'
+import { adminError, extendTenant, setTenantBlocked } from '@/lib/admin-api'
+import { useNavigate } from 'react-router'
 import {
   Ban,
   Building2,
@@ -43,7 +45,7 @@ export function AdminPage() {
   const list = useMemo(
     () =>
       tenants.filter((t) => {
-        if (q && !(t.name + t.document).toLowerCase().includes(q.toLowerCase())) return false
+        if (q && !(t.name + t.document + t.email).toLowerCase().includes(q.toLowerCase())) return false
         if (filter === 'atencao') return ['vencendo', 'carencia', 'restrito'].includes(t.status)
         if (filter === 'teste') return t.status === 'teste'
         if (filter === 'ativos') return t.status === 'ativa'
@@ -116,7 +118,7 @@ export function AdminPage() {
                       <TenantAvatar t={t} />
                       <div className="min-w-0">
                         <p className="truncate font-medium">{t.name}</p>
-                        <p className="truncate text-xs text-muted">{t.segment} · {t.mode} · v{t.version}</p>
+                        <p className="truncate text-xs text-muted">{isWebApp ? [t.email || 'sem e-mail', t.segment !== '—' ? t.segment : ''].filter(Boolean).join(' · ') : `${t.segment} · ${t.mode} · v${t.version}`}</p>
                       </div>
                     </div>
                   </td>
@@ -190,6 +192,31 @@ function Stat({ icon, label, value, sub, alert }: { icon: ReactNode; label: stri
 }
 
 export function TenantActions({ t }: { t: Tenant }) {
+  if (isWebApp) return <RealTenantActions t={t} />
+  return <DemoTenantActions t={t} />
+}
+
+/** Ações reais (gravam no banco). */
+function RealTenantActions({ t }: { t: Tenant }) {
+  const { reload } = useSaas()
+  const navigate = useNavigate()
+  const run = async (fn: () => Promise<void>, ok: string) => {
+    try { await fn(); toast.success(ok, { description: t.name }); reload() } catch (e) { toast.error('Não foi possível concluir', { description: adminError(e) }) }
+  }
+  return (
+    <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+      <Button variant="ghost" size="icon-sm" aria-label="Renovar por 30 dias" title="Renovar +30 dias" onClick={() => run(() => extendTenant(t.id, 30), 'Empresa renovada por 30 dias')}><CalendarPlus /></Button>
+      <Button variant="ghost" size="icon-sm" aria-label="Gerar chave de licença" title="Gerar chave de licença" onClick={() => navigate('/admin/licencas')}><KeyRound /></Button>
+      {t.status === 'suspensa' || t.status === 'carencia' || t.status === 'restrito' ? (
+        <Button variant="ghost" size="icon-sm" className="hover:text-success" aria-label="Liberar empresa" title="Liberar acesso" onClick={() => run(() => setTenantBlocked(t.id, false), 'Empresa liberada')}><RotateCcw /></Button>
+      ) : (
+        <Button variant="ghost" size="icon-sm" className="hover:text-danger" aria-label="Bloquear empresa" title="Bloquear (falta de pagamento)" onClick={() => { if (window.confirm(`Bloquear ${t.name}? O acesso (site e app) é cortado.`)) void run(() => setTenantBlocked(t.id, true), 'Empresa bloqueada') }}><Ban /></Button>
+      )}
+    </div>
+  )
+}
+
+function DemoTenantActions({ t }: { t: Tenant }) {
   const { renew, issueKey, setStatus } = useSaas()
   const { notify } = useNotifications()
   const act = (msg: string, fn: () => void) => () => {
