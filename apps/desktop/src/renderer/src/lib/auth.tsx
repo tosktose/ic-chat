@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import type { AuthError, Session } from '@supabase/supabase-js'
 import { isWebApp, supabase } from './supabase'
 import { clearAffiliateOAuthSignup, consumeAffiliateOAuthSignup, captureAffiliateCode, prepareAffiliateOAuthSignup } from './affiliate'
+import { getSiteUrl } from './site-url'
 
 interface AuthContextValue {
   session: Session | null
@@ -80,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       options: {
         data: { company_name: company.trim(), affiliate_referral_code: captureAffiliateCode() },
-        emailRedirectTo: window.location.origin
+        emailRedirectTo: getSiteUrl()
       }
       })
       return { error, needsEmailConfirmation: !error && !data.session }
@@ -90,14 +91,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (signup) prepareAffiliateOAuthSignup()
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/dashboard`, queryParams: { access_type: 'offline', prompt: 'select_account' } }
+        options: { redirectTo: `${getSiteUrl()}/dashboard`, queryParams: { access_type: 'offline', prompt: 'select_account' } }
       })
       return error
     },
     signOut: async () => { if (supabase) await supabase.auth.signOut() },
     requestPasswordReset: async (email) => {
       if (!supabase) return new Error('Supabase não configurado') as AuthError
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/redefinir-senha` })
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${getSiteUrl()}/redefinir-senha` })
       return error
     },
     updatePassword: async (password) => {

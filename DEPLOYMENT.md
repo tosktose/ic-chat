@@ -7,7 +7,7 @@ Este guia descreve a publicação web do IC Chat usando Supabase, GitHub e Verce
 - Repositório: `tosktose/ic-chat`
 - Branch preparada para produção: `codex/supabase-vercel-setup`
 - Projeto Vercel: `ic-chat-desktop`
-- URL da aplicação: `https://ic-chat-desktop.vercel.app`
+- URL oficial da aplicação: `https://www.icchat.com.br` (o domínio raiz redireciona para `www`)
 - Schema próprio no Supabase: `ic_chat`
 
 ## Supabase
@@ -17,7 +17,7 @@ Este guia descreve a publicação web do IC Chat usando Supabase, GitHub e Verce
 3. Confirme que o schema `ic_chat` está habilitado na Data API. Mantenha os demais schemas do projeto como estavam.
 4. Em Authentication, habilite os provedores de login necessários. O cadastro por e-mail e o login Google usam a origem atual da aplicação como destino.
 5. Preserve o Site URL global existente, pois este projeto Supabase atende outros aplicativos.
-6. Inclua `https://ic-chat-desktop.vercel.app/**` na lista de Redirect URLs permitidas. Para previews, adicione apenas os domínios de preview que forem realmente usados.
+6. Mantenha o Site URL global atual, pois esse projeto Supabase atende outros aplicativos. Em Redirect URLs, inclua `https://www.icchat.com.br/**` e `https://icchat.com.br/**`, além do domínio legado da Vercel enquanto ele continuar sendo usado.
 7. O callback OAuth do Google é o callback do Supabase: `https://umnoiivuntnvsxkysvrr.supabase.co/auth/v1/callback`. Esse endereço precisa estar autorizado no cliente OAuth do Google.
 
 ### Afiliados
@@ -38,9 +38,10 @@ Este guia descreve a publicação web do IC Chat usando Supabase, GitHub e Verce
 3. Cadastre estas variáveis em **Production** e **Preview**:
    - `VITE_SUPABASE_URL` = URL do projeto Supabase
    - `VITE_SUPABASE_PUBLISHABLE_KEY` = chave publishable do projeto Supabase
+   - `VITE_SITE_URL` = `https://www.icchat.com.br` (domínio canônico para afiliados e retornos de autenticação)
 4. Não coloque `.env.local`, service role keys ou segredos OAuth no GitHub. A chave publishable deve continuar protegida pelas políticas RLS do banco.
 5. A branch de produção deste projeto é `codex/supabase-vercel-setup`. Novos commits nela iniciam uma nova publicação.
-6. Acompanhe o build em Deployments. Só considere a publicação concluída quando o deployment estiver Ready e `https://ic-chat-desktop.vercel.app` abrir a aplicação.
+6. Acompanhe o build em Deployments. Só considere a publicação concluída quando o deployment estiver Ready e `https://www.icchat.com.br` abrir a aplicação.
 
 ## Verificação após publicar
 

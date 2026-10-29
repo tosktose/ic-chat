@@ -5,10 +5,10 @@
 //   ICCHAT_AI_API_KEY    chave do provedor de IA (obrigatório)
 //   ICCHAT_AI_BASE_URL   endereço da API compatível com OpenAI (padrão https://openrouter.ai/api/v1)
 //   ICCHAT_AI_MODEL      modelo (padrão openai/gpt-4o-mini)
-//   ICCHAT_SITE_URL      opcional, padrão https://ic-chat-desktop.vercel.app
+//   ICCHAT_SITE_URL      opcional, padrão https://www.icchat.com.br
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-const SITE = (Deno.env.get('ICCHAT_SITE_URL') ?? 'https://ic-chat-desktop.vercel.app').replace(/\/$/, '')
+const SITE = (Deno.env.get('ICCHAT_SITE_URL') ?? 'https://www.icchat.com.br').replace(/\/$/, '')
 const cors = {
   'Access-Control-Allow-Origin': SITE,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',

@@ -3,12 +3,12 @@
 //
 // Secrets necessários (Supabase → Edge Functions → Secrets):
 //   ICCHAT_MP_ACCESS_TOKEN   Access Token do aplicativo do Mercado Pago do IC Chat (teste ou produção)
-//   ICCHAT_SITE_URL          opcional, padrão https://ic-chat-desktop.vercel.app
+//   ICCHAT_SITE_URL          opcional, padrão https://www.icchat.com.br
 // Nomes com prefixo ICCHAT_ de propósito: o projeto Supabase é compartilhado com outros sistemas que usam MP_ACCESS_TOKEN.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 
-const SITE = (Deno.env.get('ICCHAT_SITE_URL') ?? 'https://ic-chat-desktop.vercel.app').replace(/\/$/, '')
+const SITE = (Deno.env.get('ICCHAT_SITE_URL') ?? 'https://www.icchat.com.br').replace(/\/$/, '')
 const cors = {
   'Access-Control-Allow-Origin': SITE,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',

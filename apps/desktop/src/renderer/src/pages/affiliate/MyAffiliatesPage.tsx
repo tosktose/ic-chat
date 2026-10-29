@@ -7,6 +7,7 @@ import { Badge, Card } from '@/components/ui/misc'
 import { StatCard, StatGrid } from '@/components/ui/stats'
 import { adminError, getMyAffiliateDashboard, getMyAffiliateReferrals, type MyAffiliateDashboard, type MyAffiliateReferral } from '@/lib/admin-api'
 import { brl } from '@/lib/utils'
+import { getSiteUrl } from '@/lib/site-url'
 
 export function MyAffiliatesPage() {
   const [dashboard, setDashboard] = useState<MyAffiliateDashboard | null>(null)
@@ -27,7 +28,7 @@ export function MyAffiliatesPage() {
 
   useEffect(() => { void load() }, [load])
 
-  const referralLink = dashboard ? `${window.location.origin}/?ref=${encodeURIComponent(dashboard.referral_code)}` : ''
+  const referralLink = dashboard ? `${getSiteUrl()}/?ref=${encodeURIComponent(dashboard.referral_code)}` : ''
   const copy = async () => {
     try { await navigator.clipboard.writeText(referralLink); toast.success('Seu link foi copiado') }
     catch { toast.error('Não foi possível copiar. Copie o link exibido na tela.') }

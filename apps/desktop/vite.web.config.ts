@@ -34,7 +34,7 @@ function seoFiles(siteUrl: string): Plugin {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, resolve(__dirname), '')
   const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL
-  const siteUrl = env.VITE_SITE_URL || (vercelHost ? `https://${vercelHost}` : 'https://icchat.com.br')
+  const siteUrl = env.VITE_SITE_URL || (vercelHost ? `https://${vercelHost}` : 'https://www.icchat.com.br')
   return {
     root: resolve(__dirname, 'src/renderer'),
     envDir: resolve(__dirname),

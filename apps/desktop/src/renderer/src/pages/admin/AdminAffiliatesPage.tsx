@@ -8,6 +8,7 @@ import { Page } from '@/components/layout/Page'
 import { StatCard, StatGrid } from '@/components/ui/stats'
 import { adminError, listAffiliateReferrals, listAffiliateSummaries, markAffiliateCommissionsPaid, setAffiliate, type AffiliateReferral, type AffiliateSummary } from '@/lib/admin-api'
 import { brl } from '@/lib/utils'
+import { getSiteUrl } from '@/lib/site-url'
 
 export function AdminAffiliatesPage() {
   const [affiliates, setAffiliates] = useState<AffiliateSummary[]>([])
@@ -41,7 +42,7 @@ export function AdminAffiliatesPage() {
   const totalReferred = affiliates.reduce((sum, row) => sum + row.referrals, 0)
 
   const copyLink = async (code: string) => {
-    const url = `${window.location.origin}/?ref=${encodeURIComponent(code)}`
+    const url = `${getSiteUrl()}/?ref=${encodeURIComponent(code)}`
     try {
       await navigator.clipboard.writeText(url)
       toast.success('Link copiado', { description: url })
