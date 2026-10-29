@@ -87,8 +87,8 @@ export function AdminSystemPage() {
           <div className="flex flex-col gap-2 px-5 pb-5 text-sm leading-6 text-muted">
             <p>A chave do Mercado Pago <b>nunca</b> fica nesta tela nem no site: ela é guardada nos <i>Secrets</i> do Supabase (Edge Functions).</p>
             <ul className="list-disc pl-5">
-              <li>Secret <code className="font-mono text-xs">MP_ACCESS_TOKEN</code>: Access Token do aplicativo do Mercado Pago.</li>
-              <li>Secret <code className="font-mono text-xs">MP_WEBHOOK_SECRET</code>: assinatura secreta do webhook.</li>
+              <li>Secret <code className="font-mono text-xs">ICCHAT_MP_ACCESS_TOKEN</code>: Access Token do aplicativo do Mercado Pago do IC Chat.</li>
+              <li>Secret <code className="font-mono text-xs">ICCHAT_MP_WEBHOOK_SECRET</code>: assinatura secreta do webhook.</li>
               <li>Webhook cadastrado no Mercado Pago: <code className="font-mono text-xs break-all">…supabase.co/functions/v1/mp-webhook</code></li>
             </ul>
           </div>

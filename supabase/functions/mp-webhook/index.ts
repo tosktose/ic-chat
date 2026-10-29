@@ -1,8 +1,8 @@
 // Recebe os avisos do Mercado Pago. Nunca confia no que veio no aviso: consulta o pagamento
 // direto na API do Mercado Pago (com o Access Token) e só então libera o plano.
 //
-// Secrets: MP_ACCESS_TOKEN (obrigatório) e MP_WEBHOOK_SECRET (opcional, mas recomendado: a "assinatura secreta"
-// que o Mercado Pago mostra em Webhooks). Deploy SEM verificação de JWT (o Mercado Pago não envia login):
+// Secrets: ICCHAT_MP_ACCESS_TOKEN (obrigatório) e ICCHAT_MP_WEBHOOK_SECRET (opcional, mas recomendado: a "assinatura secreta"
+// que o Mercado Pago mostra em Webhooks). Prefixo ICCHAT_ de propósito: o projeto é compartilhado com outros sistemas. Deploy SEM verificação de JWT (o Mercado Pago não envia login):
 //   supabase functions deploy mp-webhook --no-verify-jwt
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
@@ -23,7 +23,7 @@ async function validSignature(req: Request, dataId: string, secret: string): Pro
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('ok')
-  const token = Deno.env.get('MP_ACCESS_TOKEN')
+  const token = Deno.env.get('ICCHAT_MP_ACCESS_TOKEN')
   if (!token) return new Response('not configured', { status: 503 })
 
   const url = new URL(req.url)
@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
   // Só nos interessam avisos de pagamento
   if (!type.includes('payment') || !dataId) return new Response('ignored')
 
-  const secret = Deno.env.get('MP_WEBHOOK_SECRET')
+  const secret = Deno.env.get('ICCHAT_MP_WEBHOOK_SECRET')
   if (secret && !(await validSignature(req, dataId, secret))) return new Response('invalid signature', { status: 401 })
 
   // Fonte da verdade: o próprio Mercado Pago

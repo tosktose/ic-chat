@@ -2,12 +2,13 @@
 // O preço vem DESTA função (nunca do navegador) e o Access Token fica só aqui, nos Secrets do Supabase.
 //
 // Secrets necessários (Supabase → Edge Functions → Secrets):
-//   MP_ACCESS_TOKEN   Access Token do aplicativo do Mercado Pago (de teste ou de produção)
-//   SITE_URL          opcional, padrão https://ic-chat-desktop.vercel.app
+//   ICCHAT_MP_ACCESS_TOKEN   Access Token do aplicativo do Mercado Pago do IC Chat (teste ou produção)
+//   ICCHAT_SITE_URL          opcional, padrão https://ic-chat-desktop.vercel.app
+// Nomes com prefixo ICCHAT_ de propósito: o projeto Supabase é compartilhado com outros sistemas que usam MP_ACCESS_TOKEN.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 
-const SITE = (Deno.env.get('SITE_URL') ?? 'https://ic-chat-desktop.vercel.app').replace(/\/$/, '')
+const SITE = (Deno.env.get('ICCHAT_SITE_URL') ?? 'https://ic-chat-desktop.vercel.app').replace(/\/$/, '')
 const cors = {
   'Access-Control-Allow-Origin': SITE,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -19,7 +20,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
 
-  const mpToken = Deno.env.get('MP_ACCESS_TOKEN')
+  const mpToken = Deno.env.get('ICCHAT_MP_ACCESS_TOKEN')
   if (!mpToken) return json({ error: 'pagamento_nao_configurado' }, 503)
 
   // Quem está pedindo? (o JWT do usuário logado)

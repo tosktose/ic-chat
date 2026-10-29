@@ -53,7 +53,10 @@ Para cada tela: ❶ tem mock? ❷ botões funcionam? ❸ salva e persiste após 
 - [x] 5.3 Código pronto: supabase/functions/mp-webhook (consulta o pagamento na API do MP, confere valor, idempotente) · ⏳ falta publicar e cadastrar a URL no MP
 - [ ] 5.4 Falta de pagamento → assinatura past_due → app instalado bloqueia na próxima verificação
 - [x] 5.5a Migração 20261029_000003_payments.sql executada (29/10/2026). Lógica testada no banco com rollback: aprovado libera plano e licença, aviso repetido não duplica, estorno suspende.
-- [ ] 5.5b Publicar as Edge Functions, colar os Secrets e testar um pagamento real de teste (cartão de teste do Mercado Pago)
+- [x] 5.5b Funções publicadas no Supabase em 29/10/2026: create-checkout e mp-webhook. Secrets exclusivos do IC Chat: ICCHAT_MP_ACCESS_TOKEN e ICCHAT_MP_WEBHOOK_SECRET (o projeto é compartilhado: MP_ACCESS_TOKEN é usado por mercadopago-payment de outro sistema — não usar esse nome).
+- [ ] 5.5c Desligar "Verify JWT with legacy secret" SOMENTE na função mp-webhook (o Mercado Pago não envia login) e criar os 2 Secrets ICCHAT_*
+- [ ] 5.5d Pagamento de teste de ponta a ponta (cartão de teste do Mercado Pago)
+- [ ] ATENÇÃO: conferir se MP_ACCESS_TOKEN / MP_WEBHOOK_SECRET (usados por outros sistemas) não foram sobrescritos hoje às 14:19/14:21
 
 ## Pendências conhecidas (honestas)
 - "Novo analista" na Equipe e "Nova empresa" no Super Admin ficam **desativados** na web: criar usuário de outra pessoa exige uma função segura no servidor (Edge Function). Fica para a próxima rodada.
