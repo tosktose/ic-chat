@@ -1,5 +1,5 @@
 -- Execute depois da 000006 (afiliados): esta versão do gatilho mantém a atribuição de afiliado.
--- Limpeza de empresas e fim das empresas "fantasma".
+-- Empresas ocultas e fim das empresas "fantasma" (nada é excluído).
 -- O banco é compartilhado com outros sistemas (porteiro, síndico...). O gatilho antigo criava uma empresa
 -- do IC Chat para QUALQUER pessoa que se cadastrasse em qualquer um deles. Agora só cria quando o
 -- cadastro vem do IC Chat (metadata app = 'icchat'). Quem já existe em outro sistema ganha a empresa
@@ -22,28 +22,37 @@ begin
 end
 $$;
 
--- Exclui uma empresa do IC Chat (e só dela: o usuário continua existindo nos outros sistemas).
--- Recusa se a empresa tiver mensalidade ativa, pagamento aprovado ou conversas — para isso é preciso
--- passar p_force = true de propósito. Nunca exclui a empresa de quem está executando.
-create or replace function ic_chat.admin_delete_tenant(p_tenant uuid, p_force boolean default false)
+-- Ocultar uma empresa SÓ no painel do IC Chat. Nada é apagado: nem o usuário (auth.users), nem os dados
+-- dos outros sistemas que usam este banco, nem a empresa em si. Dá para desfazer a qualquer momento.
+create table if not exists ic_chat.hidden_tenants (
+  tenant_id uuid primary key references ic_chat.tenants(id) on delete cascade,
+  hidden_at timestamptz not null default now()
+);
+alter table ic_chat.hidden_tenants enable row level security;
+revoke all on ic_chat.hidden_tenants from public, anon, authenticated;
+grant all on ic_chat.hidden_tenants to service_role;
+
+create or replace function ic_chat.admin_set_tenant_hidden(p_tenant uuid, p_hidden boolean)
 returns void language plpgsql security definer set search_path = '' as $$
-declare busy text;
 begin
   if not ic_chat.is_platform_admin() then raise exception 'forbidden' using errcode = '42501'; end if;
-  if exists (select 1 from ic_chat.tenant_members where tenant_id = p_tenant and user_id = auth.uid()) then
-    raise exception 'own_tenant';
-  end if;
   if not exists (select 1 from ic_chat.tenants where id = p_tenant) then raise exception 'tenant_not_found'; end if;
-  if not p_force then
-    select case
-      when exists (select 1 from ic_chat.subscriptions where tenant_id = p_tenant and status = 'active') then 'active_subscription'
-      when exists (select 1 from ic_chat.payments where tenant_id = p_tenant and status = 'approved') then 'has_payments'
-      when exists (select 1 from ic_chat.conversations where tenant_id = p_tenant) then 'has_conversations'
-    end into busy;
-    if busy is not null then raise exception '%', busy; end if;
+  if p_hidden then
+    if exists (select 1 from ic_chat.tenant_members where tenant_id = p_tenant and user_id = auth.uid()) then raise exception 'own_tenant'; end if;
+    insert into ic_chat.hidden_tenants(tenant_id) values (p_tenant) on conflict do nothing;
+  else
+    delete from ic_chat.hidden_tenants where tenant_id = p_tenant;
   end if;
-  delete from ic_chat.tenants where id = p_tenant;
 end $$;
 
-revoke all on function ic_chat.admin_delete_tenant(uuid, boolean) from public, anon;
-grant execute on function ic_chat.admin_delete_tenant(uuid, boolean) to authenticated, service_role;
+create or replace function ic_chat.admin_hidden_tenants()
+returns setof uuid language plpgsql security definer set search_path = '' as $$
+begin
+  if not ic_chat.is_platform_admin() then raise exception 'forbidden' using errcode = '42501'; end if;
+  return query select tenant_id from ic_chat.hidden_tenants;
+end $$;
+
+revoke all on function ic_chat.admin_set_tenant_hidden(uuid, boolean) from public, anon;
+revoke all on function ic_chat.admin_hidden_tenants() from public, anon;
+grant execute on function ic_chat.admin_set_tenant_hidden(uuid, boolean) to authenticated, service_role;
+grant execute on function ic_chat.admin_hidden_tenants() to authenticated, service_role;

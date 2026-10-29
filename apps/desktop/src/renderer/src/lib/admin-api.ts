@@ -150,9 +150,9 @@ type TenantRpc = {
 }
 
 export async function listTenants(): Promise<AdminTenant[]> {
-  const { data, error } = await db().rpc('admin_tenants')
+  const [{ data, error }, hidden] = await Promise.all([db().rpc('admin_tenants'), hiddenTenantIds()])
   if (error) throw error
-  return ((data ?? []) as TenantRpc[]).map((t) => ({
+  return ((data ?? []) as TenantRpc[]).filter((t) => !hidden.has(String(t.id))).map((t) => ({
     id: t.id, name: t.name, created_at: t.created_at, owner_email: t.owner_email, owner_name: t.owner_name, origin_role: t.origin_role, members: t.members,
     subscription: t.sub_status ? { status: t.sub_status, plan: t.sub_plan ?? 'trial', trial_ends_at: t.trial_ends_at, current_period_ends_at: t.period_ends_at } : null,
     licenses_active: t.licenses_active, last_payment_at: t.last_payment_at
@@ -160,9 +160,9 @@ export async function listTenants(): Promise<AdminTenant[]> {
 }
 
 export async function listMembers(): Promise<AdminMember[]> {
-  const { data, error } = await db().rpc('admin_members')
+  const [{ data, error }, hidden] = await Promise.all([db().rpc('admin_members'), hiddenTenantIds()])
   if (error) throw error
-  return (data ?? []) as AdminMember[]
+  return ((data ?? []) as AdminMember[]).filter((m) => !hidden.has(String(m.tenant_id)))
 }
 
 export async function setAffiliate(userId: string, enabled: boolean, commissionRate = 10): Promise<void> {
@@ -283,10 +283,15 @@ export async function setTenantBlocked(tenantId: string, blocked: boolean): Prom
   if (error) throw error
 }
 
-/** Exclui a empresa do IC Chat (o usuário continua existindo nos outros sistemas). `force` ignora a trava de empresas com uso/pagamento. */
-export async function deleteTenant(tenantId: string, force = false): Promise<void> {
-  const { error } = await db().rpc('admin_delete_tenant', { p_tenant: tenantId, p_force: force })
+/** Oculta (ou volta a mostrar) a empresa só no painel do IC Chat. Nada é apagado, nem do banco compartilhado. */
+export async function setTenantHidden(tenantId: string, hidden: boolean): Promise<void> {
+  const { error } = await db().rpc('admin_set_tenant_hidden', { p_tenant: tenantId, p_hidden: hidden })
   if (error) throw error
+}
+
+async function hiddenTenantIds(): Promise<Set<string>> {
+  const { data, error } = await db().rpc('admin_hidden_tenants')
+  return error ? new Set() : new Set(((data ?? []) as string[]).map(String))
 }
 
 /* ---------------- planos ---------------- */

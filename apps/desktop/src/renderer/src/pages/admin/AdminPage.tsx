@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { isWebApp } from '@/lib/supabase'
-import { adminError, deleteTenant, extendTenant, setTenantBlocked } from '@/lib/admin-api'
+import { adminError, extendTenant, setTenantBlocked, setTenantHidden } from '@/lib/admin-api'
 import { useNavigate } from 'react-router'
 import {
   Ban,
@@ -17,7 +17,7 @@ import {
   Search,
   Send,
   TimerReset,
-  Trash2,
+  EyeOff,
   UserPlus
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -204,20 +204,19 @@ function RealTenantActions({ t }: { t: Tenant }) {
   const run = async (fn: () => Promise<void>, ok: string) => {
     try { await fn(); toast.success(ok, { description: t.name }); reload() } catch (e) { toast.error('Não foi possível concluir', { description: adminError(e) }) }
   }
-  const remove = async () => {
-    if (!window.confirm(`Excluir a empresa "${t.name}" do IC Chat? Os dados dela no IC Chat são apagados. A pessoa continua existindo nos outros sistemas.`)) return
+  const hide = async () => {
+    if (!window.confirm(`Ocultar "${t.name}" do painel do IC Chat?
+
+Nada é excluído: a pessoa, os dados e os outros sistemas que usam este banco continuam intactos. Só some desta lista, e dá para desfazer.`)) return
     try {
-      await deleteTenant(t.id)
-      toast.success('Empresa excluída', { description: t.name })
+      await setTenantHidden(t.id, true)
       reload()
+      toast.success('Empresa oculta do IC Chat', {
+        description: 'Nada foi excluído.',
+        action: { label: 'Desfazer', onClick: () => { void setTenantHidden(t.id, false).then(() => reload()) } }
+      })
     } catch (e) {
-      if (/active_subscription|has_payments|has_conversations/.test(String((e as { message?: string })?.message ?? ''))) {
-        if (window.confirm(`${t.name} tem mensalidade ativa, pagamento ou conversas. Excluir mesmo assim? Não dá para desfazer.`)) {
-          try { await deleteTenant(t.id, true); toast.success('Empresa excluída', { description: t.name }); reload() } catch (e2) { toast.error('Não foi possível excluir', { description: adminError(e2) }) }
-        }
-        return
-      }
-      toast.error('Não foi possível excluir', { description: adminError(e) })
+      toast.error('Não foi possível ocultar', { description: adminError(e) })
     }
   }
   return (
@@ -229,7 +228,7 @@ function RealTenantActions({ t }: { t: Tenant }) {
       ) : (
         <Button variant="ghost" size="icon-sm" className="hover:text-danger" aria-label="Bloquear empresa" title="Bloquear (falta de pagamento)" onClick={() => { if (window.confirm(`Bloquear ${t.name}? O acesso (site e app) é cortado.`)) void run(() => setTenantBlocked(t.id, true), 'Empresa bloqueada') }}><Ban /></Button>
       )}
-      <Button variant="ghost" size="icon-sm" className="hover:text-danger" aria-label="Excluir empresa" title="Excluir empresa" onClick={() => void remove()}><Trash2 /></Button>
+      <Button variant="ghost" size="icon-sm" aria-label="Ocultar empresa do IC Chat" title="Ocultar do IC Chat (não exclui nada)" onClick={() => void hide()}><EyeOff /></Button>
     </div>
   )
 }
