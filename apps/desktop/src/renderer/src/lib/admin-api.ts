@@ -27,6 +27,65 @@ export interface AdminMember {
   origin_role: string | null
   last_sign_in_at: string | null
   created_at: string
+  affiliate_active: boolean
+  affiliate_code: string | null
+  affiliate_commission_rate: number | null
+}
+
+export interface AffiliateSummary {
+  user_id: string
+  email: string
+  display_name: string
+  referral_code: string
+  commission_rate: number
+  active: boolean
+  referrals: number
+  active_subscriptions: number
+  paid_revenue: number
+  commission_pending: number
+  commission_paid: number
+  commission_reversed: number
+  created_at: string
+}
+
+export interface AffiliateReferral {
+  commission_id: string | null
+  affiliate_user_id: string
+  affiliate_email: string
+  tenant_id: string
+  tenant_name: string
+  owner_email: string | null
+  plan: string | null
+  subscription_status: string | null
+  referred_at: string
+  payment_amount: number
+  commission_amount: number
+  paid_revenue: number
+  commission_pending: number
+  commission_paid: number
+  commission_status: 'pending' | 'paid' | 'reversed' | null
+}
+
+export interface MyAffiliateDashboard {
+  referral_code: string
+  commission_rate: number
+  referrals: number
+  active_subscriptions: number
+  paid_revenue: number
+  commission_pending: number
+  commission_paid: number
+  commission_reversed: number
+}
+
+export interface MyAffiliateReferral {
+  tenant_id: string
+  tenant_name: string
+  plan: string | null
+  subscription_status: string | null
+  referred_at: string
+  paid_revenue: number
+  commission_pending: number
+  commission_paid: number
 }
 
 export interface AdminLicense {
@@ -72,6 +131,9 @@ const db = () => {
 /** Traduz erros do banco para uma frase que o dono do SaaS entende. */
 export function adminError(e: unknown): string {
   const msg = e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String((e as { message: unknown }).message) : String(e)
+  if (/affiliate_not_active/.test(msg)) return 'Este usuário ainda não foi habilitado como afiliado. Fale com o administrador do IC Chat.'
+  if (/invalid_commission_rate/.test(msg)) return 'Informe uma comissão entre 0% e 100%.'
+  if (/user_not_found/.test(msg)) return 'Usuário não encontrado no IC Chat.'
   if (/forbidden|42501|permission denied/i.test(msg)) return 'Seu usuário não é administrador da plataforma.'
   if (/relation .* does not exist|schema .* does not exist|PGRST20[0-9]|Could not find the (table|function)/i.test(msg)) return 'O banco ainda não tem as tabelas necessárias. Execute as migrações da pasta supabase/migrations no Supabase.'
   if (/tenant_not_found/.test(msg)) return 'Empresa não encontrada.'
@@ -97,6 +159,77 @@ export async function listMembers(): Promise<AdminMember[]> {
   const { data, error } = await db().rpc('admin_members')
   if (error) throw error
   return (data ?? []) as AdminMember[]
+}
+
+export async function setAffiliate(userId: string, enabled: boolean, commissionRate = 10): Promise<void> {
+  const { error } = await db().rpc('admin_set_affiliate', {
+    p_user_id: userId,
+    p_enabled: enabled,
+    p_commission_rate: commissionRate
+  })
+  if (error) throw error
+}
+
+export async function listAffiliateSummaries(): Promise<AffiliateSummary[]> {
+  const { data, error } = await db().rpc('admin_affiliate_overview')
+  if (error) throw error
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    ...row,
+    commission_rate: Number(row.commission_rate),
+    referrals: Number(row.referrals),
+    active_subscriptions: Number(row.active_subscriptions),
+    paid_revenue: Number(row.paid_revenue),
+    commission_pending: Number(row.commission_pending),
+    commission_paid: Number(row.commission_paid),
+    commission_reversed: Number(row.commission_reversed)
+  })) as AffiliateSummary[]
+}
+
+export async function listAffiliateReferrals(): Promise<AffiliateReferral[]> {
+  const { data, error } = await db().rpc('admin_affiliate_referrals')
+  if (error) throw error
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    ...row,
+    payment_amount: Number(row.payment_amount),
+    commission_amount: Number(row.commission_amount),
+    paid_revenue: Number(row.paid_revenue),
+    commission_pending: Number(row.commission_pending),
+    commission_paid: Number(row.commission_paid)
+  })) as AffiliateReferral[]
+}
+
+export async function markAffiliateCommissionsPaid(ids: string[]): Promise<number> {
+  const { data, error } = await db().rpc('admin_mark_affiliate_commissions_paid', { p_commission_ids: ids })
+  if (error) throw error
+  return Number(data ?? 0)
+}
+
+export async function getMyAffiliateDashboard(): Promise<MyAffiliateDashboard> {
+  const { data, error } = await db().rpc('my_affiliate_dashboard')
+  if (error) throw error
+  const row = Array.isArray(data) ? data[0] : data
+  if (!row) throw new Error('affiliate_not_active')
+  return {
+    ...row,
+    commission_rate: Number(row.commission_rate),
+    referrals: Number(row.referrals),
+    active_subscriptions: Number(row.active_subscriptions),
+    paid_revenue: Number(row.paid_revenue),
+    commission_pending: Number(row.commission_pending),
+    commission_paid: Number(row.commission_paid),
+    commission_reversed: Number(row.commission_reversed)
+  } as MyAffiliateDashboard
+}
+
+export async function getMyAffiliateReferrals(): Promise<MyAffiliateReferral[]> {
+  const { data, error } = await db().rpc('my_affiliate_referrals')
+  if (error) throw error
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    ...row,
+    paid_revenue: Number(row.paid_revenue),
+    commission_pending: Number(row.commission_pending),
+    commission_paid: Number(row.commission_paid)
+  })) as MyAffiliateReferral[]
 }
 
 export async function listLicenses(): Promise<AdminLicense[]> {

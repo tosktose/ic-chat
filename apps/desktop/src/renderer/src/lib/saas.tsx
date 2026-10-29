@@ -127,7 +127,9 @@ export function SaasProvider({ children }: { children: ReactNode }) {
       }))
       userList.splice(0, userList.length, ...members.map((m): TenantUser => ({
         id: m.user_id, tenantId: m.tenant_id, name: m.display_name || m.email, email: m.email, role: m.role === 'agent' ? 'analista' : 'gerente', active: true,
-        lastSeen: m.last_sign_in_at ? new Date(m.last_sign_in_at).toLocaleDateString('pt-BR') : 'nunca'
+        lastSeen: m.last_sign_in_at ? new Date(m.last_sign_in_at).toLocaleDateString('pt-BR') : 'nunca',
+        affiliateActive: m.affiliate_active, affiliateCode: m.affiliate_code,
+        affiliateCommissionRate: m.affiliate_commission_rate === null ? null : Number(m.affiliate_commission_rate)
       })))
       bump()
     }).catch(() => { /* migrações ainda não executadas: a tela de licenças explica */ })

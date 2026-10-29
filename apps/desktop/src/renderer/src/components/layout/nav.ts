@@ -14,6 +14,7 @@ import {
   ServerCog,
   Settings,
   Sparkles,
+  HandCoins,
   AtSign,
   SquareKanban,
   Target,
@@ -43,6 +44,7 @@ export const navByRole: Record<Role, NavItem[]> = {
   superadmin: [
     { to: '/admin', label: 'Empresas', icon: Building2, group: 'IC Chat SaaS', mobile: true },
     { to: '/admin/usuarios', label: 'Usuários', icon: Users, group: 'IC Chat SaaS', mobile: true },
+    { to: '/admin/afiliados', label: 'Afiliados', icon: HandCoins, group: 'IC Chat SaaS', mobile: true },
     { to: '/admin/licencas', label: 'Licenças', short: 'Licenças', icon: KeyRound, group: 'IC Chat SaaS', mobile: true },
     { to: '/admin/creditos', label: 'Créditos de IA', short: 'Créditos', icon: Coins, group: 'IC Chat SaaS', mobile: true },
     { to: '/admin/planos', label: 'Planos', icon: Layers, group: 'IC Chat SaaS' },
@@ -83,12 +85,15 @@ export const roleLabel: Record<Role, string> = {
   analista: 'Analista'
 }
 
-export function navFor(role: Role): NavItem[] {
-  return navByRole[role]
+const affiliateNav: NavItem = { to: '/afiliados', label: 'Programa de afiliados', short: 'Afiliados', icon: HandCoins, group: 'Minha conta', mobile: true }
+
+export function navFor(role: Role, isAffiliate = false): NavItem[] {
+  return isAffiliate ? [...navByRole[role], affiliateNav] : navByRole[role]
 }
 
 export function navByPath(role: Role, path: string): NavItem | undefined {
   if (path.startsWith('/perfil')) return { to: '/perfil', label: 'Meu perfil', icon: Settings, group: '' }
+  if (path.startsWith('/afiliados')) return affiliateNav
   // Prefere o caminho mais específico (ex.: /admin/planos antes de /admin)
   return [...navByRole[role]].sort((a, b) => b.to.length - a.to.length).find((n) => path.startsWith(n.to))
 }
@@ -97,6 +102,7 @@ export function navByPath(role: Role, path: string): NavItem | undefined {
 const COMMON = ['/perfil']
 
 export function canAccess(role: Role, path: string): boolean {
+  if (path === '/afiliados' || path.startsWith('/afiliados/')) return true
   if (COMMON.includes(path)) return true
   return navByRole[role].some((n) => path === n.to || path.startsWith(n.to + '/'))
 }

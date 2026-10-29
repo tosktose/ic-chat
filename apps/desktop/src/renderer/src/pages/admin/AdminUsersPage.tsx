@@ -3,10 +3,13 @@ import { Search, UserPlus } from 'lucide-react'
 import { Page } from '@/components/layout/Page'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
-import { Avatar, Badge, Card, Segmented } from '@/components/ui/misc'
+import { Avatar, Badge, Card, Segmented, Switch } from '@/components/ui/misc'
 import { NewUserDialog, UserDetailSheet, UserQuickActions, type DetailUser } from '@/components/UserDetail'
 import { tenantById, type TenantUser } from '@/data/saas'
 import { useSaas } from '@/lib/saas'
+import { adminError, setAffiliate } from '@/lib/admin-api'
+import { isWebApp } from '@/lib/supabase'
+import { toast } from 'sonner'
 
 const toDetail = (u: TenantUser): DetailUser => {
   const t = tenantById(u.tenantId)
@@ -16,12 +19,28 @@ const toDetail = (u: TenantUser): DetailUser => {
 type RoleFilter = 'todos' | 'gerente' | 'analista'
 
 export function AdminUsersPage() {
-  const { tenants, users: tenantUsers, updateUser, removeUser, addUser } = useSaas()
+  const { tenants, users: tenantUsers, updateUser, removeUser, addUser, reload } = useSaas()
   const [q, setQ] = useState('')
   const [tenant, setTenant] = useState('todas')
   const [role, setRole] = useState<RoleFilter>('todos')
   const [open, setOpen] = useState(false)
   const [detail, setDetail] = useState<DetailUser | null>(null)
+  const [affiliateBusy, setAffiliateBusy] = useState<string | null>(null)
+
+  const changeAffiliate = async (userId: string, enabled: boolean, rate: number | null | undefined) => {
+    setAffiliateBusy(userId)
+    try {
+      await setAffiliate(userId, enabled, rate ?? 10)
+      reload()
+      toast.success(enabled ? 'Afiliado ativado' : 'Afiliado desativado', {
+        description: enabled ? `Comissão inicial: ${rate ?? 10}%` : 'O link deixa de aceitar novas indicações.'
+      })
+    } catch (error) {
+      toast.error('Não foi possível atualizar o afiliado', { description: adminError(error) })
+    } finally {
+      setAffiliateBusy(null)
+    }
+  }
 
   const list = useMemo(
     () =>
@@ -67,12 +86,13 @@ export function AdminUsersPage() {
         </div>
 
         <div className="scroll-thin overflow-x-auto">
-          <table className="w-full min-w-[760px] text-[13px]">
+          <table className="w-full min-w-[900px] text-[13px]">
             <thead>
               <tr className="border-y border-border bg-surface-2/60 text-left text-[11px] font-semibold tracking-wider text-subtle uppercase">
                 <th className="px-5 py-2.5">Usuário</th>
                 <th className="px-3 py-2.5">Empresa</th>
                 <th className="px-3 py-2.5">Perfil</th>
+                {isWebApp && <th className="px-3 py-2.5">Afiliado</th>}
                 <th className="px-3 py-2.5">Status</th>
                 <th className="px-3 py-2.5">Último acesso</th>
                 <th className="w-32 px-3 py-2.5 text-right">Ações</th>
@@ -92,6 +112,19 @@ export function AdminUsersPage() {
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap">{tenantById(u.tenantId).name}</td>
                   <td className="px-3 py-3"><Badge tone={u.role === 'gerente' ? 'primary' : 'neutral'}>{u.role === 'gerente' ? 'Gerente' : 'Analista'}</Badge></td>
+                  {isWebApp && <td className="px-3 py-3" onClick={(event) => event.stopPropagation()}>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={Boolean(u.affiliateActive)}
+                        disabled={affiliateBusy === u.id}
+                        aria-label={`${u.affiliateActive ? 'Desativar' : 'Ativar'} afiliado ${u.name}`}
+                        onCheckedChange={(enabled) => void changeAffiliate(u.id, enabled, u.affiliateCommissionRate)}
+                      />
+                      <span className="text-xs text-muted">
+                        {u.affiliateActive ? `${u.affiliateCommissionRate ?? 10}%` : 'Desativado'}
+                      </span>
+                    </div>
+                  </td>}
                   <td className="px-3 py-3"><Badge tone={u.active ? 'success' : 'neutral'}>{u.active ? 'Ativo' : 'Bloqueado'}</Badge></td>
                   <td className="px-3 py-3 whitespace-nowrap text-muted">{u.lastSeen}</td>
                   <td className="px-3 py-3">

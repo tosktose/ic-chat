@@ -46,7 +46,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const google = async () => {
     setLoading(true)
     try {
-      const error = await signInWithGoogle()
+      const error = await signInWithGoogle(signup)
       if (error) throw error
     } catch (error) {
       toast.error('Não foi possível entrar com Google', { description: error instanceof Error ? error.message : 'Confira a configuração do provedor.' })

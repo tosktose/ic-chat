@@ -3,8 +3,10 @@ import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import './styles.css'
 import { unlockAudio } from './lib/sound'
+import { captureAffiliateCode } from './lib/affiliate'
 
 unlockAudio()
+captureAffiliateCode()
 
 // Aplica o tema antes do primeiro desenho (evita "piscar" claro → escuro)
 try {

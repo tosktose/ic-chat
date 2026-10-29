@@ -22,7 +22,7 @@ import { NewAppointmentDialog } from '@/components/NewAppointmentDialog'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { navByPath, navFor, roleLabel, type NavItem } from '@/components/layout/nav'
 import { useAppState } from '@/lib/app-state'
-import { isWebApp } from '@/lib/supabase'
+import { isWebApp, supabase } from '@/lib/supabase'
 import { useData } from '@/lib/data'
 import type { Role } from '@/data/mock'
 import { useTheme } from '@/lib/theme'
@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils'
 import { useCompany } from '@/lib/company'
 import { CompanyLogo } from '@/pages/settings/CompanyTab'
 import { company } from '@/data/mock'
+import { useAuth } from '@/lib/auth'
 
 const platform = window.icchat?.platform
 const isDesktopApp = Boolean(window.icchat)
@@ -78,11 +79,22 @@ export function AppShell() {
 /** Menu do perfil com o contador real de mensagens não lidas no Atendimento */
 function useNav(role: Role) {
   const { me } = useAppState()
+  const { session } = useAuth()
   const { conversations } = useData()
+  const [affiliate, setAffiliate] = useState(false)
+  useEffect(() => {
+    let alive = true
+    if (!isWebApp || !supabase || !session?.user) { setAffiliate(false); return }
+    setAffiliate(false)
+    void supabase.schema('ic_chat').rpc('my_affiliate_dashboard').then(({ data, error }) => {
+      if (alive) setAffiliate(!error && Boolean(Array.isArray(data) ? data[0]?.referral_code : data?.referral_code))
+    })
+    return () => { alive = false }
+  }, [session?.user.id])
   const unread = conversations
     .filter((c) => c.status !== 'resolvida' && (role !== 'analista' || !c.assignee || c.assignee === me.id))
     .reduce((sum, c) => sum + (c.unread || 0), 0)
-  return navFor(role).map((i) => (i.to === '/inbox' ? { ...i, badge: unread } : i))
+  return navFor(role, affiliate).map((i) => (i.to === '/inbox' ? { ...i, badge: unread } : i))
 }
 
 function Sidebar() {

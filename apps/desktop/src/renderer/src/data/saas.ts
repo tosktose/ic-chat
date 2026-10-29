@@ -65,6 +65,9 @@ export interface TenantUser {
   role: 'gerente' | 'analista'
   active: boolean
   lastSeen: string
+  affiliateActive?: boolean
+  affiliateCode?: string | null
+  affiliateCommissionRate?: number | null
 }
 
 export const tenantUsers: TenantUser[] = [

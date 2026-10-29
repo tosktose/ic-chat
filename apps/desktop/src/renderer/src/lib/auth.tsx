@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { AuthError, Session } from '@supabase/supabase-js'
 import { isWebApp, supabase } from './supabase'
+import { clearAffiliateOAuthSignup, consumeAffiliateOAuthSignup, captureAffiliateCode, prepareAffiliateOAuthSignup } from './affiliate'
 
 interface AuthContextValue {
   session: Session | null
@@ -8,7 +9,7 @@ interface AuthContextValue {
   configured: boolean
   signIn: (email: string, password: string) => Promise<AuthError | null>
   signUp: (email: string, password: string, company: string) => Promise<{ error: AuthError | null; needsEmailConfirmation: boolean }>
-  signInWithGoogle: () => Promise<AuthError | null>
+  signInWithGoogle: (signup?: boolean) => Promise<AuthError | null>
   signOut: () => Promise<void>
   /** Envia o e-mail de redefinição (o envio usa o SMTP/Resend configurado no Supabase) */
   requestPasswordReset: (email: string) => Promise<AuthError | null>
@@ -49,6 +50,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { mounted = false; subscription.unsubscribe() }
   }, [])
 
+  // O OAuth não permite anexar metadados personalizados durante a criação do usuário.
+  // Após o retorno, o banco valida a data da conta e grava a indicação uma única vez.
+  useEffect(() => {
+    if (!isWebApp || !supabase || !session?.user) return
+    const pending = consumeAffiliateOAuthSignup()
+    if (!pending) return
+    void supabase.schema('ic_chat').rpc('claim_affiliate_referral', {
+      p_code: pending.code,
+      p_started_at: pending.startedAt
+    }).then(({ error }) => {
+      if (!error) clearAffiliateOAuthSignup()
+    })
+  }, [session?.user.id])
+
   const value = useMemo<AuthContextValue>(() => ({
     session,
     loading,
@@ -63,12 +78,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { company_name: company.trim() }, emailRedirectTo: window.location.origin }
+      options: {
+        data: { company_name: company.trim(), affiliate_referral_code: captureAffiliateCode() },
+        emailRedirectTo: window.location.origin
+      }
       })
       return { error, needsEmailConfirmation: !error && !data.session }
     },
-    signInWithGoogle: async () => {
+    signInWithGoogle: async (signup = false) => {
       if (!supabase) return new Error('Supabase não configurado') as AuthError
+      if (signup) prepareAffiliateOAuthSignup()
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: `${window.location.origin}/dashboard`, queryParams: { access_type: 'offline', prompt: 'select_account' } }

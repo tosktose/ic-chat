@@ -13,11 +13,20 @@ Este guia descreve a publicação web do IC Chat usando Supabase, GitHub e Verce
 ## Supabase
 
 1. Confirme que a migration `supabase/migrations/20261028_000001_create_ic_chat_schema.sql` foi aplicada no projeto correto.
-2. Confirme que o schema `ic_chat` está habilitado na Data API. Mantenha os demais schemas do projeto como estavam.
-3. Em Authentication, habilite os provedores de login necessários. O cadastro por e-mail e o login Google usam a origem atual da aplicação como destino.
-4. Preserve o Site URL global existente, pois este projeto Supabase atende outros aplicativos.
-5. Inclua `https://ic-chat-desktop.vercel.app/**` na lista de Redirect URLs permitidas. Para previews, adicione apenas os domínios de preview que forem realmente usados.
-6. O callback OAuth do Google é o callback do Supabase: `https://umnoiivuntnvsxkysvrr.supabase.co/auth/v1/callback`. Esse endereço precisa estar autorizado no cliente OAuth do Google.
+2. Depois das migrations `20261029_000002` a `20261029_000005`, aplique `supabase/migrations/20261029_000006_affiliates.sql` para ativar atribuição de indicações, painel, segurança e comissões.
+3. Confirme que o schema `ic_chat` está habilitado na Data API. Mantenha os demais schemas do projeto como estavam.
+4. Em Authentication, habilite os provedores de login necessários. O cadastro por e-mail e o login Google usam a origem atual da aplicação como destino.
+5. Preserve o Site URL global existente, pois este projeto Supabase atende outros aplicativos.
+6. Inclua `https://ic-chat-desktop.vercel.app/**` na lista de Redirect URLs permitidas. Para previews, adicione apenas os domínios de preview que forem realmente usados.
+7. O callback OAuth do Google é o callback do Supabase: `https://umnoiivuntnvsxkysvrr.supabase.co/auth/v1/callback`. Esse endereço precisa estar autorizado no cliente OAuth do Google.
+
+### Afiliados
+
+- O Super Admin habilita um usuário existente em **Usuários → Afiliado**; o sistema cria um link individual com taxa inicial configurável de 10%.
+- O cadastro por e-mail preserva o código do link; o Google OAuth tenta atribuir a indicação apenas à conta recém-criada.
+- Cada pagamento de assinatura aprovado gera uma comissão pendente, registrada uma única vez. Estornos revertem comissões ainda pendentes.
+- O repasse é manual e deve acontecer fora do IC Chat. O Super Admin só marca a comissão como paga depois de efetuar a transferência.
+- **Admin → Afiliados** mostra parceiros, empresas indicadas, pagamentos e repasses. O usuário habilitado vê o próprio painel em **Programa de afiliados**.
 
 ## Vercel
 
