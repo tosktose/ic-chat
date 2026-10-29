@@ -46,9 +46,12 @@ Deno.serve(async (req) => {
     chosen = { title: `IC Chat · ${pk.name} (${pk.credits} créditos de IA)`, price: Number(pk.price), days: 0 }
     refKey = `pack:${pack}`
   } else {
-    const { data: row } = await admin.from('plans').select('name, price, days, active').eq('id', plan).maybeSingle()
+    const { data: row } = await admin.from('plans').select('name, price, days, active, discount_type, discount_value, discount_ends_at').eq('id', plan).maybeSingle()
     if (!row || !row.active) return json({ error: 'plano_invalido' }, 400)
-    chosen = { title: `IC Chat ${row.name} · ${row.days} dias`, price: Number(row.price), days: Number(row.days) }
+    const discountActive = row.discount_type && Number(row.discount_value) > 0 && (!row.discount_ends_at || new Date(row.discount_ends_at).getTime() > Date.now())
+    const discount = discountActive ? row.discount_type === 'percent' ? Number(row.price) * Number(row.discount_value) / 100 : Number(row.discount_value) : 0
+    const chargedPrice = Math.max(0, Math.round((Number(row.price) - discount) * 100) / 100)
+    chosen = { title: `IC Chat ${row.name} · ${row.days} dias`, price: chargedPrice, days: Number(row.days) }
   }
 
   // A empresa vem do banco (RLS garante que é a do usuário), não do pedido
@@ -56,14 +59,20 @@ Deno.serve(async (req) => {
   if (!member?.tenant_id) return json({ error: 'empresa_nao_encontrada' }, 404)
   if (member.role === 'agent') return json({ error: 'apenas_gerentes_podem_assinar' }, 403)
 
+  const quoteId = crypto.randomUUID()
+  if (!pack) {
+    const { error } = await admin.from('checkout_quotes').insert({ id: quoteId, tenant_id: member.tenant_id, plan_id: refKey, amount: chosen.price })
+    if (error) { console.error('Não foi possível registrar a cotação:', error.message); return json({ error: 'checkout_indisponivel' }, 503) }
+  }
+
   const res = await fetch('https://api.mercadopago.com/checkout/preferences', {
     method: 'POST',
     headers: { Authorization: `Bearer ${mpToken}`, 'content-type': 'application/json', 'X-Idempotency-Key': crypto.randomUUID() },
     body: JSON.stringify({
       items: [{ id: refKey, title: chosen.title, quantity: 1, currency_id: 'BRL', unit_price: chosen.price }],
       payer: { email: user.email },
-      external_reference: `${member.tenant_id}|${refKey}`,
-      metadata: { tenant_id: member.tenant_id, plan: refKey, days: chosen.days },
+      external_reference: `${member.tenant_id}|${refKey}${pack ? '' : `|${quoteId}`}`,
+      metadata: { tenant_id: member.tenant_id, plan: refKey, days: chosen.days, ...(pack ? {} : { checkout_quote_id: quoteId }) },
       back_urls: { success: `${SITE}/assinar/retorno`, pending: `${SITE}/assinar/retorno`, failure: `${SITE}/assinar/retorno` },
       auto_return: 'approved',
       notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mp-webhook`,

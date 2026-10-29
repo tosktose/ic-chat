@@ -7,6 +7,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { Badge, Card, Switch } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
 import { useSaas, type PlanDef } from '@/lib/saas'
+import { discountedPlanPrice } from '@/lib/billing'
 import { brl, cn } from '@/lib/utils'
 import type { Plan } from '@/data/saas'
 import { isWebApp } from '@/lib/supabase'
@@ -34,9 +35,10 @@ export function AdminPlansPage() {
                 </Button>
               </div>
               <p className="mt-3">
-                <span className="text-3xl font-bold tracking-tight">{brl.format(p.price)}</span>
+                <span className="text-3xl font-bold tracking-tight">{brl.format(discountedPlanPrice(p))}</span>
                 <span className="text-sm text-muted"> /mês</span>
               </p>
+              {discountedPlanPrice(p) < p.price && <p className="text-sm text-muted"><span className="line-through">{brl.format(p.price)}</span> · {p.discount_label || (p.discount_ends_at ? `Até ${new Date(p.discount_ends_at).toLocaleDateString('pt-BR')}` : 'Desconto permanente')}</p>}
               <div className="mt-3 flex flex-wrap gap-1.5">
                 <Badge>{p.mode}</Badge>
                 <Badge>{p.pcs ? `${p.pcs} PCs` : 'PCs ilimitados'}</Badge>
@@ -80,7 +82,7 @@ export function AdminPlansPage() {
 
 function PlanDialog({ item, onClose }: { item: PlanDef | 'new' | null; onClose: () => void }) {
   const { savePlan, plans } = useSaas()
-  const empty: PlanDef = { name: '' as Plan, price: 0, mode: 'Local (SQLite)', pcs: 3, users: 3, features: [] }
+  const empty: PlanDef = { name: '' as Plan, price: 0, mode: 'Local (SQLite)', pcs: 3, users: 3, features: [], discount_type: null, discount_value: 0, discount_label: '', discount_ends_at: null }
   const [f, setF] = useState<PlanDef>(empty)
   const [features, setFeatures] = useState('')
   useEffect(() => {
@@ -119,6 +121,18 @@ function PlanDialog({ item, onClose }: { item: PlanDef | 'new' | null; onClose: 
           <Input autoFocus value={f.name} onChange={(e) => setF({ ...f, name: e.target.value as Plan })} />
         </Field>
         <Field label="Preço mensal (R$)"><Input type="number" min={0} value={f.price} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} /></Field>
+        <Field label="Desconto promocional">
+          <Select value={f.discount_type ?? 'none'} onChange={(e) => setF({ ...f, discount_type: e.target.value === 'none' ? null : e.target.value as 'percent' | 'fixed' })}>
+            <option value="none">Sem desconto</option><option value="percent">Percentual (%)</option><option value="fixed">Valor fixo (R$)</option>
+          </Select>
+        </Field>
+        {f.discount_type && <>
+          <Field label={f.discount_type === 'percent' ? 'Desconto (%)' : 'Desconto (R$)'} hint={f.discount_type === 'percent' ? 'De 0 a 100%' : `Preço final: ${brl.format(discountedPlanPrice(f))}`}>
+            <Input type="number" min={0} max={f.discount_type === 'percent' ? 100 : f.price} step="0.01" value={f.discount_value ?? 0} onChange={(e) => setF({ ...f, discount_value: Number(e.target.value) })} />
+          </Field>
+          <Field label="Nome da promoção"><Input placeholder="Black Friday" value={f.discount_label ?? ''} onChange={(e) => setF({ ...f, discount_label: e.target.value })} /></Field>
+          <Field label="Válido até" hint="Deixe vazio para desconto permanente. Após essa data, o checkout usa o preço normal."><Input type="datetime-local" value={f.discount_ends_at ? new Date(new Date(f.discount_ends_at).getTime() - new Date(f.discount_ends_at).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={(e) => setF({ ...f, discount_ends_at: e.target.value ? new Date(e.target.value).toISOString() : null })} /></Field>
+        </>}
         <Field label="Modalidade">
           <Select value={f.mode} onChange={(e) => setF({ ...f, mode: e.target.value })}>
             <option>Local (SQLite)</option>

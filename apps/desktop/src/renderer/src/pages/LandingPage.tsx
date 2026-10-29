@@ -7,6 +7,7 @@ import { openCookiePreferences } from '@/lib/consent'
 import { useSeo } from '@/lib/seo'
 import { HOME_FAQ, KEYWORD_PAGES, pageByPath } from '@/seo/pages'
 import { usePlans, usePublicSettings } from '@/lib/platform'
+import { discountedPlanPrice } from '@/lib/billing'
 
 const downloadUrl = import.meta.env.VITE_ICCHAT_DESKTOP_DOWNLOAD_URL as string | undefined
 
@@ -279,7 +280,8 @@ export function LandingPage() {
                 {plan.recommended && <span className="absolute -top-3 left-8 rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 px-3 py-1 text-[10px] font-bold tracking-wide text-white uppercase">Mais escolhido</span>}
                 <h3 className="text-lg font-semibold">{plan.name}</h3>
                 <p className={`mt-2 min-h-12 text-sm leading-6 ${plan.recommended ? 'text-slate-400' : 'text-slate-600'}`}>{plan.summary}</p>
-                <p className="mt-6 flex items-baseline gap-1"><span className="text-5xl font-semibold tracking-tight">R$ {plan.price}</span><span className={`text-sm ${plan.recommended ? 'text-slate-400' : 'text-slate-500'}`}>/mês</span></p>
+                <p className="mt-6 flex flex-wrap items-baseline gap-2">{discountedPlanPrice(plan) < plan.price && <span className="text-sm text-slate-400 line-through">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(plan.price)}</span>}<span className="text-5xl font-semibold tracking-tight">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(discountedPlanPrice(plan))}</span><span className={`text-sm ${plan.recommended ? 'text-slate-400' : 'text-slate-500'}`}>/mês</span></p>
+                {discountedPlanPrice(plan) < plan.price && <p className={`mt-1 text-xs ${plan.recommended ? 'text-cyan-300' : 'text-blue-700'}`}>{plan.discount_label || 'Oferta especial'}{plan.discount_ends_at ? ` · até ${new Date(plan.discount_ends_at).toLocaleDateString('pt-BR')}` : ' · preço promocional permanente'}</p>}
                 <p className={`mt-1 text-xs ${plan.recommended ? 'text-slate-500' : 'text-slate-500'}`}>após os 7 dias de teste</p>
                 <Link to={`/cadastro?plano=${plan.id}`} className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition ${plan.recommended ? 'bg-white text-slate-950 hover:bg-cyan-300' : 'bg-slate-950 text-white hover:bg-blue-700'}`}>Testar por 7 dias <ArrowRight className="size-4" /></Link>
                 <ul className={`mt-8 flex flex-col gap-3 border-t pt-7 ${plan.recommended ? 'border-white/10' : 'border-slate-100'}`}>

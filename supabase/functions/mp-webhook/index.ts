@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
   if (!res.ok) return new Response('payment lookup failed', { status: 502 }) // o Mercado Pago tenta de novo
   const pay = await res.json()
 
-  const [tenantId, plan] = String(pay.external_reference ?? '').split('|')
+  const [tenantId, plan, quoteId] = String(pay.external_reference ?? '').split('|')
   if (!tenantId || !plan) return new Response('unknown reference') // pagamento que não é nosso
 
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'ic_chat' } })
@@ -58,10 +58,20 @@ Deno.serve(async (req) => {
     return new Response('ok')
   }
 
-  const { data: planRow } = await admin.from('plans').select('price, days').eq('id', plan).maybeSingle()
+  const { data: planRow } = await admin.from('plans').select('price, days, discount_type, discount_value, discount_ends_at').eq('id', plan).maybeSingle()
   if (!planRow) return new Response('unknown plan')
-  // Valor tem que bater com o plano (evita liberar plano caro com pagamento barato)
-  if (pay.status === 'approved' && Number(pay.transaction_amount) < Number(planRow.price)) {
+  let expectedAmount: number
+  if (quoteId) {
+    const { data: quote } = await admin.from('checkout_quotes').select('amount, tenant_id, plan_id').eq('id', quoteId).maybeSingle()
+    if (!quote || quote.tenant_id !== tenantId || quote.plan_id !== plan) return new Response('unknown checkout quote')
+    expectedAmount = Number(quote.amount)
+  } else {
+    // Compatibilidade com preferências antigas criadas antes do registro de cotação.
+    const discountActive = planRow.discount_type && Number(planRow.discount_value) > 0 && (!planRow.discount_ends_at || new Date(planRow.discount_ends_at).getTime() > Date.now())
+    const discount = discountActive ? planRow.discount_type === 'percent' ? Number(planRow.price) * Number(planRow.discount_value) / 100 : Number(planRow.discount_value) : 0
+    expectedAmount = Math.max(0, Math.round((Number(planRow.price) - discount) * 100) / 100)
+  }
+  if (pay.status === 'approved' && Math.abs(Number(pay.transaction_amount) - expectedAmount) > 0.01) {
     console.error('Valor pago menor que o plano', dataId, pay.transaction_amount, plan)
     return new Response('amount mismatch')
   }

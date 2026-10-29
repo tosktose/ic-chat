@@ -25,6 +25,10 @@ export interface PlanDef {
   users: number | null
   features: string[]
   highlight?: boolean
+  discount_type?: 'percent' | 'fixed' | null
+  discount_value?: number
+  discount_label?: string
+  discount_ends_at?: string | null
 }
 
 const plans: PlanDef[] = [
@@ -114,7 +118,8 @@ export function SaasProvider({ children }: { children: ReactNode }) {
     void Promise.all([listTenants(), listMembers(), listPlans()]).then(([rows, members, planRows]) => {
       if (!alive) return
       plans.splice(0, plans.length, ...planRows.map((p): PlanDef => ({
-        name: p.name as Plan, price: p.price, mode: `${p.max_devices} computadores`, pcs: p.max_devices, users: p.max_users, features: p.features, highlight: p.highlight
+        name: p.name as Plan, price: p.price, mode: `${p.max_devices} computadores`, pcs: p.max_devices, users: p.max_users, features: p.features, highlight: p.highlight,
+        discount_type: p.discount_type ?? null, discount_value: Number(p.discount_value ?? 0), discount_label: p.discount_label ?? '', discount_ends_at: p.discount_ends_at ?? null
       })))
       const priceOf = (name: string) => plans.find((p) => p.name.toLowerCase() === name.toLowerCase())?.price ?? 0
       tenantList.splice(0, tenantList.length, ...rows.map((t): Tenant => {
@@ -226,7 +231,7 @@ export function SaasProvider({ children }: { children: ReactNode }) {
         bump()
         if (isWebApp && supabase) {
           const id = p.name.toLowerCase() as 'start' | 'pro' | 'business'
-          void savePlanRow({ id, name: p.name, price: p.price, days: 30, max_users: p.users, max_devices: p.pcs ?? 50, summary: '', features: p.features, highlight: Boolean(p.highlight), active: true, sort: ['start', 'pro', 'business'].indexOf(id) + 1 })
+          void savePlanRow({ id, name: p.name, price: p.price, days: 30, max_users: p.users, max_devices: p.pcs ?? 50, summary: '', features: p.features, highlight: Boolean(p.highlight), active: true, sort: ['start', 'pro', 'business'].indexOf(id) + 1, discount_type: p.discount_type ?? null, discount_value: p.discount_value ?? 0, discount_label: p.discount_label ?? '', discount_ends_at: p.discount_ends_at ?? null })
             .then(() => toast.success('Plano salvo no banco'))
             .catch((e) => toast.error('Não foi possível salvar o plano', { description: adminError(e) }))
         }

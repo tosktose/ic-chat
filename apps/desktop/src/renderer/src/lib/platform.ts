@@ -42,7 +42,8 @@ export function usePlans(): PublicPlan[] {
       if (!alive || !data?.length) return
       plansCache = data.map((p) => ({
         id: p.id, name: p.name, price: Number(p.price), summary: p.summary ?? '',
-        features: Array.isArray(p.features) ? p.features : [], recommended: Boolean(p.highlight), days: p.days ?? 30
+        features: Array.isArray(p.features) ? p.features : [], recommended: Boolean(p.highlight), days: p.days ?? 30,
+        discount_type: p.discount_type ?? null, discount_value: Number(p.discount_value ?? 0), discount_label: p.discount_label ?? '', discount_ends_at: p.discount_ends_at ?? null
       })) as PublicPlan[]
       setPlans(plansCache)
     })

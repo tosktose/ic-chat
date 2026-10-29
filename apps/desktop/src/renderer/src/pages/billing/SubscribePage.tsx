@@ -6,7 +6,7 @@ import { Page } from '@/components/layout/Page'
 import { Button } from '@/components/ui/button'
 import { Badge, Card } from '@/components/ui/misc'
 import { useAppState } from '@/lib/app-state'
-import { startCheckout, type PlanId } from '@/lib/billing'
+import { discountedPlanPrice, startCheckout, type PlanId } from '@/lib/billing'
 import { usePlans } from '@/lib/platform'
 import { isWebApp } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -58,7 +58,8 @@ export function SubscribePage() {
               {p.recommended && <Badge tone="primary">Mais escolhido</Badge>}
             </div>
             <p className="mt-1 min-h-10 text-sm text-muted">{p.summary}</p>
-            <p className="mt-4"><span className="text-4xl font-bold tracking-tight">R$ {p.price}</span><span className="text-sm text-muted"> /30 dias</span></p>
+            <p className="mt-4">{discountedPlanPrice(p) < p.price && <span className="mr-2 text-sm text-muted line-through">R$ {p.price.toFixed(2).replace('.', ',')}</span>}<span className="text-4xl font-bold tracking-tight">R$ {discountedPlanPrice(p).toFixed(2).replace('.', ',')}</span><span className="text-sm text-muted"> /30 dias</span></p>
+            {discountedPlanPrice(p) < p.price && <p className="mt-1 text-sm font-medium text-success">{p.discount_label || 'Desconto promocional'}{p.discount_ends_at ? ` · até ${new Date(p.discount_ends_at).toLocaleDateString('pt-BR')}` : ''}</p>}
             <Button className="mt-5" size="lg" variant={p.recommended ? 'primary' : 'outline'} disabled={busy !== null} onClick={() => pay(p.id)}>
               {busy === p.id ? <Loader2 className="animate-spin" /> : <CreditCard />} {busy === p.id ? 'Abrindo o pagamento…' : `Assinar ${p.name}`}
             </Button>

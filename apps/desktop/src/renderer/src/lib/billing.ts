@@ -10,6 +10,17 @@ export interface PublicPlan {
   features: string[]
   recommended?: boolean
   days?: number
+  discount_type?: 'percent' | 'fixed' | null
+  discount_value?: number
+  discount_label?: string
+  discount_ends_at?: string | null
+}
+
+export function discountedPlanPrice(plan: Pick<PublicPlan, 'price' | 'discount_type' | 'discount_value' | 'discount_ends_at'>, now = Date.now()): number {
+  const endsAt = plan.discount_ends_at ? new Date(plan.discount_ends_at).getTime() : null
+  if (!plan.discount_type || !plan.discount_value || (endsAt !== null && (!Number.isFinite(endsAt) || endsAt <= now))) return plan.price
+  const discount = plan.discount_type === 'percent' ? plan.price * plan.discount_value / 100 : plan.discount_value
+  return Math.max(0, Math.round((plan.price - discount) * 100) / 100)
 }
 
 /** Valores padrão (só usados se o banco não responder). O preço cobrado de verdade é o da tabela `plans`, lido pelo servidor. */
