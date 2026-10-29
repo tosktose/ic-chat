@@ -53,7 +53,10 @@ Para cada tela: ❶ tem mock? ❷ botões funcionam? ❸ salva e persiste após 
 - [x] Super Admin → Créditos de IA: preço/conversão com margem ao vivo, créditos por plano, pacotes à venda, saldo por empresa, dar bônus/ajuste, extrato
 - [x] Cliente → Assistente IA: saldo, uso do plano, extrato e compra de pacote (Mercado Pago)
 - [x] Funções: ai-chat (confere saldo, chama a IA, debita), create-checkout e mp-webhook aceitam pacotes — **código pronto, ainda não publicadas**
-- [ ] Executar a migração 5, publicar/atualizar as 3 funções e criar os Secrets ICCHAT_AI_API_KEY (obrigatório), ICCHAT_AI_BASE_URL e ICCHAT_AI_MODEL (opcionais)
+- [x] Migração 5 executada no banco de produção (29/10/2026): 2 tabelas, 8 funções, planos com 300/1.000/5.000 créditos, 3 pacotes. Testada como visitante: consultas sensíveis recusadas.
+- [x] Funções publicadas: ai-chat (nova), create-checkout e mp-webhook (atualizadas para pacotes). Smoke test: respondem "não configurado" até os Secrets existirem.
+- [ ] Criar o Secret ICCHAT_AI_API_KEY (obrigatório) e, se quiser, ICCHAT_AI_BASE_URL / ICCHAT_AI_MODEL
+- [ ] Desligar "Verify JWT with legacy secret" no mp-webhook (hoje o Mercado Pago recebe 401)
 - [ ] A resposta automática da IA no WhatsApp (app instalado) ainda usa a chave do próprio cliente e o limite em tokens; ligar ao mesmo saldo é a próxima etapa
 
 ## Fase 5 — Cobrança com Mercado Pago ⏳ (aguardando o aplicativo do Mercado Pago)
