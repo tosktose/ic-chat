@@ -71,6 +71,8 @@ export const toMinutes = (t: string) => {
 export interface CompanyInfo {
   name: string
   segment: string
+  /** Quando o segmento é "outro": o que a pessoa escreveu (a IA usa esse texto) */
+  segmentCustom?: string
   document: string
   phone: string
   email: string
@@ -141,6 +143,12 @@ function load(): Store {
   }
 }
 
+/** Nome do segmento para exibir e para a IA: o texto livre quando é "Outro". */
+export function segmentName(info: Pick<CompanyInfo, 'segment' | 'segmentCustom'>): string {
+  if (info.segment === 'outro') return info.segmentCustom?.trim() ?? ''
+  return SEGMENTS[info.segment] ?? info.segment
+}
+
 export const SEGMENTS: Record<string, string> = {
   salao: 'Salão de beleza',
   barbearia: 'Barbearia',
@@ -208,7 +216,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Ctx>(
     () => ({
       ...store,
-      segmentLabel: SEGMENTS[store.info.segment] ?? store.info.segment,
+      segmentLabel: segmentName(store.info) || SEGMENTS.outro,
       hoursText: describeHours(store.info.hours),
       updateInfo: (p) => setStore((s) => ({ ...s, info: { ...s.info, ...p } })),
       professionalById,
