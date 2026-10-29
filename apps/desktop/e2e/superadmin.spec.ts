@@ -62,12 +62,11 @@ test.describe('Super Admin conectado ao banco', () => {
     await expect(page.getByRole('button', { name: 'Novo plano' })).toHaveCount(0)
   })
 
-  test('Créditos de IA: sem custo inventado do provedor', async ({ page }) => {
+  test('Créditos de IA: nada da maquete antiga (empresas e custos inventados)', async ({ page }) => {
     await mockAdmin(page)
     await page.goto('/admin/creditos')
-    await expect(page.getByText('Nenhum consumo de IA registrado')).toBeVisible()
-    await expect(page.getByText('Custo com o provedor', { exact: true })).toHaveCount(0)
-    await expect(page.getByText('Consumo no mês')).toHaveCount(0)
+    await expect(page.getByText('Como funciona')).toBeVisible()
+    for (const fake of ['Studio Bella', 'Clínica Derma+', 'Receita de excedente', 'Pet Shop Amigo Fiel']) await expect(page.getByText(fake)).toHaveCount(0)
   })
 
   test('Sistema: carrega do banco, salva no banco e não tem servidor de licenças de mentira', async ({ page }) => {

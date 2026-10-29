@@ -169,3 +169,103 @@ export async function saveSettings(values: PublicSettings): Promise<void> {
   const { error } = await db().from('platform_settings').upsert(rows, { onConflict: 'key' })
   if (error) throw error
 }
+
+/* ---------------- Créditos de IA ---------------- */
+export interface AiSettings {
+  ai_tokens_per_credit: string
+  ai_cost_per_credit: string
+  ai_price_per_credit: string
+  ai_trial_credits: string
+}
+export const AI_SETTING_KEYS = ['ai_tokens_per_credit', 'ai_cost_per_credit', 'ai_price_per_credit', 'ai_trial_credits'] as const
+export const AI_DEFAULTS: AiSettings = { ai_tokens_per_credit: '1000', ai_cost_per_credit: '0.009', ai_price_per_credit: '0.04', ai_trial_credits: '50' }
+
+export interface AiPack { id: string; name: string; credits: number; price: number; active: boolean; sort: number }
+
+export interface AiOverviewRow {
+  tenant_id: string; tenant_name: string; owner_email: string | null; plan: string
+  included: number; plan_used: number; pack_balance: number; used_month: number; available: number
+  cost_month: number; bought_month: number; last_use: string | null
+}
+
+export interface AiLedgerRow { kind: 'compra' | 'bonus' | 'ajuste' | 'uso'; credits: number; tokens: number; provider_cost: number; amount: number; note: string | null; created_at: string }
+
+export interface AiSummary {
+  included: number; plan_used: number; plan_left: number; pack_balance: number; used_month: number; available: number
+  tokens_per_credit: number; price_per_credit: number
+  ledger?: { kind: AiLedgerRow['kind']; credits: number; tokens: number; note: string | null; created_at: string }[]
+}
+
+const num = (v: unknown) => Number(v ?? 0)
+
+export async function loadAiSettings(): Promise<AiSettings> {
+  const { data, error } = await db().from('platform_settings').select('key, value').in('key', [...AI_SETTING_KEYS])
+  if (error) throw error
+  const out: AiSettings = { ...AI_DEFAULTS }
+  for (const r of data ?? []) (out as unknown as Record<string, string>)[r.key] = r.value
+  return out
+}
+
+export async function saveAiSettings(v: AiSettings): Promise<void> {
+  const rows = AI_SETTING_KEYS.map((key) => ({ key, value: String(v[key] ?? '').trim(), updated_at: new Date().toISOString() }))
+  const { error } = await db().from('platform_settings').upsert(rows, { onConflict: 'key' })
+  if (error) throw error
+}
+
+export async function setPlanCredits(planId: string, credits: number): Promise<void> {
+  const { error } = await db().from('plans').update({ ai_credits_month: Math.max(0, Math.round(credits)), updated_at: new Date().toISOString() }).eq('id', planId)
+  if (error) throw error
+}
+
+export async function listPlanCredits(): Promise<{ id: string; name: string; ai_credits_month: number }[]> {
+  const { data, error } = await db().from('plans').select('id, name, ai_credits_month').order('sort')
+  if (error) throw error
+  return (data ?? []).map((p) => ({ id: p.id, name: p.name, ai_credits_month: num(p.ai_credits_month) }))
+}
+
+export async function listAiPacks(): Promise<AiPack[]> {
+  const { data, error } = await db().from('ai_credit_packs').select('*').order('sort')
+  if (error) throw error
+  return (data ?? []).map((p) => ({ ...p, credits: num(p.credits), price: num(p.price) })) as AiPack[]
+}
+
+export async function saveAiPack(p: AiPack): Promise<void> {
+  const { error } = await db().from('ai_credit_packs').upsert(p, { onConflict: 'id' })
+  if (error) throw error
+}
+
+export async function adminAiOverview(): Promise<AiOverviewRow[]> {
+  const { data, error } = await db().rpc('admin_ai_overview')
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    tenant_id: String(r.tenant_id), tenant_name: String(r.tenant_name), owner_email: (r.owner_email as string | null) ?? null, plan: String(r.plan),
+    included: num(r.included), plan_used: num(r.plan_used), pack_balance: num(r.pack_balance), used_month: num(r.used_month), available: num(r.available),
+    cost_month: num(r.cost_month), bought_month: num(r.bought_month), last_use: (r.last_use as string | null) ?? null
+  }))
+}
+
+export async function adminAiLedger(tenantId: string): Promise<AiLedgerRow[]> {
+  const { data, error } = await db().rpc('admin_ai_ledger', { p_tenant: tenantId })
+  if (error) throw error
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    kind: r.kind as AiLedgerRow['kind'], credits: num(r.credits), tokens: num(r.tokens), provider_cost: num(r.provider_cost), amount: num(r.amount),
+    note: (r.note as string | null) ?? null, created_at: String(r.created_at)
+  }))
+}
+
+export async function adminGrantCredits(tenantId: string, credits: number, kind: 'bonus' | 'ajuste', note: string): Promise<void> {
+  const { error } = await db().rpc('admin_grant_credits', { p_tenant: tenantId, p_credits: credits, p_kind: kind, p_note: note || null })
+  if (error) throw error
+}
+
+/** Saldo e extrato da própria empresa (tela Assistente IA). */
+export async function myAiSummary(): Promise<AiSummary> {
+  const { data, error } = await db().rpc('my_ai_summary')
+  if (error) throw error
+  const d = data as Record<string, unknown>
+  return {
+    included: num(d.included), plan_used: num(d.plan_used), plan_left: num(d.plan_left), pack_balance: num(d.pack_balance), used_month: num(d.used_month),
+    available: num(d.available), tokens_per_credit: num(d.tokens_per_credit), price_per_credit: num(d.price_per_credit),
+    ledger: (d.ledger as AiSummary['ledger']) ?? []
+  }
+}

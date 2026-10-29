@@ -47,6 +47,17 @@ Deno.serve(async (req) => {
   if (!tenantId || !plan) return new Response('unknown reference') // pagamento que não é nosso
 
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'ic_chat' } })
+
+  // Compra de pacote de créditos de IA ("pack:<id>"): credita o saldo avulso (a função confere o valor e não duplica)
+  if (plan.startsWith('pack:')) {
+    const { error: packError } = await admin.rpc('apply_credit_pack', {
+      p_tenant: tenantId, p_pack: plan.slice(5), p_provider_payment_id: String(pay.id),
+      p_amount: Number(pay.transaction_amount), p_status: String(pay.status)
+    })
+    if (packError) { console.error('apply_credit_pack falhou:', packError.message); return new Response('db error', { status: 500 }) }
+    return new Response('ok')
+  }
+
   const { data: planRow } = await admin.from('plans').select('price, days').eq('id', plan).maybeSingle()
   if (!planRow) return new Response('unknown plan')
   // Valor tem que bater com o plano (evita liberar plano caro com pagamento barato)

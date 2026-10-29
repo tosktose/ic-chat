@@ -47,6 +47,15 @@ Para cada tela: ❶ tem mock? ❷ botões funcionam? ❸ salva e persiste após 
 - [x] Migração 4 executada no banco de produção (29/10/2026) e testada como visitante: contato público abre, planos públicos abrem, tabelas e funções de admin recusadas
 - [ ] WhatsApp de suporte: informar o número em Super Admin → Configurações do sistema
 
+## Fase 3c — Créditos de IA (Super Admin + cliente) 🔄
+- [x] Modelo: 1 crédito = N tokens; plano inclui créditos/mês; excedente = saldo avulso (pacotes comprados ou bônus); extrato com custo real do provedor
+- [x] Migração 20261029_000005_ai_credits.sql (saldo, extrato, pacotes, configuração) — **ainda não executada no banco**
+- [x] Super Admin → Créditos de IA: preço/conversão com margem ao vivo, créditos por plano, pacotes à venda, saldo por empresa, dar bônus/ajuste, extrato
+- [x] Cliente → Assistente IA: saldo, uso do plano, extrato e compra de pacote (Mercado Pago)
+- [x] Funções: ai-chat (confere saldo, chama a IA, debita), create-checkout e mp-webhook aceitam pacotes — **código pronto, ainda não publicadas**
+- [ ] Executar a migração 5, publicar/atualizar as 3 funções e criar os Secrets ICCHAT_AI_API_KEY (obrigatório), ICCHAT_AI_BASE_URL e ICCHAT_AI_MODEL (opcionais)
+- [ ] A resposta automática da IA no WhatsApp (app instalado) ainda usa a chave do próprio cliente e o limite em tokens; ligar ao mesmo saldo é a próxima etapa
+
 ## Fase 5 — Cobrança com Mercado Pago ⏳ (aguardando o aplicativo do Mercado Pago)
 - [x] 5.1 Tela **Assinar** (/assinar) + retorno do pagamento (/assinar/retorno), atalho no topo e no menu — testada (billing.spec.ts)
 - [x] 5.2 Código pronto: supabase/functions/create-checkout (preço definido no servidor; token só nos Secrets) · ⏳ falta publicar a função e colar o token

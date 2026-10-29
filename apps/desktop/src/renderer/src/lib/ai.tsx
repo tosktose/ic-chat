@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { TODAY, users, type Conversation, type Message } from '@/data/mock'
 import { useAppState } from '@/lib/app-state'
+import { isWebApp } from '@/lib/supabase'
 import { describeHours, toMinutes, useCompany, weekdayOf, WEEKDAYS } from '@/lib/company'
 import { useData } from '@/lib/data'
 import { useGoogle } from '@/lib/google'
@@ -11,6 +12,7 @@ import { useWhatsApp } from '@/lib/whatsapp'
 import { addDays } from '@/data/history'
 import { loadKnowledge } from '@/pages/ai/KnowledgeCard'
 import type { AiProviderId } from '../../../preload/index.d'
+import { callAiChat } from '@/lib/ai-web'
 
 /**
  * Assistente IA + URA.
@@ -572,7 +574,11 @@ export function AiProvider({ children }: { children: ReactNode }) {
       handoff,
       giveBackToAi,
       simulate: async (turns) => {
-        if (!api) throw new Error('A conversa de teste funciona no app instalado, com a sua chave de API.')
+        if (!api) {
+          if (!isWebApp) throw new Error('A conversa de teste funciona no app instalado, com a sua chave de API.')
+          const w = await callAiChat(buildSystem(), turns as { role: 'user' | 'assistant'; content: string }[])
+          return parseReply(w.text)
+        }
         if (!keyInfo) throw new Error('Cadastre a chave de API primeiro.')
         const r = await api.reply(config.provider, config.model, buildSystem(), turns)
         if (!r.ok) throw new Error(r.error)

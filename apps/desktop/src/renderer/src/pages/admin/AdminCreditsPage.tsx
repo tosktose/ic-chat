@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { brl, cn } from '@/lib/utils'
 import { tenants } from '@/data/saas'
 import { isWebApp } from '@/lib/supabase'
+import { RealCredits } from './RealCredits'
 import {
   CREDITO_EM_TOKENS,
   PRECO,
@@ -21,17 +22,7 @@ import {
 const num = new Intl.NumberFormat('pt-BR')
 
 export function AdminCreditsPage() {
-  if (isWebApp) {
-    return (
-      <Page title="Créditos de IA" description="Consumo de IA por empresa.">
-        <div className="rounded-2xl border border-dashed border-border-strong bg-surface p-10 text-center">
-          <Coins className="mx-auto size-8 text-subtle" />
-          <h2 className="mt-3 text-lg font-semibold">Nenhum consumo de IA registrado</h2>
-          <p className="mx-auto mt-1 max-w-md text-sm text-muted">O consumo e o custo com o provedor passam a aparecer aqui quando o Assistente IA das empresas estiver ligado e gravando o uso no banco. Nada é estimado nem inventado.</p>
-        </div>
-      </Page>
-    )
-  }
+  if (isWebApp) return <RealCredits />
   return <DemoCredits />
 }
 

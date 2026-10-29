@@ -24,7 +24,7 @@ const messages: Record<string, string> = {
   nao_autenticado: 'Sua sessão expirou. Entre novamente.',
   apenas_gerentes_podem_assinar: 'Somente gerentes podem contratar o plano.',
   empresa_nao_encontrada: 'Não encontramos a sua empresa. Fale com o suporte.',
-  plano_invalido: 'Este plano não está disponível.',
+  plano_invalido: 'Este plano ou pacote não está disponível.',
   mercado_pago_recusou: 'O Mercado Pago não aceitou o pedido. Tente novamente em instantes.'
 }
 
@@ -32,6 +32,19 @@ const messages: Record<string, string> = {
 export async function startCheckout(plan: PlanId): Promise<{ url?: string; error?: string }> {
   if (!supabase) return { error: 'Supabase não configurado.' }
   const { data, error } = await supabase.functions.invoke('create-checkout', { body: { plan } })
+  if (error) {
+    let code = ''
+    try { code = (await (error as { context?: Response }).context?.json())?.error ?? '' } catch { /* sem corpo */ }
+    return { error: messages[code] ?? 'Não foi possível falar com o servidor de pagamento. Tente novamente.' }
+  }
+  if (!data?.url) return { error: 'O servidor não devolveu o link de pagamento.' }
+  return { url: String(data.url) }
+}
+
+/** Pede ao servidor o link de pagamento de um pacote de créditos de IA. */
+export async function startPackCheckout(pack: string): Promise<{ url?: string; error?: string }> {
+  if (!supabase) return { error: 'Supabase não configurado.' }
+  const { data, error } = await supabase.functions.invoke('create-checkout', { body: { pack } })
   if (error) {
     let code = ''
     try { code = (await (error as { context?: Response }).context?.json())?.error ?? '' } catch { /* sem corpo */ }

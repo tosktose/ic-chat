@@ -33,12 +33,23 @@ Deno.serve(async (req) => {
   if (!user) return json({ error: 'nao_autenticado' }, 401)
 
   let plan = ''
-  try { plan = String((await req.json()).plan ?? '') } catch { /* corpo vazio */ }
+  let pack = ''
+  try { const b = await req.json(); plan = String(b.plan ?? ''); pack = String(b.pack ?? '') } catch { /* corpo vazio */ }
   // Preço e prazo vêm da tabela ic_chat.plans (editada pelo Super Admin), lida com a chave de serviço
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'ic_chat' } })
-  const { data: row } = await admin.from('plans').select('name, price, days, active').eq('id', plan).maybeSingle()
-  if (!row || !row.active) return json({ error: 'plano_invalido' }, 400)
-  const chosen = { title: `IC Chat ${row.name} · ${row.days} dias`, price: Number(row.price), days: Number(row.days) }
+  let chosen: { title: string; price: number; days: number }
+  let refKey = plan
+  if (pack) {
+    // Pacote avulso de créditos de IA (tabela ic_chat.ai_credit_packs)
+    const { data: pk } = await admin.from('ai_credit_packs').select('name, credits, price, active').eq('id', pack).maybeSingle()
+    if (!pk || !pk.active) return json({ error: 'plano_invalido' }, 400)
+    chosen = { title: `IC Chat · ${pk.name} (${pk.credits} créditos de IA)`, price: Number(pk.price), days: 0 }
+    refKey = `pack:${pack}`
+  } else {
+    const { data: row } = await admin.from('plans').select('name, price, days, active').eq('id', plan).maybeSingle()
+    if (!row || !row.active) return json({ error: 'plano_invalido' }, 400)
+    chosen = { title: `IC Chat ${row.name} · ${row.days} dias`, price: Number(row.price), days: Number(row.days) }
+  }
 
   // A empresa vem do banco (RLS garante que é a do usuário), não do pedido
   const { data: member } = await supa.from('tenant_members').select('tenant_id, role').eq('user_id', user.id).maybeSingle()
@@ -49,10 +60,10 @@ Deno.serve(async (req) => {
     method: 'POST',
     headers: { Authorization: `Bearer ${mpToken}`, 'content-type': 'application/json', 'X-Idempotency-Key': crypto.randomUUID() },
     body: JSON.stringify({
-      items: [{ id: plan, title: chosen.title, quantity: 1, currency_id: 'BRL', unit_price: chosen.price }],
+      items: [{ id: refKey, title: chosen.title, quantity: 1, currency_id: 'BRL', unit_price: chosen.price }],
       payer: { email: user.email },
-      external_reference: `${member.tenant_id}|${plan}`,
-      metadata: { tenant_id: member.tenant_id, plan, days: chosen.days },
+      external_reference: `${member.tenant_id}|${refKey}`,
+      metadata: { tenant_id: member.tenant_id, plan: refKey, days: chosen.days },
       back_urls: { success: `${SITE}/assinar/retorno`, pending: `${SITE}/assinar/retorno`, failure: `${SITE}/assinar/retorno` },
       auto_return: 'approved',
       notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/mp-webhook`,
