@@ -22,6 +22,8 @@ import { AuthPage } from '@/pages/AuthPage'
 import { LandingPage } from '@/pages/LandingPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { LegalPage } from '@/pages/LegalPage'
+import { SeoLanding } from '@/pages/SeoLanding'
+import { KEYWORD_PAGES } from '@/seo/pages'
 import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/PasswordResetPage'
 import { SubscribePage, CheckoutReturnPage } from '@/pages/billing/SubscribePage'
 import { LicenseGate } from '@/components/LicenseGate'
@@ -35,8 +37,6 @@ const AdminLicensesPage = lazy(() => import('@/pages/admin/AdminLicensesPage').t
 const AdminPlansPage = lazy(() => import('@/pages/admin/AdminPlansPage').then((m) => ({ default: m.AdminPlansPage })))
 const AdminSystemPage = lazy(() => import('@/pages/admin/AdminSystemPage').then((m) => ({ default: m.AdminSystemPage })))
 const AdminUsersPage = lazy(() => import('@/pages/admin/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
-const AdminAffiliatesPage = lazy(() => import('@/pages/admin/AdminAffiliatesPage').then((m) => ({ default: m.AdminAffiliatesPage })))
-const MyAffiliatesPage = lazy(() => import('@/pages/affiliate/MyAffiliatesPage').then((m) => ({ default: m.MyAffiliatesPage })))
 const AgendaPage = lazy(() => import('@/pages/agenda/AgendaPage').then((m) => ({ default: m.AgendaPage })))
 const AiPage = lazy(() => import('@/pages/ai/AiPage').then((m) => ({ default: m.AiPage })))
 const MyPerformancePage = lazy(() => import('@/pages/analyst/MyPerformancePage').then((m) => ({ default: m.MyPerformancePage })))
@@ -119,6 +119,7 @@ export function App() {
               <Route path="/cadastro" element={isWebApp ? <AuthPage mode="signup" /> : <LoginPage />} />
               {isWebApp && <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />}
               {isWebApp && <Route path="/redefinir-senha" element={<ResetPasswordPage />} />}
+              {isWebApp && KEYWORD_PAGES.map((p) => <Route key={p.path} path={p.path} element={<SeoLanding path={p.path} />} />)}
               <Route path="/privacidade" element={<LegalPage kind="privacidade" />} />
               <Route path="/termos" element={<LegalPage kind="termos" />} />
               <Route element={<LicenseGate><AppShell /></LicenseGate>}>
@@ -142,11 +143,9 @@ export function App() {
                 <Route path="/perfil" element={<Guard><ProfilePage /></Guard>} />
                 {/* Analista */}
                 <Route path="/meu-painel" element={<Guard><MyPerformancePage /></Guard>} />
-                <Route path="/afiliados" element={<Guard><MyAffiliatesPage /></Guard>} />
                 {/* Super Admin (dono do SaaS) */}
                 <Route path="/admin" element={<Guard><AdminPage /></Guard>} />
                 <Route path="/admin/usuarios" element={<Guard><AdminUsersPage /></Guard>} />
-                <Route path="/admin/afiliados" element={<Guard><AdminAffiliatesPage /></Guard>} />
                 <Route path="/admin/licencas" element={<Guard><AdminLicensesPage /></Guard>} />
                 <Route path="/admin/creditos" element={<Guard><AdminCreditsPage /></Guard>} />
                 <Route path="/admin/planos" element={<Guard><AdminPlansPage /></Guard>} />

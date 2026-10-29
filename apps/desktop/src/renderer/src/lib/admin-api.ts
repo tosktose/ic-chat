@@ -114,6 +114,10 @@ export interface PlanRow {
   highlight: boolean
   active: boolean
   sort: number
+  discount_type?: 'percent' | 'fixed' | null
+  discount_value?: number
+  discount_label?: string | null
+  discount_ends_at?: string | null
 }
 
 export interface PublicSettings {
@@ -167,6 +171,11 @@ export async function setAffiliate(userId: string, enabled: boolean, commissionR
     p_enabled: enabled,
     p_commission_rate: commissionRate
   })
+  if (error) throw error
+}
+
+export async function deleteAffiliate(userId: string): Promise<void> {
+  const { error } = await db().rpc('admin_archive_affiliate', { p_user_id: userId })
   if (error) throw error
 }
 

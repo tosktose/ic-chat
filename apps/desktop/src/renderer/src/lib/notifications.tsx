@@ -206,7 +206,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   // Contador no título da janela/aba
   useEffect(() => {
-    document.title = unread ? `(${unread}) IC Chat` : 'IC Chat'
+    // Só acrescenta/retira o "(n)" do título atual: o título de cada página (SEO) não pode ser apagado aqui
+    const base = document.title.replace(/^\(\d+\)\s*/, '') || 'IC Chat'
+    document.title = unread ? `(${unread}) ${base}` : base
   }, [unread])
 
   const value = useMemo<Ctx>(

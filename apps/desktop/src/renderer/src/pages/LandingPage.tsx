@@ -5,16 +5,12 @@ import { InstagramIcon, WhatsAppIcon } from '@/components/brand'
 import logo from '@/assets/logo-transparent.png'
 import { openCookiePreferences } from '@/lib/consent'
 import { useSeo } from '@/lib/seo'
+import { HOME_FAQ, KEYWORD_PAGES, pageByPath } from '@/seo/pages'
 import { usePlans, usePublicSettings } from '@/lib/platform'
 
 const downloadUrl = import.meta.env.VITE_ICCHAT_DESKTOP_DOWNLOAD_URL as string | undefined
 
-const faqs = [
-  ['O que acontece depois do teste de 7 dias?', 'Você escolhe o plano que faz sentido para a sua empresa. Sem uma assinatura ativa, o acesso aos dados fica suspenso até a regularização — nada é apagado.'],
-  ['Preciso instalar alguma coisa?', 'Não. O IC Chat funciona direto no navegador. A versão para Windows é opcional, para quem prefere um aplicativo instalado no computador.'],
-  ['Meus dados ficam separados dos de outras empresas?', 'Sim. Cada empresa enxerga apenas os próprios dados, com regras de acesso aplicadas no banco de dados. Tratamos tudo conforme a LGPD.'],
-  ['Posso conectar WhatsApp e Instagram?', 'O sistema organiza o atendimento multicanal. A disponibilidade de cada conexão depende da configuração das APIs oficiais da Meta e da sua conta comercial.']
-]
+const faqs = HOME_FAQ.map((f) => [f.q, f.a] as const)
 
 /** Revela o conteúdo suavemente quando ele entra na tela. */
 function Reveal({ children, delay = 0, className = '' }: { children: ReactNode; delay?: number; className?: string }) {
@@ -137,7 +133,8 @@ function SectionTitle({ eyebrow, title, copy }: { eyebrow: string; title: string
 }
 
 export function LandingPage() {
-  useSeo({ title: 'IC Chat — Atendimento que vira venda', description: 'Atenda pelo WhatsApp e Instagram, organize contatos e acompanhe oportunidades em um CRM simples. Experimente o IC Chat por 7 dias grátis.', path: '/' })
+  const seo = pageByPath('/')!
+  useSeo({ title: seo.title, description: seo.description, path: '/' })
   const plans = usePlans()
   const contact = usePublicSettings()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -187,7 +184,7 @@ export function LandingPage() {
               <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-slate-200/80 backdrop-blur"><span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" /><span className="relative size-2 rounded-full bg-emerald-500" /></span> Atendimento, contatos e vendas em um só lugar</div>
             </Reveal>
             <Reveal delay={90}>
-              <h1 className="mt-7 text-[40px] leading-[1.04] font-semibold tracking-[-.05em] text-slate-950 sm:text-6xl lg:text-[68px]">A conversa começa no chat. <span className="bg-gradient-to-r from-blue-700 via-blue-500 to-cyan-400 bg-clip-text text-transparent">A venda não se perde.</span></h1>
+              <h1 className="mt-7 text-[40px] leading-[1.04] font-semibold tracking-[-.05em] text-slate-950 sm:text-6xl lg:text-[68px]">Automatize seu atendimento no WhatsApp com IA <span className="bg-gradient-to-r from-blue-700 via-blue-500 to-cyan-400 bg-clip-text text-transparent">e não perca nenhuma venda.</span></h1>
             </Reveal>
             <Reveal delay={180}>
               <p className="mt-6 max-w-lg text-[17px] leading-8 text-slate-600">Organize contatos, acompanhe cada oportunidade e descubra quais canais realmente trazem clientes — com a leveza de um app que sua equipe quer usar.</p>
@@ -221,7 +218,7 @@ export function LandingPage() {
       {/* FUNCIONALIDADES (bento) */}
       <section id="funcionalidades" className="px-5 py-24 sm:px-8 sm:py-32">
         <div className="mx-auto max-w-7xl">
-          <SectionTitle eyebrow="Funcionalidades" title="Tudo o que sua equipe precisa, sem o excesso." copy="Atenda com contexto, transforme interesse em oportunidade e acompanhe o que está funcionando." />
+          <SectionTitle eyebrow="Funcionalidades" title="Sistema de atendimento, CRM e chatbot com IA em um só lugar." copy="Atenda com contexto, transforme interesse em oportunidade e acompanhe o que está funcionando." />
           <div className="mt-16 grid gap-4 lg:grid-cols-6">
             <Reveal className="lg:col-span-3"><article className="group relative h-full overflow-hidden rounded-[28px] bg-white p-8 ring-1 ring-slate-200/80 transition duration-500 hover:shadow-2xl hover:shadow-blue-900/10">
               <span className="grid size-11 place-items-center rounded-2xl bg-blue-50 text-blue-700"><MessageSquare className="size-5" /></span>
@@ -358,6 +355,7 @@ export function LandingPage() {
             <p className="mt-3 max-w-xs text-xs leading-5 text-slate-500">Atendimento que conecta. Relacionamento que vende.</p>
           </div>
           <div className="flex flex-wrap gap-x-8 gap-y-3 text-[13px] text-slate-600">
+            {KEYWORD_PAGES.map((p) => <Link key={p.path} to={p.path} className="hover:text-blue-700">{p.crumb}</Link>)}
             <Link to="/login" className="hover:text-blue-700">Entrar</Link>
             <Link to="/cadastro" className="hover:text-blue-700">Teste grátis</Link>
             <a href="#planos" className="hover:text-blue-700">Planos</a>

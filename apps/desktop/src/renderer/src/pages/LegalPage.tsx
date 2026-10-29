@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import logo from '@/assets/logo-transparent.png'
 import { openCookiePreferences } from '@/lib/consent'
 import { useSeo } from '@/lib/seo'
+import { pageByPath } from '@/seo/pages'
 import { usePublicSettings } from '@/lib/platform'
 
 
@@ -10,8 +11,8 @@ type Section = { title: string; body: string[] }
 
 const privacy: Section[] = [
   { title: '1. Quem somos', body: ['O IC Chat é um serviço de atendimento multicanal e CRM operado pela ItaCondo ("nós"). Para os dados pessoais tratados por meio do site e do aplicativo, atuamos como controlador, nos termos da Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD).'] },
-  { title: '2. Dados que coletamos', body: ['Dados de conta: nome da empresa, e-mail e senha (armazenada de forma criptografada pelo provedor de autenticação).', 'Dados de uso do serviço: informações que sua equipe cadastra, como contatos, conversas, oportunidades e agenda. Nesse caso, a sua empresa é a controladora desses dados e nós atuamos como operadores.', 'Dados de indicação: código do afiliado usado no cadastro, empresa indicada e dados de pagamentos da assinatura, para atribuir a indicação e calcular comissões.', 'Dados técnicos: endereço IP, tipo de navegador e registros de acesso, necessários à segurança.', 'Cookies e armazenamento local, conforme a seção 5.'] },
-  { title: '3. Para que usamos os dados', body: ['Criar e manter sua conta; prestar o serviço contratado; garantir segurança e prevenir fraudes; cumprir obrigações legais; e, com seu consentimento, medir o uso do site e comunicar novidades.', 'Quando a conta é criada por link de afiliado, registramos a indicação. O afiliado habilitado pode ver o nome da empresa indicada, o plano, o status da assinatura e totais de pagamentos e comissões, sem acesso ao e-mail do responsável.'] },
+  { title: '2. Dados que coletamos', body: ['Dados de conta: nome da empresa, e-mail e senha (armazenada de forma criptografada pelo provedor de autenticação).', 'Dados de uso do serviço: informações que sua equipe cadastra, como contatos, conversas, oportunidades e agenda. Nesse caso, a sua empresa é a controladora desses dados e nós atuamos como operadores.', 'Dados técnicos: endereço IP, tipo de navegador e registros de acesso, necessários à segurança.', 'Cookies e armazenamento local, conforme a seção 5.'] },
+  { title: '3. Para que usamos os dados', body: ['Criar e manter sua conta; prestar o serviço contratado; garantir segurança e prevenir fraudes; cumprir obrigações legais; e, com seu consentimento, medir o uso do site e comunicar novidades.'] },
   { title: '4. Bases legais', body: ['Execução de contrato, cumprimento de obrigação legal, legítimo interesse (segurança) e consentimento (cookies de análise e marketing), conforme o art. 7º da LGPD.'] },
   { title: '5. Cookies', body: ['Necessários: mantêm login, segurança e preferências (tema, densidade). Não dependem de consentimento.', 'Análise e marketing: só são ativados se você aceitar no banner. Você pode alterar a escolha a qualquer momento.'] },
   { title: '6. Compartilhamento', body: ['Compartilhamos dados apenas com provedores necessários à operação (hospedagem, banco de dados e autenticação), sob contrato e com medidas de segurança. Não vendemos dados pessoais.'] },
@@ -36,7 +37,8 @@ export function LegalPage({ kind }: { kind: 'privacidade' | 'termos' }) {
   const contact = usePublicSettings().support_email || 'o e-mail de suporte informado no site'
   const isPrivacy = kind === 'privacidade'
   const sections = (isPrivacy ? privacy : terms).map((s) => ({ ...s, body: s.body.map((p) => p.replace('{{CONTATO}}', contact)) }))
-  useSeo({ title: isPrivacy ? 'Política de Privacidade — IC Chat' : 'Termos de Uso — IC Chat', path: '/' + kind })
+  const seo = pageByPath('/' + kind)!
+  useSeo({ title: seo.title, description: seo.description, path: seo.path })
   return (
     <main className="fixed inset-0 overflow-y-auto bg-[#fbfcff] px-5 py-8 text-slate-800 sm:px-8" style={{ colorScheme: 'light' }}>
       <div className="mx-auto max-w-3xl">

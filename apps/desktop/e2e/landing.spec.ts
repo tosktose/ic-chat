@@ -10,7 +10,7 @@ test.describe('Landing page', () => {
     await expect(logo).toBeVisible()
     // Regressão: a logo ficava branca/ilegível. Tem que ser a imagem real, carregada.
     expect(await logo.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(100)
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('A venda não se perde')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('não perca nenhuma venda')
     errs.expectNone()
   })
 

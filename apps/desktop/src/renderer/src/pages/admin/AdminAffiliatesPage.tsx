@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, Copy, HandCoins, Link2, Pause, Play, RefreshCw, Users } from 'lucide-react'
+import { Check, Copy, HandCoins, Link2, Pause, Play, RefreshCw, Trash2, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge, Card } from '@/components/ui/misc'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Page } from '@/components/layout/Page'
 import { StatCard, StatGrid } from '@/components/ui/stats'
-import { adminError, listAffiliateReferrals, listAffiliateSummaries, markAffiliateCommissionsPaid, setAffiliate, type AffiliateReferral, type AffiliateSummary } from '@/lib/admin-api'
+import { adminError, deleteAffiliate, listAffiliateReferrals, listAffiliateSummaries, markAffiliateCommissionsPaid, setAffiliate, type AffiliateReferral, type AffiliateSummary } from '@/lib/admin-api'
 import { brl } from '@/lib/utils'
 import { getSiteUrl } from '@/lib/site-url'
 
@@ -93,6 +93,18 @@ export function AdminAffiliatesPage() {
     } finally { setBusy(false) }
   }
 
+  const removeAffiliate = async (affiliate: AffiliateSummary) => {
+    if (!window.confirm(`Excluir o vínculo de afiliado de ${affiliate.display_name || affiliate.email}? O link será desativado; indicações e comissões existentes serão preservadas no histórico.`)) return
+    setBusy(true)
+    try {
+      await deleteAffiliate(affiliate.user_id)
+      toast.success('Cadastro de afiliado excluído', { description: 'O histórico financeiro foi preservado.' })
+      await load()
+    } catch (cause) {
+      toast.error('Não foi possível excluir o afiliado', { description: adminError(cause) })
+    } finally { setBusy(false) }
+  }
+
   const toggleSelected = (id: string) => setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
 
   return (
@@ -124,7 +136,7 @@ export function AdminAffiliatesPage() {
                   <td className="px-3 py-3 text-right tabular-nums">{affiliate.referrals}</td>
                   <td className="px-3 py-3 text-right tabular-nums">{affiliate.active_subscriptions}</td>
                   <td className="px-3 py-3"><div className="flex items-center gap-2"><Input aria-label={`Percentual de comissão de ${affiliate.email}`} type="number" min="0" max="100" step="0.5" className="w-24" value={rates[affiliate.user_id] ?? ''} onChange={(event) => setRates((current) => ({ ...current, [affiliate.user_id]: event.target.value }))} /><span className="text-muted">%</span><Button size="sm" variant="outline" disabled={busy || Number(rates[affiliate.user_id]) === affiliate.commission_rate} onClick={() => void saveRate(affiliate)}>Salvar</Button></div></td>
-                  <td className="px-5 py-3 text-right"><Button variant={affiliate.active ? 'outline' : 'soft'} size="sm" disabled={busy} onClick={() => void toggleAffiliate(affiliate)}>{affiliate.active ? <><Pause /> Pausar</> : <><Play /> Reativar</>}</Button></td>
+                  <td className="px-5 py-3 text-right"><div className="flex justify-end gap-2"><Button variant={affiliate.active ? 'outline' : 'soft'} size="sm" disabled={busy} onClick={() => void toggleAffiliate(affiliate)}>{affiliate.active ? <><Pause /> Pausar</> : <><Play /> Reativar</>}</Button><Button variant="outline" size="sm" disabled={busy} aria-label={`Excluir afiliado ${affiliate.email}`} onClick={() => void removeAffiliate(affiliate)}><Trash2 /> Excluir</Button></div></td>
                 </tr>)}
               </tbody>
             </table>

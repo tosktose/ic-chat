@@ -3,7 +3,7 @@ import { iso, mockBackend } from './backend'
 
 const contacts = [{ id: 'c-1', tenant_id: 't-1', name: 'Cliente Alfa', phone: '11999990001', tags: [], visits: 2, spent: 240, created_at: iso(5000), extra: {} }]
 const conversations = [{ id: 'v-1', tenant_id: 't-1', contact_id: 'c-1', channel: 'whatsapp', status: 'nova', unread: 1, last_message: 'Oi', last_time: '09:10', ai_enabled: false, tags: [], created_at: iso(30), updated_at: iso(30), extra: {} }]
-const ROUTES = ['/dashboard', '/inbox', '/agenda', '/kanban', '/funil', '/contatos', '/relatorios', '/captacao', '/ia', '/canais', '/equipe', '/config', '/perfil', '/assinar']
+const ROUTES = ['/dashboard', '/inbox', '/agenda', '/kanban', '/funil', '/contatos', '/relatorios', '/captacao', '/ia', '/canais', '/equipe', '/config', '/perfil', '/assinar', '/chatbot-whatsapp-ia', '/crm-whatsapp', '/automatizar-atendimento']
 
 // Nenhuma tela pode "estourar" para os lados: a área principal não pode rolar na horizontal
 // (isso corta título, empurra botões para fora e deixa a tela torta).

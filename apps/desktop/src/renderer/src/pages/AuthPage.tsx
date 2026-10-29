@@ -7,6 +7,7 @@ import { Field, Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth'
 import { toast } from 'sonner'
 import { useSeo } from '@/lib/seo'
+import { pageByPath } from '@/seo/pages'
 
 export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const { configured, session, signIn, signUp, signInWithGoogle, signOut } = useAuth()
@@ -17,7 +18,8 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const [company, setCompany] = useState('')
   const [confirmation, setConfirmation] = useState(false)
   const signup = mode === 'signup'
-  useSeo({ title: signup ? 'Teste grátis por 7 dias — IC Chat' : 'Entrar — IC Chat', description: signup ? 'Crie sua conta e teste o IC Chat por 7 dias, sem cartão de crédito.' : undefined, path: signup ? '/cadastro' : '/login', noindex: !signup })
+  const seo = pageByPath(signup ? '/cadastro' : '/login')!
+  useSeo({ title: seo.title, description: seo.description, path: seo.path, noindex: !seo.index })
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -46,7 +48,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const google = async () => {
     setLoading(true)
     try {
-      const error = await signInWithGoogle(signup)
+      const error = await signInWithGoogle()
       if (error) throw error
     } catch (error) {
       toast.error('Não foi possível entrar com Google', { description: error instanceof Error ? error.message : 'Confira a configuração do provedor.' })
