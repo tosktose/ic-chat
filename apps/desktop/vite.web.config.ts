@@ -6,6 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   root: resolve(__dirname, 'src/renderer'),
+  envDir: resolve(__dirname),
   resolve: { alias: { '@': resolve(__dirname, 'src/renderer/src') } },
   plugins: [react(), tailwindcss()],
   server: { port: 5173, strictPort: true },

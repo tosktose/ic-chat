@@ -4,6 +4,7 @@
 // tem tenant_id e referencia um contato.
 
 export type EtapaFunil = 'novo' | 'qualificando' | 'proposta' | 'negociacao' | 'ganho' | 'perdido'
+export type OrigemNegocio = 'WhatsApp' | 'Instagram' | 'Indicação' | 'Site' | 'Desconhecida'
 
 export interface Negocio {
   id: string
@@ -17,7 +18,8 @@ export interface Negocio {
   /** Dias parados nesta etapa — vira alerta quando passa do limite. */
   diasNaEtapa: number
   proximaAcao?: string
-  origem: 'WhatsApp' | 'Instagram' | 'Indicação' | 'Site'
+  origem: OrigemNegocio
+  campanha?: string
   motivoPerda?: string
 }
 

@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react'
-import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router'
+import { BrowserRouter, HashRouter, Navigate, Route, Routes, useLocation } from 'react-router'
 import { Tooltip } from 'radix-ui'
 import { Toaster } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
@@ -16,6 +16,12 @@ import { AiProvider } from '@/lib/ai'
 import { ThemeProvider, useTheme } from '@/lib/theme'
 import { LoginPage } from '@/pages/LoginPage'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { AuthProvider, useAuth } from '@/lib/auth'
+import { isWebApp } from '@/lib/supabase'
+import { AuthPage } from '@/pages/AuthPage'
+import { LandingPage } from '@/pages/LandingPage'
+
+const Router = isWebApp ? BrowserRouter : HashRouter
 
 const AdminPage = lazy(() => import('@/pages/admin/AdminPage').then((m) => ({ default: m.AdminPage })))
 const AdminCreditsPage = lazy(() => import('@/pages/admin/AdminCreditsPage').then((m) => ({ default: m.AdminCreditsPage })))
@@ -46,6 +52,9 @@ function ThemedToaster() {
 function Guard({ children }: { children: ReactNode }) {
   const { role } = useAppState()
   const { pathname } = useLocation()
+  const { session, loading } = useAuth()
+  if (isWebApp && loading) return <PageLoading />
+  if (isWebApp && !session) return <Navigate to="/login" replace state={{ from: pathname }} />
   if (!canAccess(role, pathname)) return <Navigate to={homeByRole[role]} replace />
   // Telas carregadas sob demanda (o app abre mais rápido)
   return (
@@ -65,6 +74,11 @@ function PageLoading() {
 
 function Home() {
   const { role } = useAppState()
+  const { session, loading } = useAuth()
+  if (isWebApp) {
+    if (loading) return <PageLoading />
+    return <Navigate to={session ? homeByRole[role] : '/'} replace />
+  }
   // Ao abrir o app: entra direto só se a pessoa marcou "Manter conectado"
   let keep = false
   try {
@@ -77,6 +91,7 @@ function Home() {
 
 export function App() {
   return (
+    <AuthProvider>
     <ErrorBoundary full>
     <ThemeProvider>
       <AppStateProvider>
@@ -85,13 +100,15 @@ export function App() {
       <GoogleProvider>
       <SaasProvider>
         <Tooltip.Provider>
-          <HashRouter>
+          <Router>
             <NotificationsProvider>
             <TagsProvider>
             <WhatsAppProvider>
             <AiProvider>
             <Routes>
-              <Route path="/login" element={<LoginPage />} />
+              <Route path="/" element={isWebApp ? <LandingPage /> : <Home />} />
+              <Route path="/login" element={isWebApp ? <AuthPage mode="login" /> : <LoginPage />} />
+              <Route path="/cadastro" element={isWebApp ? <AuthPage mode="signup" /> : <LoginPage />} />
               <Route element={<AppShell />}>
                 {/* Gerente */}
                 <Route path="/dashboard" element={<Guard><DashboardPage /></Guard>} />
@@ -119,14 +136,13 @@ export function App() {
                 <Route path="/admin/planos" element={<Guard><AdminPlansPage /></Guard>} />
                 <Route path="/admin/sistema" element={<Guard><AdminSystemPage /></Guard>} />
               </Route>
-              <Route path="/" element={<Home />} />
-              <Route path="*" element={<Navigate to="/login" replace />} />
+              <Route path="*" element={<Navigate to={isWebApp ? '/' : '/login'} replace />} />
             </Routes>
             </AiProvider>
             </WhatsAppProvider>
             </TagsProvider>
             </NotificationsProvider>
-          </HashRouter>
+          </Router>
           <ThemedToaster />
         </Tooltip.Provider>
       </SaasProvider>
@@ -136,5 +152,6 @@ export function App() {
       </AppStateProvider>
     </ThemeProvider>
     </ErrorBoundary>
+    </AuthProvider>
   )
 }

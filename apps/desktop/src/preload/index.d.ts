@@ -47,9 +47,9 @@ declare global {
       saveFile: (content: string, fileName: string, filters: { name: string; extensions: string[] }[]) => Promise<FileResult>
       exportPdf: (html: string, fileName: string) => Promise<FileResult>
       db: {
-        load: () => Promise<Result<{ contacts: unknown[]; conversations: unknown[]; appointments: unknown[]; kv: Record<string, unknown> }>>
-        upsert: (kind: 'contact' | 'conversation' | 'message' | 'appointment' | 'kv', id: string, data: unknown, parent?: string) => Promise<Result<void>>
-        remove: (kind: 'contact' | 'conversation' | 'message' | 'appointment' | 'kv', id: string) => Promise<Result<void>>
+        load: () => Promise<Result<{ contacts: unknown[]; conversations: unknown[]; appointments: unknown[]; deals: unknown[]; kv: Record<string, unknown> }>>
+        upsert: (kind: 'contact' | 'conversation' | 'message' | 'appointment' | 'deal' | 'kv', id: string, data: unknown, parent?: string) => Promise<Result<void>>
+        remove: (kind: 'contact' | 'conversation' | 'message' | 'appointment' | 'deal' | 'kv', id: string) => Promise<Result<void>>
         clear: () => Promise<Result<void>>
       }
       media: {

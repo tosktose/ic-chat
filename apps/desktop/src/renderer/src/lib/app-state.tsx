@@ -1,5 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { appointments as seedAppointments, sessionUsers, type Appointment, type Role, type User } from '@/data/mock'
+import { useAuth } from '@/lib/auth'
+import { isWebApp, supabase } from '@/lib/supabase'
 
 /** Estados da licença (seção 5.8 do documento do projeto) */
 export type LicenseState = 'ativa' | 'teste' | 'vencendo' | 'carencia' | 'restrito'
@@ -78,6 +80,8 @@ export interface ProfileOverride {
 const Ctx = createContext<AppState | null>(null)
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
+  const { session } = useAuth()
+  const tenantIdRef = useRef<string | undefined>(undefined)
   const [license, setLicense] = useState<LicenseInfo>({
     state: 'teste',
     plan: 'Pro',
@@ -105,12 +109,42 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [commandOpen, setCommandOpen] = useState(false)
   // App instalado: agendamentos vêm do banco local; navegador: exemplos
   const appMode = Boolean(window.icchat?.db)
-  const [appointments, setAppointments] = useState<Appointment[]>(appMode ? [] : seedAppointments)
+  const [appointments, setAppointments] = useState<Appointment[]>(appMode || isWebApp ? [] : seedAppointments)
   useEffect(() => {
-    if (!appMode) return
-    void window.icchat!.db.load().then((r) => r.ok && setAppointments(r.data.appointments as Appointment[]))
-  }, [appMode])
-  const saveAppt = (a: Appointment) => void window.icchat?.db.upsert('appointment', a.id, a)
+    let active = true
+    if (appMode) {
+      void window.icchat!.db.load().then((r) => r.ok && active && setAppointments(r.data.appointments as Appointment[]))
+    } else if (isWebApp && session && supabase) {
+      void (async () => {
+        const { data, error } = await supabase.schema('ic_chat').from('appointments').select('*').order('starts_at')
+        if (error) throw error
+        if (!active) return
+        setAppointments((data ?? []).map((row) => {
+          const start = new Date(row.starts_at)
+          const end = new Date(row.ends_at)
+          return { ...(row.extra ?? {}), id: String(row.id), contactId: String(row.contact_id ?? ''), professionalId: String(row.professional_id ?? ''), service: row.service_name ?? '', start: start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), end: end.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), date: start.toISOString().slice(0, 10), status: row.status, origin: row.origin, price: Number(row.amount ?? 0) } as Appointment
+        }))
+      })().catch((error: unknown) => console.error('IC Chat appointments:', error))
+    } else if (isWebApp) setAppointments([])
+    return () => { active = false }
+  }, [appMode, session?.user.id])
+  const saveAppt = (a: Appointment) => {
+    if (appMode) { void window.icchat?.db.upsert('appointment', a.id, a); return }
+    if (!isWebApp || !session || !supabase) return
+    void (async () => {
+      if (!tenantIdRef.current) {
+        const { data, error } = await supabase.schema('ic_chat').from('tenant_members').select('tenant_id').eq('user_id', session.user.id).maybeSingle()
+        if (error) throw error
+        tenantIdRef.current = data?.tenant_id
+      }
+      if (!tenantIdRef.current) throw new Error('Empresa não encontrada para esta conta.')
+      const date = a.date ?? new Date().toISOString().slice(0, 10)
+      const startsAt = new Date(`${date}T${a.start}:00`).toISOString()
+      const endsAt = new Date(`${date}T${a.end}:00`).toISOString()
+      const { error } = await supabase.schema('ic_chat').from('appointments').upsert({ id: a.id, tenant_id: tenantIdRef.current, contact_id: a.contactId || null, professional_id: null, service_name: a.service, starts_at: startsAt, ends_at: endsAt, status: a.status, origin: a.origin, amount: a.price, extra: { ...a, professionalId: a.professionalId } }, { onConflict: 'id' })
+      if (error) throw error
+    })().catch((error: unknown) => console.error('IC Chat appointments:', error))
+  }
   const activeAppointments = useMemo(() => appointments.filter((a) => a.status !== 'cancelado'), [appointments])
   const [signature, setSignature] = useState(true)
   const [photos, setPhotos] = useState<Record<string, string | undefined>>({})
@@ -138,6 +172,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }
   const [apptDialog, setApptDialog] = useState<{ open: boolean; contactId?: string }>({ open: false })
   const [role, setRole] = useState<Role>(() => {
+    if (isWebApp) return 'gerente'
     try {
       const r = localStorage.getItem('icchat.role') as Role | null
       return r && r in sessionUsers ? r : 'gerente'
@@ -150,7 +185,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider
       value={{
         role,
-        me: resolveUser(sessionUsers[role]),
+        me: isWebApp && session?.user ? {
+          id: session.user.id,
+          name: String(session.user.user_metadata?.full_name ?? session.user.user_metadata?.name ?? session.user.email ?? 'Minha conta'),
+          role: 'gerente', presence: 'online', activeChats: 0
+        } : resolveUser(sessionUsers[role]),
         myPresence,
         setMyPresence: (p) => {
           setPresenceState(p)
@@ -160,8 +199,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             /* ignore */
           }
         },
-        myDisplayName:
-          profiles[sessionUsers[role].id]?.displayName || resolveUser(sessionUsers[role]).name.split(' ')[0],
+        myDisplayName: isWebApp && session?.user
+          ? String(session.user.user_metadata?.full_name ?? session.user.user_metadata?.name ?? session.user.email ?? 'Você').split(' ')[0]
+          : profiles[sessionUsers[role].id]?.displayName || resolveUser(sessionUsers[role]).name.split(' ')[0],
         myPhone: profiles[sessionUsers[role].id]?.phone,
         resolveUser,
         updateMyProfile: (p) => {

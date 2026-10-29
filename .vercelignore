@@ -1,0 +1,8 @@
+node_modules
+**/node_modules
+apps/desktop/release
+apps/desktop/out
+tmp
+.git
+.env
+**/.env

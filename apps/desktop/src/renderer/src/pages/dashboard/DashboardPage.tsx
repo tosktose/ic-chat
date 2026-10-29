@@ -22,7 +22,7 @@ export function DashboardPage() {
   const [period, setPeriod] = useState<Period>('semana')
   const navigate = useNavigate()
   const { appts, chats } = useRecords()
-  const { conversations } = useData()
+  const { conversations, deals } = useData()
 
   // Indicadores do período e comparação com o período anterior de mesmo tamanho
   const d = useMemo(() => {
@@ -118,6 +118,28 @@ export function DashboardPage() {
           tip="Faltas sobre os horários que já passaram."
         />
       </div>
+
+      <Card className="mt-4">
+        <CardHeader
+          title="Pipeline comercial e origem dos leads"
+          description="Negócios cadastrados no funil. A origem desconhecida fica visível para orientar a coleta de dados."
+          action={<Button variant="outline" size="sm" onClick={() => navigate('/funil')}>Abrir funil</Button>}
+        />
+        <div className="grid gap-4 px-5 pb-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-xl bg-primary-soft/50 p-4">
+            <p className="text-xs font-medium text-muted">Valor em aberto</p>
+            <p className="mt-1 text-xl font-bold tabular-nums">{brl.format(deals.filter((deal) => deal.etapa !== 'ganho' && deal.etapa !== 'perdido').reduce((sum, deal) => sum + deal.valor, 0))}</p>
+            <p className="mt-1 text-xs text-muted">{deals.filter((deal) => deal.etapa !== 'ganho' && deal.etapa !== 'perdido').length} oportunidades ativas</p>
+          </div>
+          {(['WhatsApp', 'Instagram', 'Indicação', 'Site', 'Desconhecida'] as const).map((origin) => {
+            const count = deals.filter((deal) => deal.origem === origin).length
+            return <div key={origin} className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
+              <span className="text-sm">{origin === 'Desconhecida' ? 'Origem desconhecida' : origin}</span>
+              <span className="text-lg font-semibold tabular-nums">{count}</span>
+            </div>
+          })}
+        </div>
+      </Card>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-3">
         {/* Conversas por dia */}

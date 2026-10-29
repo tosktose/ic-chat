@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { isWebApp } from '@/lib/supabase'
 import {
   company as seedCompany,
   professionals as seedProfessionals,
@@ -121,7 +122,15 @@ const SEED: Store = {
 
 const KEY = 'icchat.company.v1'
 
+const EMPTY_STORE: Store = {
+  info: { name: '', segment: 'outro', document: '', phone: '', email: '', address: '', instagram: '', hours: Array.from({ length: 7 }, () => ({ open: false, start: '09:00', end: '18:00' })) },
+  professionals: [],
+  services: [],
+  quickReplies: []
+}
+
 function load(): Store {
+  if (isWebApp) return EMPTY_STORE
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return SEED

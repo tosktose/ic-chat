@@ -9,8 +9,8 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
-export type Kind = 'contact' | 'conversation' | 'message' | 'appointment' | 'kv'
-const KINDS: Kind[] = ['contact', 'conversation', 'message', 'appointment', 'kv']
+export type Kind = 'contact' | 'conversation' | 'message' | 'appointment' | 'deal' | 'kv'
+const KINDS: Kind[] = ['contact', 'conversation', 'message', 'appointment', 'deal', 'kv']
 
 let db: DatabaseSync | null = null
 
@@ -77,6 +77,7 @@ export function loadAll() {
     contacts: rows('contact').reverse(),
     conversations: conversations.map((c) => ({ ...c, messages: byConv.get(c.id) ?? [] })).reverse(),
     appointments: rows('appointment'),
+    deals: rows('deal'),
     kv: Object.fromEntries((rows('kv') as { key: string; value: unknown }[]).map((r) => [r.key, r.value]))
   }
 }

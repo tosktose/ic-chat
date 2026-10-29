@@ -8,21 +8,27 @@ import {
   type Conversation,
   type Message
 } from '@/data/mock'
+import { negocios as demoDeals, type Negocio } from '@/data/funil'
+import { useAuth } from '@/lib/auth'
+import { isWebApp, supabase } from '@/lib/supabase'
 
 /**
  * Contatos, conversas e mensagens.
  * - No app instalado: salvos no banco SQLite local (começa limpo, sem dados de exemplo).
- * - No navegador: dados de demonstração em memória.
+ * - No navegador: registros remotos no Supabase, isolados por empresa (tenant).
  * Alterações aparecem em todas as telas: atendimento, contatos, kanban, agenda.
  */
 export const APP_MODE = typeof window !== 'undefined' && Boolean(window.icchat?.db)
+export const REMOTE_MODE = isWebApp && Boolean(supabase)
 
 // Cópia dos exemplos (para "Carregar dados de exemplo" no app instalado)
 const DEMO_CONTACTS: Contact[] = structuredClone(contactList)
 const DEMO_CONVERSATIONS: Conversation[] = structuredClone(conversationList)
+const DEMO_DEALS: Negocio[] = structuredClone(demoDeals)
+const dealList: Negocio[] = []
 
 // No app instalado a lista começa vazia e é preenchida pelo banco
-if (APP_MODE) {
+if (typeof window !== 'undefined') {
   contactList.splice(0)
   conversationList.splice(0)
 }
@@ -33,6 +39,9 @@ interface Ctx {
   ready: boolean
   contacts: Contact[]
   conversations: Conversation[]
+  deals: Negocio[]
+  addDeal: (deal: Omit<Negocio, 'id' | 'diasNaEtapa'>) => Negocio
+  updateDeal: (id: string, patch: Partial<Negocio>) => void
   contactById: (id: string) => Contact
   addContact: (c: Omit<Contact, 'id' | 'since' | 'visits' | 'spent'> & Partial<Pick<Contact, 'visits' | 'spent'>>) => Contact
   updateContact: (id: string, patch: Partial<Contact>) => void
@@ -60,6 +69,31 @@ const sinceLabel = () => new Date().toLocaleDateString('pt-BR', { month: 'short'
 
 function normalizeContact(c: Partial<Contact>): Contact {
   return { since: '', visits: 0, spent: 0, ...c, id: String(c.id), name: c.name || 'Contato', phone: c.phone ?? '', tags: Array.isArray(c.tags) ? c.tags : [] }
+}
+
+function reportRemoteError(error: { message: string } | null) {
+  if (error) toast.error('Não foi possível salvar no Supabase', { description: error.message })
+}
+
+function saveRemoteContact(c: Contact, tenantId?: string) {
+  if (!supabase || !tenantId) return
+  const { id, name, phone, email, tags, notes, birthday, visits, spent, source, campaign, ...extra } = c
+  void supabase.schema('ic_chat').from('contacts').upsert({ id, tenant_id: tenantId, name, phone, email: email ?? null, tags, notes: notes ?? null, birthday: birthday ?? null, visits, spent, source: source ?? null, campaign: campaign ?? null, extra }, { onConflict: 'id' }).then(({ error }) => reportRemoteError(error))
+}
+
+function saveRemoteDeal(d: Negocio, tenantId?: string) {
+  if (!supabase || !tenantId) return
+  void supabase.schema('ic_chat').from('deals').upsert({ id: d.id, tenant_id: tenantId, contact_id: d.contactId, title: d.titulo, amount: d.valor, stage: d.etapa, probability: d.probabilidade, owner_id: null, days_in_stage: d.diasNaEtapa, next_action: d.proximaAcao ?? null, source: d.origem, campaign: d.campanha ?? null, lost_reason: d.motivoPerda ?? null, closed_at: d.etapa === 'ganho' || d.etapa === 'perdido' ? new Date().toISOString() : null }, { onConflict: 'id' }).then(({ error }) => reportRemoteError(error))
+}
+
+function saveRemoteConversation(c: Conversation, tenantId?: string) {
+  if (!supabase || !tenantId) return
+  void supabase.schema('ic_chat').from('conversations').upsert({ id: c.id, tenant_id: tenantId, contact_id: c.contactId, channel: c.channel, status: c.status, unread: c.unread, last_message: c.lastMessage, last_time: c.lastTime, ai_enabled: c.aiEnabled, tags: c.tags, assigned_to: null, extra: { createdAt: c.createdAt } }, { onConflict: 'id' }).then(({ error }) => reportRemoteError(error))
+}
+
+function saveRemoteMessage(convId: string, m: Message, tenantId?: string) {
+  if (!supabase || !tenantId) return
+  void supabase.schema('ic_chat').from('messages').upsert({ id: m.id, tenant_id: tenantId, conversation_id: convId, sender_type: m.from, kind: m.kind, content: m.text ?? '', status: m.status ?? null, provider_message_id: m.waId ?? null, sent_at: new Date(m.at ?? Date.now()).toISOString(), extra: m }, { onConflict: 'id' }).then(({ error }) => reportRemoteError(error))
 }
 
 const WEEKDAYS_PT = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
@@ -113,29 +147,88 @@ const blobToBase64 = (b: Blob) =>
   })
 
 export function DataProvider({ children }: { children: ReactNode }) {
+  const { session } = useAuth()
   const [version, setVersion] = useState(0)
-  const [ready, setReady] = useState(!APP_MODE)
+  const [ready, setReady] = useState(!APP_MODE && !isWebApp)
+  const [tenantId, setTenantId] = useState<string>()
   const bump = useCallback(() => setVersion((v) => v + 1), [])
 
   // App instalado: carrega o banco ao abrir
   useEffect(() => {
-    if (!APP_MODE) return
-    void db()!.load().then((r) => {
+    let active = true
+    if (APP_MODE) {
+      void db()!.load().then((r) => {
+      if (!active) return
       if (r.ok) {
         const contacts = (r.data.contacts as Partial<Contact>[]).filter((c) => c && c.id).map(normalizeContact)
         const ids = new Set(contacts.map((c) => c.id))
         const convs = (r.data.conversations as Partial<Conversation>[])
           .filter((c) => c && c.id && c.contactId && ids.has(c.contactId))
           .map((c) => ({ ...c, messages: Array.isArray(c.messages) ? c.messages : [], tags: c.tags ?? [], unread: c.unread ?? 0 }) as Conversation)
+        const deals = ((r.data.deals ?? []) as Partial<Negocio>[])
+          .filter((d) => d && d.id && d.contactId)
+          .map((d) => ({ ...d, diasNaEtapa: d.diasNaEtapa ?? 0, probabilidade: d.probabilidade ?? 0, origem: d.origem ?? 'Desconhecida' }) as Negocio)
         contactList.splice(0, contactList.length, ...contacts)
         conversationList.splice(0, conversationList.length, ...convs)
+        dealList.splice(0, dealList.length, ...deals)
       } else {
         toast.error('Não foi possível abrir o banco local', { description: r.error })
       }
       setReady(true)
       bump()
     })
-  }, [bump])
+    } else if (isWebApp) {
+      if (!session || !supabase) {
+        contactList.splice(0); conversationList.splice(0); dealList.splice(0)
+        setTenantId(undefined)
+        setReady(true)
+        bump()
+        return () => { active = false }
+      }
+      setReady(false)
+      void (async () => {
+        const api = supabase.schema('ic_chat')
+        const { error: provisionError } = await api.rpc('ensure_tenant_for_current_user', { requested_company: null })
+        if (provisionError) throw provisionError
+        const { data: member, error: memberError } = await api.from('tenant_members').select('tenant_id').eq('user_id', session.user.id).maybeSingle()
+        if (memberError) throw memberError
+        if (!member?.tenant_id) throw new Error('Esta conta ainda não tem uma empresa IC Chat vinculada.')
+        const id = String(member.tenant_id)
+        const [contacts, conversations, messages, deals] = await Promise.all([
+          api.from('contacts').select('*').order('created_at'),
+          api.from('conversations').select('*').order('updated_at', { ascending: false }),
+          api.from('messages').select('*').order('sent_at'),
+          api.from('deals').select('*').order('created_at', { ascending: false })
+        ])
+        for (const result of [contacts, conversations, messages, deals]) if (result.error) throw result.error
+        if (!active) return
+        const normalizedContacts = (contacts.data ?? []).map((row) => ({
+          ...((row.extra ?? {}) as object), id: String(row.id), name: String(row.name), phone: String(row.phone ?? ''), email: row.email ?? undefined, tags: row.tags ?? [], notes: row.notes ?? undefined, birthday: row.birthday ?? undefined, visits: row.visits ?? 0, spent: Number(row.spent ?? 0), source: row.source ?? undefined, campaign: row.campaign ?? undefined, since: new Date(row.created_at).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
+        })) as Contact[]
+        const normalizedMessages = new Map<string, Message[]>()
+        for (const row of messages.data ?? []) {
+          const list = normalizedMessages.get(String(row.conversation_id)) ?? []
+          list.push({ ...((row.extra ?? {}) as object), id: String(row.id), from: row.sender_type, kind: row.kind, text: row.content, status: row.status ?? undefined, waId: row.provider_message_id ?? undefined, at: new Date(row.sent_at).getTime(), time: new Date(row.sent_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) } as Message)
+          normalizedMessages.set(String(row.conversation_id), list)
+        }
+        const normalizedConversations = (conversations.data ?? []).map((row) => ({
+          ...((row.extra ?? {}) as object), id: String(row.id), contactId: String(row.contact_id), channel: row.channel, status: row.status, unread: row.unread ?? 0, lastMessage: row.last_message ?? '', lastTime: row.last_time ?? '', aiEnabled: row.ai_enabled ?? false, tags: row.tags ?? [], createdAt: new Date(row.created_at).getTime(), messages: normalizedMessages.get(String(row.id)) ?? []
+        })) as Conversation[]
+        const normalizedDeals = (deals.data ?? []).map((row) => ({ id: String(row.id), contactId: String(row.contact_id), titulo: String(row.title), valor: Number(row.amount), etapa: row.stage, probabilidade: row.probability, donoId: row.owner_id ?? '', diasNaEtapa: row.days_in_stage ?? 0, proximaAcao: row.next_action ?? undefined, origem: row.source ?? 'Desconhecida', campanha: row.campaign ?? undefined, motivoPerda: row.lost_reason ?? undefined })) as Negocio[]
+        contactList.splice(0, contactList.length, ...normalizedContacts)
+        conversationList.splice(0, conversationList.length, ...normalizedConversations)
+        dealList.splice(0, dealList.length, ...normalizedDeals)
+        setTenantId(id)
+        setReady(true)
+        bump()
+      })().catch((error: unknown) => {
+        if (!active) return
+        setReady(true)
+        toast.error('Não foi possível carregar os dados do IC Chat', { description: error instanceof Error ? error.message : 'Verifique a configuração do Supabase.' })
+      })
+    }
+    return () => { active = false }
+  }, [bump, session?.user.id])
 
   const value = useMemo<Ctx>(
     () => ({
@@ -143,12 +236,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ready,
       contacts: contactList,
       conversations: conversationList,
+      deals: dealList,
+      addDeal: (deal) => {
+        const full: Negocio = { ...deal, id: crypto.randomUUID(), diasNaEtapa: 0 }
+        dealList.unshift(full)
+        persist(APP_MODE ? db()?.upsert('deal', full.id, full) : undefined)
+        if (REMOTE_MODE) saveRemoteDeal(full, tenantId)
+        bump()
+        return full
+      },
+      updateDeal: (id, patch) => {
+        const d = dealList.find((x) => x.id === id)
+        if (!d) return
+        Object.assign(d, patch)
+        persist(APP_MODE ? db()?.upsert('deal', d.id, d) : undefined)
+        if (REMOTE_MODE) saveRemoteDeal(d, tenantId)
+        bump()
+      },
       contactById: (id) =>
         contactList.find((c) => c.id === id) ?? { id, name: 'Contato', phone: '', tags: [], since: '', visits: 0, spent: 0 },
       addContact: (c) => {
         const contact: Contact = { id: crypto.randomUUID(), since: sinceLabel(), visits: 0, spent: 0, ...c, tags: c.tags ?? [] }
         contactList.unshift(contact)
-        saveContact(contact)
+        if (APP_MODE) saveContact(contact)
+        if (REMOTE_MODE) saveRemoteContact(contact, tenantId)
         bump()
         return contact
       },
@@ -156,7 +267,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const c = contactList.find((x) => x.id === id)
         if (!c) return
         Object.assign(c, patch)
-        saveContact(c)
+        if (APP_MODE) saveContact(c)
+        if (REMOTE_MODE) saveRemoteContact(c, tenantId)
         bump()
       },
       importContacts: (list) => {
@@ -179,7 +291,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
             spent: 0
           }
           contactList.unshift(c)
-          saveContact(c)
+          if (APP_MODE) saveContact(c)
+          if (REMOTE_MODE) saveRemoteContact(c, tenantId)
           added++
         }
         bump()
@@ -203,7 +316,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           createdAt: Date.now()
         }
         conversationList.unshift(conv)
-        saveConversation(conv)
+        if (APP_MODE) saveConversation(conv)
+        if (REMOTE_MODE) saveRemoteConversation(conv, tenantId)
         bump()
         return conv.id
       },
@@ -211,7 +325,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const c = conversationList.find((x) => x.id === id)
         if (!c) return
         Object.assign(c, patch)
-        saveConversation(c)
+        if (APP_MODE) saveConversation(c)
+        if (REMOTE_MODE) saveRemoteConversation(c, tenantId)
         bump()
       },
       findContactByPhone: (phone) => {
@@ -226,7 +341,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         c.messages = c.messages.map((m) => {
           if (m.id !== msgId) return m
           const next = { ...m, ...patch }
-          saveMessage(convId, next)
+          if (APP_MODE) saveMessage(convId, next)
+          if (REMOTE_MODE) saveRemoteMessage(convId, next, tenantId)
           return next
         })
         bump()
@@ -237,7 +353,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
             c.messages = c.messages.map((m) => {
               if (m.waId !== waId) return m
               const next = { ...m, ...patch }
-              saveMessage(c.id, next)
+              if (APP_MODE) saveMessage(c.id, next)
+              if (REMOTE_MODE) saveRemoteMessage(c.id, next, tenantId)
               return next
             })
             bump()
@@ -260,8 +377,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           conversationList.splice(i, 1)
           conversationList.unshift(c)
         }
-        saveMessage(id, full)
-        saveConversation(c)
+        if (APP_MODE) { saveMessage(id, full); saveConversation(c) }
+        if (REMOTE_MODE) { saveRemoteMessage(id, full, tenantId); saveRemoteConversation(c, tenantId) }
         bump()
         return full.id
       },
@@ -273,6 +390,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return r.data
       },
       loadDemo: async () => {
+        if (isWebApp) return
         for (const c of structuredClone(DEMO_CONTACTS)) {
           if (contactList.some((x) => x.id === c.id)) continue
           contactList.push(c)
@@ -286,16 +404,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
           saveConversation(conv)
           conv.messages.forEach((m) => saveMessage(conv.id, m))
         }
+        for (const deal of structuredClone(DEMO_DEALS)) {
+          if (dealList.some((x) => x.id === deal.id)) continue
+          dealList.push(deal)
+          if (APP_MODE) persist(db()?.upsert('deal', deal.id, deal))
+        }
         bump()
       },
       clearAll: async () => {
-        await db()?.clear()
+        if (APP_MODE) await db()?.clear()
+        if (REMOTE_MODE && tenantId && supabase) {
+          const api = supabase.schema('ic_chat')
+          await api.from('deals').delete().eq('tenant_id', tenantId)
+          await api.from('messages').delete().eq('tenant_id', tenantId)
+          await api.from('conversations').delete().eq('tenant_id', tenantId)
+          await api.from('contacts').delete().eq('tenant_id', tenantId)
+        }
         contactList.splice(0)
         conversationList.splice(0)
+        dealList.splice(0)
         bump()
       }
     }),
-    [version, ready, bump]
+    [version, ready, bump, tenantId]
   )
 
   return <DataCtx.Provider value={value}>{children}</DataCtx.Provider>

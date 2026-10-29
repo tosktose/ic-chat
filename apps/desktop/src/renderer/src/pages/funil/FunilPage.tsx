@@ -16,22 +16,26 @@ import { Button } from '@/components/ui/button'
 import { Avatar, Badge, Segmented } from '@/components/ui/misc'
 import { StatCard, StatGrid } from '@/components/ui/stats'
 import { cn } from '@/lib/utils'
-import { contactById, userById } from '@/data/mock'
+import { userById, users } from '@/data/mock'
+import { useData } from '@/lib/data'
+import { Dialog } from '@/components/ui/overlay'
+import { Field, Input, Select } from '@/components/ui/input'
 import {
   ETAPAS,
   brl,
   estaParado,
-  negocios as demo,
   previsao,
   totalDaEtapa,
   type EtapaFunil,
-  type Negocio
+  type Negocio,
+  type OrigemNegocio
 } from '@/data/funil'
 
 /* ------------------------------------------------------------------ */
 /* Cartão do negócio                                                    */
 /* ------------------------------------------------------------------ */
 function Cartao({ n, arrastando }: { n: Negocio; arrastando?: boolean }) {
+  const { contactById } = useData()
   const contato = contactById(n.contactId)
   const dono = userById(n.donoId)
   const parado = estaParado(n)
@@ -135,9 +139,10 @@ function Coluna({
 /* Página                                                               */
 /* ------------------------------------------------------------------ */
 export function FunilPage() {
-  const [lista, setLista] = useState<Negocio[]>(demo)
+  const { deals: lista, contacts, updateDeal } = useData()
   const [dono, setDono] = useState('todos')
   const [arrastando, setArrastando] = useState<Negocio | null>(null)
+  const [novoAberto, setNovoAberto] = useState(false)
   const sensores = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 160, tolerance: 6 } })
@@ -156,19 +161,13 @@ export function FunilPage() {
     setArrastando(null)
     const destino = e.over?.id as EtapaFunil | undefined
     if (!destino) return
-    setLista((atual) =>
-      atual.map((n) =>
-        n.id === e.active.id
-          ? {
-              ...n,
-              etapa: destino,
-              diasNaEtapa: 0,
-              probabilidade:
-                destino === 'ganho' ? 100 : destino === 'perdido' ? 0 : n.probabilidade
-            }
-          : n
-      )
-    )
+    const moved = lista.find((n) => n.id === e.active.id)
+    if (!moved) return
+    updateDeal(moved.id, {
+      etapa: destino,
+      diasNaEtapa: 0,
+      probabilidade: destino === 'ganho' ? 100 : destino === 'perdido' ? 0 : moved.probabilidade
+    })
   }
 
   return (
@@ -187,7 +186,7 @@ export function FunilPage() {
               { value: 'u3', label: 'Marcos' }
             ]}
           />
-          <Button>
+          <Button onClick={() => setNovoAberto(true)} disabled={!contacts.length}>
             <Plus /> Novo negócio
           </Button>
         </>
@@ -242,6 +241,43 @@ export function FunilPage() {
         </div>
         <DragOverlay>{arrastando && <Cartao n={arrastando} arrastando />}</DragOverlay>
       </DndContext>
+      <NovoNegocioDialog open={novoAberto} onClose={() => setNovoAberto(false)} />
     </Page>
+  )
+}
+
+function NovoNegocioDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { contacts, addDeal } = useData()
+  const [contactId, setContactId] = useState('')
+  const [titulo, setTitulo] = useState('')
+  const [valor, setValor] = useState('')
+  const [origem, setOrigem] = useState<OrigemNegocio>('Desconhecida')
+  const [campanha, setCampanha] = useState('')
+  const [donoId, setDonoId] = useState('u2')
+  const [etapa, setEtapa] = useState<EtapaFunil>('novo')
+  const [proximaAcao, setProximaAcao] = useState('')
+  const amount = Number(valor.replace(',', '.'))
+  const valid = contactId && titulo.trim() && Number.isFinite(amount) && amount > 0
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()} title="Novo negócio" description="Registre a oportunidade e sua origem para acompanhar o funil e a atribuição." footer={<><Button variant="outline" onClick={onClose}>Cancelar</Button><Button disabled={!valid} onClick={() => {
+      addDeal({ contactId, titulo: titulo.trim(), valor: amount, etapa, probabilidade: etapa === 'ganho' ? 100 : etapa === 'perdido' ? 0 : 25, donoId, origem, campanha: campanha.trim() || undefined, proximaAcao: proximaAcao.trim() || undefined })
+      setContactId(''); setTitulo(''); setValor(''); setOrigem('Desconhecida'); setCampanha(''); setProximaAcao(''); setEtapa('novo'); onClose()
+    }}>Salvar negócio</Button></>}>
+      <div className="flex flex-col gap-4">
+        <Field label="Contato"><Select value={contactId} onChange={(e) => setContactId(e.target.value)}><option value="">Selecione um contato</option>{contacts.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.phone || 'sem telefone'}</option>)}</Select></Field>
+        <Field label="Nome da oportunidade"><Input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ex.: Plano mensal de serviços" maxLength={120} /></Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Valor (R$)"><Input type="number" min="0.01" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" /></Field>
+          <Field label="Etapa"><Select value={etapa} onChange={(e) => setEtapa(e.target.value as EtapaFunil)}>{ETAPAS.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}</Select></Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Origem do lead"><Select value={origem} onChange={(e) => setOrigem(e.target.value as OrigemNegocio)}>{(['Desconhecida', 'WhatsApp', 'Instagram', 'Indicação', 'Site'] as OrigemNegocio[]).map((o) => <option key={o}>{o}</option>)}</Select></Field>
+          <Field label="Responsável"><Select value={donoId} onChange={(e) => setDonoId(e.target.value)}>{users.filter((u) => u.role !== 'superadmin').map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</Select></Field>
+        </div>
+        <Field label="Campanha (opcional)" hint="Preencha quando souber qual campanha gerou o contato."><Input value={campanha} onChange={(e) => setCampanha(e.target.value)} placeholder="Ex.: Instagram · Outubro" maxLength={100} /></Field>
+        <Field label="Próxima ação (opcional)"><Input value={proximaAcao} onChange={(e) => setProximaAcao(e.target.value)} placeholder="Ex.: Enviar proposta até sexta" maxLength={160} /></Field>
+        {!contacts.length && <p className="text-sm text-warning">Cadastre um contato antes de criar o negócio.</p>}
+      </div>
+    </Dialog>
   )
 }
