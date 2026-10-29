@@ -17,7 +17,7 @@ Este arquivo é o registro. Detalhes de cada rodada em `REGISTRO.md`. Prints de 
 - [x] 2.4 Inadimplência: suspensa/vencida/assinatura pendente bloqueia o app (confere ao abrir e a cada 12 h)
 - [x] 2.5 App desktop: tela de ativação (`LicenseGate`) + aba Licença sem botões de simulação
 - [x] 2.6 Testes e2e do painel de licenças
-- [ ] 2.7 **Executar a migração no Supabase** e testar a ativação de ponta a ponta com uma chave real
+- [x] 2.7 Migração executada no Supabase (29/10/2026) e validada ao vivo: chave válida, limite de computadores, chave inexistente, suspensa (inadimplente) e tabela fechada para quem não está logado. Licença de teste apagada.
 
 ## Fase 3 — Dados de demonstração fora da versão web 🔄
 - [x] 3.1 Inventário feito (teste `no-mock.spec.ts` varre todas as telas atrás de nomes fictícios)
@@ -34,6 +34,13 @@ Para cada tela: ❶ tem mock? ❷ botões funcionam? ❸ salva e persiste após 
 - [x] Painel · [x] Atendimento · [x] Kanban (arrastar + gravar + recarregar) · [x] Contatos (criar + gravar)
 - [x] Relatórios (Excel/CSV baixa; PDF monta a impressão) · [x] Configurações (salvar + recarregar) · [x] Equipe
 - [ ] Agenda (criar agendamento) · [ ] Funil (criar/arrastar negócio) · [ ] Captação · [ ] Assistente IA · [ ] Canais · [ ] Perfil · [ ] Super Admin (usuários, planos, créditos)
+
+## Fase 5 — Cobrança com Mercado Pago ⏳ (aguardando o aplicativo do Mercado Pago)
+- [ ] 5.1 Tela **Assinar** para o usuário logado (planos Start/Pro/Business, Pix e cartão)
+- [ ] 5.2 Função segura no servidor (Supabase Edge Function) que cria o pagamento/assinatura — o Access Token fica só no servidor
+- [ ] 5.3 Webhook do Mercado Pago (valida a assinatura da notificação) → atualiza a assinatura da empresa e renova a licença
+- [ ] 5.4 Falta de pagamento → assinatura  → app instalado bloqueia na próxima verificação
+- [ ] 5.5 Testes com o ambiente de teste do Mercado Pago
 
 ## Pendências conhecidas (honestas)
 - "Novo analista" na Equipe e "Nova empresa" no Super Admin ficam **desativados** na web: criar usuário de outra pessoa exige uma função segura no servidor (Edge Function). Fica para a próxima rodada.
