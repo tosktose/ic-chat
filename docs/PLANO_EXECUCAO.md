@@ -1,33 +1,41 @@
 # Plano de execução — IC Chat
 
 Regra de trabalho: **uma fase por vez, cada item só vira ✅ depois de testado de verdade** (navegador + `npm run test:e2e`).
-Este arquivo é o registro. Atualize ao terminar cada item.
+Este arquivo é o registro. Detalhes de cada rodada em `REGISTRO.md`. Prints de cada tela em `docs/qa/`.
 
-## Fase 1 — Segurança (front-end e Vercel)
-- [ ] 1.1 Login do Google sem token na URL (trocar fluxo implícito por PKCE)
-- [ ] 1.2 Cabeçalhos de segurança na Vercel (CSP, HSTS, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy)
-- [ ] 1.3 Varredura do bundle: nenhum segredo (service_role, chaves de IA, secrets) no JavaScript publicado
-- [ ] 1.4 Revisão das regras do banco (RLS) — toda tabela com `tenant_id` isolada; nada legível por `anon`
-- [ ] 1.5 Teste e2e que **falha** se um segredo aparecer no bundle ou se os cabeçalhos sumirem
+## Fase 1 — Segurança (front-end e Vercel) ✅
+- [x] 1.1 Login do Google sem token na URL (PKCE)
+- [x] 1.2 Cabeçalhos de segurança na Vercel (CSP, HSTS, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy)
+- [x] 1.3 Varredura do bundle: nenhum segredo no JavaScript publicado (teste automático)
+- [x] 1.4 Revisão das regras do banco (RLS) — lida na migração. ⚠️ falta conferir no banco ao vivo (precisa de login no Supabase)
+- [x] 1.5 Testes que falham se um segredo aparecer ou os cabeçalhos sumirem
 
-## Fase 2 — Chaves de licença (instalador)
-- [ ] 2.1 Banco: tabela de licenças (só o *hash* da chave é gravado), vínculo com a empresa, status, validade
-- [ ] 2.2 Banco: função `validar_licenca(chave)` chamada pelo app instalado (sem expor a tabela)
-- [ ] 2.3 Super Admin: botão **Gerar chave** (mostra a chave uma única vez), Revogar, Reativar
-- [ ] 2.4 Inadimplência: licença `suspensa`/vencida bloqueia o app na próxima validação
-- [ ] 2.5 App desktop: tela de ativação usa a função do banco
-- [ ] 2.6 Testes e2e do fluxo
+## Fase 2 — Chaves de licença (instalador) ✅ código · ⏳ banco
+- [x] 2.1 Tabelas de licença (só o hash da chave) — `20261029_000002_licenses.sql`
+- [x] 2.2 Função `validate_license` chamada pelo app instalado
+- [x] 2.3 Super Admin: **Gerar chave** (aparece uma vez), renovar +30 dias, suspender/reativar, revogar
+- [x] 2.4 Inadimplência: suspensa/vencida/assinatura pendente bloqueia o app (confere ao abrir e a cada 12 h)
+- [x] 2.5 App desktop: tela de ativação (`LicenseGate`) + aba Licença sem botões de simulação
+- [x] 2.6 Testes e2e do painel de licenças
+- [ ] 2.7 **Executar a migração no Supabase** e testar a ativação de ponta a ponta com uma chave real
 
-## Fase 3 — Dados de demonstração (mock) fora da versão web
-- [ ] 3.1 Inventário de tudo que é mock (equipe, automações, horários, conversas, kanban, agenda, contatos, relatórios)
-- [ ] 3.2 Versão web começa **vazia** e lê só do Supabase da empresa logada
-- [ ] 3.3 Telas vazias com orientação ("Cadastre seu primeiro contato")
+## Fase 3 — Dados de demonstração fora da versão web 🔄
+- [x] 3.1 Inventário feito (teste `no-mock.spec.ts` varre todas as telas atrás de nomes fictícios)
+- [x] 3.2 Equipe e Painel: usam os membros reais (`tenant_members`)
+- [x] 3.3 Super Admin: empresas vêm do banco (sem Studio Bella etc.)
+- [x] 3.4 Notificações inventadas ("Nova conversa no WhatsApp", "IA transferiu…") removidas da web
+- [x] 3.5 Kanban: "Atividade da IA" e contadores sem exemplos; etapa do cartão passa a ser gravada
+- [x] 3.6 Configurações da empresa (dados, profissionais, serviços, respostas rápidas) gravadas no banco, não só no navegador
+- [x] 3.7 Plano/dias de teste vêm da assinatura real
+- [ ] 3.8 Telas ainda por revisar linha a linha: Captação, Assistente IA, Canais, Créditos de IA (Super Admin), Usuários/Planos (Super Admin)
 
-## Fase 4 — Teste página por página (devagar, com registro)
-Para cada tela: ❶ tem mock? ❷ cada botão funciona? ❸ salva e persiste após recarregar? ❹ layout ok (desktop e celular)?
-- [ ] Painel · [ ] Atendimento (inbox) · [ ] Agenda · [ ] Kanban (arrastar + automático) · [ ] Funil
-- [ ] Contatos · [ ] Relatórios (exportar **Excel e PDF**, conferir layout) · [ ] Captação · [ ] Assistente IA
-- [ ] Canais · [ ] Equipe · [ ] Configurações · [ ] Perfil · [ ] Super Admin
+## Fase 4 — Teste página por página 🔄
+Para cada tela: ❶ tem mock? ❷ botões funcionam? ❸ salva e persiste após recarregar? ❹ layout ok?
+- [x] Painel · [x] Atendimento · [x] Kanban (arrastar + gravar + recarregar) · [x] Contatos (criar + gravar)
+- [x] Relatórios (Excel/CSV baixa; PDF monta a impressão) · [x] Configurações (salvar + recarregar) · [x] Equipe
+- [ ] Agenda (criar agendamento) · [ ] Funil (criar/arrastar negócio) · [ ] Captação · [ ] Assistente IA · [ ] Canais · [ ] Perfil · [ ] Super Admin (usuários, planos, créditos)
 
-## Registro
-Cada rodada: data, o que foi feito, o que foi testado, o que ficou pendente — em `docs/REGISTRO.md`.
+## Pendências conhecidas (honestas)
+- "Novo analista" na Equipe e "Nova empresa" no Super Admin ficam **desativados** na web: criar usuário de outra pessoa exige uma função segura no servidor (Edge Function). Fica para a próxima rodada.
+- O botão "Excel" gera **CSV** (abre no Excel). Para `.xlsx` de verdade seria preciso uma biblioteca de planilha.
+- O teste usa um banco simulado em memória; a confirmação final com o Supabase real depende de login no painel do Supabase.

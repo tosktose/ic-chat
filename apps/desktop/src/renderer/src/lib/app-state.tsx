@@ -95,6 +95,24 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       return { ...l, key, plan, state, reason: undefined, checking: false, daysLeft: days, expiresAt: new Date(r.expiresAt).toLocaleDateString('pt-BR'), pcsMax: r.maxDevices ?? null, lastCheck: 'agora' }
     })
   }
+  // Web: o plano vem da assinatura real da empresa no banco (teste de 7 dias, ativa, pendente...)
+  useEffect(() => {
+    if (!isWebApp || !supabase || !session || isSuperAdmin(session)) return
+    let alive = true
+    void supabase.schema('ic_chat').from('subscriptions').select('plan, status, trial_ends_at, current_period_ends_at').maybeSingle().then(({ data }) => {
+      if (!alive || !data) return
+      const end = new Date(data.status === 'trialing' ? data.trial_ends_at : data.current_period_ends_at ?? data.trial_ends_at)
+      const days = Math.ceil((end.getTime() - Date.now()) / 86400000)
+      const state: LicenseState =
+        data.status === 'trialing' ? (days >= 0 ? 'teste' : 'restrito')
+        : data.status === 'active' ? (days < 0 ? 'carencia' : days <= 3 ? 'vencendo' : 'ativa')
+        : 'restrito'
+      const plan = data.plan === 'business' ? 'Business' : data.plan === 'start' ? 'Start' : 'Pro'
+      setLicense((l) => ({ ...l, state, plan, daysLeft: days, expiresAt: end.toLocaleDateString('pt-BR'), lastCheck: 'agora' }))
+    })
+    return () => { alive = false }
+  }, [session])
+
   // Desktop: confere a licença ao abrir e a cada 12 horas (inadimplente é bloqueado na próxima conferência)
   useEffect(() => {
     if (isWebApp) return

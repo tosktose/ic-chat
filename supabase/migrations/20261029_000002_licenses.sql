@@ -179,3 +179,25 @@ grant execute on function ic_chat.extend_license(uuid, int) to authenticated, se
 -- O app instalado valida antes de qualquer login
 grant usage on schema ic_chat to anon;
 grant execute on function ic_chat.validate_license(text, text, text) to anon, authenticated, service_role;
+
+-- A equipe da empresa enxerga os colegas (tela Equipe e Painel). Antes só via a si mesma.
+drop policy if exists tenant_members_same_tenant on ic_chat.tenant_members;
+create policy tenant_members_same_tenant on ic_chat.tenant_members for select to authenticated using (ic_chat.is_tenant_member(tenant_id));
+
+-- Configurações da empresa (dados, profissionais, serviços, respostas rápidas) guardadas no banco,
+-- para valerem em qualquer computador e não só no navegador onde foram digitadas.
+create table if not exists ic_chat.company_settings (
+  tenant_id uuid primary key references ic_chat.tenants(id) on delete cascade,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table ic_chat.company_settings enable row level security;
+drop policy if exists company_settings_select on ic_chat.company_settings;
+create policy company_settings_select on ic_chat.company_settings for select to authenticated using (ic_chat.is_tenant_member(tenant_id));
+drop policy if exists company_settings_insert on ic_chat.company_settings;
+create policy company_settings_insert on ic_chat.company_settings for insert to authenticated with check (ic_chat.is_tenant_member(tenant_id) and ic_chat.has_active_access(tenant_id));
+drop policy if exists company_settings_update on ic_chat.company_settings;
+create policy company_settings_update on ic_chat.company_settings for update to authenticated using (ic_chat.is_tenant_member(tenant_id) and ic_chat.has_active_access(tenant_id)) with check (ic_chat.is_tenant_member(tenant_id) and ic_chat.has_active_access(tenant_id));
+revoke all on ic_chat.company_settings from anon;
+grant select, insert, update on ic_chat.company_settings to authenticated;
+grant all on ic_chat.company_settings to service_role;

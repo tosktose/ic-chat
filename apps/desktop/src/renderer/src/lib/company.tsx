@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { isWebApp } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth'
+import { isWebApp, supabase } from '@/lib/supabase'
 import {
   company as seedCompany,
   professionals as seedProfessionals,
@@ -124,8 +125,11 @@ const SEED: Store = {
 
 const KEY = 'icchat.company.v1'
 
+const defaultHours = (): DayHours[] =>
+  Array.from({ length: 7 }, (_, i) => ({ open: i >= 1 && i <= 5, start: '09:00', end: '18:00', lunchStart: '12:00', lunchEnd: '13:00' }))
+
 const EMPTY_STORE: Store = {
-  info: { name: '', segment: 'outro', document: '', phone: '', email: '', address: '', instagram: '', hours: Array.from({ length: 7 }, () => ({ open: false, start: '09:00', end: '18:00' })) },
+  info: { name: '', segment: 'outro', document: '', phone: '', email: '', address: '', instagram: '', hours: defaultHours() },
   professionals: [],
   services: [],
   quickReplies: []
@@ -199,8 +203,55 @@ export function describeHours(hours: DayHours[]): string {
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const [store, setStore] = useState<Store>(load)
+  const { session } = useAuth()
+  const [tenantId, setTenantId] = useState<string>()
+  const [hydrated, setHydrated] = useState(!isWebApp)
+
+  // Web: traz o nome da empresa e as configurações salvas no banco (valem em qualquer computador)
+  useEffect(() => {
+    if (!isWebApp || !supabase || !session) { setHydrated(!isWebApp); return }
+    let alive = true
+    void (async () => {
+      try {
+        const api = supabase.schema('ic_chat')
+        const { data: member } = await api.from('tenant_members').select('tenant_id, tenants(name)').eq('user_id', session.user.id).maybeSingle()
+        if (!alive || !member) { setHydrated(true); return }
+        const id = String(member.tenant_id)
+        const t = Array.isArray(member.tenants) ? member.tenants[0] : member.tenants
+        const { data: row } = await api.from('company_settings').select('data').eq('tenant_id', id).maybeSingle()
+        if (!alive) return
+        const saved = (row?.data ?? {}) as Partial<Store>
+        setTenantId(id)
+        setStore((cur) => {
+          const info = { ...EMPTY_STORE.info, ...saved.info }
+          return {
+            info: { ...info, name: info.name || t?.name || cur.info.name },
+            professionals: saved.professionals ?? cur.professionals,
+            services: saved.services ?? cur.services,
+            quickReplies: saved.quickReplies ?? cur.quickReplies
+          }
+        })
+      } catch (e) {
+        console.error('IC Chat settings:', e)
+      } finally {
+        if (alive) setHydrated(true)
+      }
+    })()
+    return () => { alive = false }
+  }, [session])
+
+  // Web: grava no banco (espera 800 ms sem novas alterações)
+  useEffect(() => {
+    if (!isWebApp || !supabase || !tenantId || !hydrated) return
+    const t = window.setTimeout(() => {
+      void supabase!.schema('ic_chat').from('company_settings').upsert({ tenant_id: tenantId, data: store, updated_at: new Date().toISOString() }, { onConflict: 'tenant_id' })
+        .then(({ error }) => { if (error) console.error('IC Chat settings:', error.message) })
+    }, 800)
+    return () => clearTimeout(t)
+  }, [store, tenantId, hydrated])
 
   useEffect(() => {
+    if (isWebApp) return
     try {
       localStorage.setItem(KEY, JSON.stringify(store))
     } catch {

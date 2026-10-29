@@ -1,4 +1,7 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { listTenants, type AdminTenant } from '@/lib/admin-api'
+import { isSuperAdmin, useAuth } from '@/lib/auth'
+import { isWebApp, supabase } from '@/lib/supabase'
 import {
   licenseKeys as keyList,
   randomKey,
@@ -74,9 +77,45 @@ interface Ctx {
 
 const SaasCtx = createContext<Ctx | null>(null)
 
+// Na versão web não existe empresa de exemplo: o Super Admin vê só o que está no banco.
+if (isWebApp) {
+  tenantList.splice(0)
+  userList.splice(0)
+  keyList.splice(0)
+}
+
+const statusFromSubscription = (s: AdminTenant['subscription']): { status: TenantStatus; expires: string; days: number; plan: Plan } => {
+  const end = s?.status === 'trialing' ? s.trial_ends_at : s?.current_period_ends_at ?? s?.trial_ends_at
+  const date = end ? new Date(end) : null
+  const days = date ? Math.ceil((date.getTime() - Date.now()) / 86400000) : 0
+  const status: TenantStatus =
+    s?.status === 'trialing' ? (days >= 0 ? 'teste' : 'restrito')
+    : s?.status === 'active' ? (days >= 0 ? (days <= 5 ? 'vencendo' : 'ativa') : 'carencia')
+    : s?.status === 'past_due' ? 'carencia'
+    : 'suspensa'
+  const plan = (s?.plan ? s.plan.charAt(0).toUpperCase() + s.plan.slice(1) : 'Start') as Plan
+  return { status, expires: date ? fmt(date) : '—', days, plan: plan === ('Trial' as Plan) ? 'Start' : plan }
+}
+
 export function SaasProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0)
   const bump = () => setVersion((v) => v + 1)
+  const { session } = useAuth()
+
+  // Super Admin (web): empresas reais do banco
+  useEffect(() => {
+    if (!isWebApp || !supabase || !isSuperAdmin(session)) return
+    let alive = true
+    void listTenants().then((rows) => {
+      if (!alive) return
+      tenantList.splice(0, tenantList.length, ...rows.map((t): Tenant => ({
+        id: t.id, name: t.name, document: '', segment: '—', modality: 'completo', mode: 'Nuvem', pcs: [0, null], mrr: 0, version: '—', online: false, whatsapp: '', email: '',
+        ...statusFromSubscription(t.subscription)
+      })))
+      bump()
+    }).catch(() => { /* migração ainda não executada: a tela de licenças explica */ })
+    return () => { alive = false }
+  }, [session])
 
   const value = useMemo<Ctx>(() => {
     const tenantById = (id: string) => tenantList.find((t) => t.id === id)

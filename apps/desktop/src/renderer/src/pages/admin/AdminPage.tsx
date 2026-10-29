@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { isWebApp } from '@/lib/supabase'
 import {
   Ban,
   Building2,
@@ -61,15 +62,15 @@ export function AdminPage() {
       description="Cada empresa tem seus próprios usuários, WhatsApp e dados, isolados das demais."
       actions={
         <>
-          <Button variant="outline" onClick={() => setNewOpen('teste')}><FlaskConical /> Teste grátis (7 dias)</Button>
-          <Button onClick={() => setNewOpen('cliente')}><Plus /> Nova empresa</Button>
+          <Button variant="outline" disabled={isWebApp} title={isWebApp ? 'As empresas entram sozinhas quando o cliente cria a conta no site' : undefined} onClick={() => setNewOpen('teste')}><FlaskConical /> Teste grátis (7 dias)</Button>
+          <Button disabled={isWebApp} title={isWebApp ? 'As empresas entram sozinhas quando o cliente cria a conta no site' : undefined} onClick={() => setNewOpen('cliente')}><Plus /> Nova empresa</Button>
         </>
       }
     >
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat icon={<Building2 />} label="Empresas" value={String(tenants.length)} sub={`${tenants.filter((t) => t.online).length} online agora`} />
-        <Stat icon={<CircleDollarSign />} label="Receita mensal (MRR)" value={brl.format(mrr)} sub="+ R$ 299 este mês" />
-        <Stat icon={<FlaskConical />} label="Em teste" value={String(tenants.filter((t) => t.status === 'teste').length)} sub="1 termina esta semana" />
+        <Stat icon={<CircleDollarSign />} label="Receita mensal (MRR)" value={brl.format(mrr)} sub={mrr > 0 ? 'mensalidades ativas' : 'sem mensalidades ativas'} />
+        <Stat icon={<FlaskConical />} label="Em teste" value={String(tenants.filter((t) => t.status === 'teste').length)} sub={`${tenants.filter((t) => t.status === 'teste' && t.days <= 7).length} termina(m) em 7 dias`} />
         <Stat icon={<TimerReset />} label="Precisam de atenção" value={String(attention)} sub="vencendo, carência ou restrito" alert />
       </div>
 

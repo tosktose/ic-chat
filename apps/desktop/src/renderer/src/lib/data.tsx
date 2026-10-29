@@ -88,7 +88,7 @@ function saveRemoteDeal(d: Negocio, tenantId?: string) {
 
 function saveRemoteConversation(c: Conversation, tenantId?: string) {
   if (!supabase || !tenantId) return
-  void supabase.schema('ic_chat').from('conversations').upsert({ id: c.id, tenant_id: tenantId, contact_id: c.contactId, channel: c.channel, status: c.status, unread: c.unread, last_message: c.lastMessage, last_time: c.lastTime, ai_enabled: c.aiEnabled, tags: c.tags, assigned_to: null, extra: { createdAt: c.createdAt } }, { onConflict: 'id' }).then(({ error }) => reportRemoteError(error))
+  void supabase.schema('ic_chat').from('conversations').upsert({ id: c.id, tenant_id: tenantId, contact_id: c.contactId, channel: c.channel, status: c.status, unread: c.unread, last_message: c.lastMessage, last_time: c.lastTime, ai_enabled: c.aiEnabled, tags: c.tags, assigned_to: null, extra: { createdAt: c.createdAt, kanbanStage: c.kanbanStage, assignee: c.assignee, queuedAt: c.queuedAt, handoffReason: c.handoffReason, assignedAt: c.assignedAt, waJid: c.waJid } }, { onConflict: 'id' }).then(({ error }) => reportRemoteError(error))
 }
 
 function saveRemoteMessage(convId: string, m: Message, tenantId?: string) {

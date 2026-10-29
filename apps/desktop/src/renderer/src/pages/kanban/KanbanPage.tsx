@@ -21,6 +21,7 @@ import { useTags } from '@/lib/tags'
 import { cn } from '@/lib/utils'
 import { contactById, kanban as demoCards, userById, type Conversation, type ConversationStatus, type KanbanCard, type KanbanStage } from '@/data/mock'
 import { useData } from '@/lib/data'
+import { isWebApp } from '@/lib/supabase'
 
 // Etapa do Kanban a partir do status da conversa (e o caminho inverso ao arrastar)
 const STAGE_OF: Record<ConversationStatus, KanbanStage> = { nova: 'nova', ia: 'ia', aguardando: 'aguardando', humano: 'humano', resolvida: 'concluido' }
@@ -47,7 +48,7 @@ const STAGES: { id: KanbanStage; label: string; icon: typeof Bot; accent: string
   { id: 'concluido', label: 'Concluído', icon: CheckCircle2, accent: 'bg-success' }
 ]
 
-const FEED = [
+const DEMO_FEED_ITEMS = [
   { time: '09:42', text: 'Respondeu Fernanda com o preço da escova', kind: 'reply' },
   { time: '09:41', text: 'Consultou tabela de preços (Escova)', kind: 'tool' },
   { time: '09:35', text: 'Transferiu Maria Silva para Luís (pediu humano)', kind: 'handoff' },
@@ -55,6 +56,9 @@ const FEED = [
   { time: 'ontem', text: 'Criou agendamento: Camila · Hidratação qui 15h', kind: 'booking' },
   { time: 'ontem', text: 'Sincronizou evento no Google Agenda do Diego', kind: 'tool' }
 ]
+
+// Na versão web só entra atividade real da IA (nada de exemplos)
+const FEED: typeof DEMO_FEED_ITEMS = isWebApp ? [] : DEMO_FEED_ITEMS
 
 export function KanbanPage() {
   // Um cartão por conversa (reais no app instalado, exemplos no navegador)
@@ -235,9 +239,9 @@ function AiFeed() {
       </div>
       <div className="grid grid-cols-3 gap-2 border-b border-border p-4 text-center">
         {[
-          ['14', 'conversas hoje'],
-          ['6', 'agendou'],
-          ['2', 'transferiu']
+          [isWebApp ? '0' : '14', 'conversas hoje'],
+          [isWebApp ? '0' : '6', 'agendou'],
+          [isWebApp ? '0' : '2', 'transferiu']
         ].map(([v, l]) => (
           <div key={l} className="rounded-xl bg-surface-2 py-2.5">
             <p className="text-lg font-bold">{v}</p>

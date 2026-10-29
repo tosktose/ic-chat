@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, Card, CardHeader, Progress, Segmented } from '@/components/ui/misc'
 import { useAppState } from '@/lib/app-state'
 import { brl, cn } from '@/lib/utils'
-import { users } from '@/data/mock'
+import { useTeam } from '@/lib/team'
 import { useCompany } from '@/lib/company'
 import { useData } from '@/lib/data'
 import { avgFirstResponse, daysOf, deltaPct, fmtSec, inRange, lastDays, useRecords } from '@/lib/metrics'
@@ -18,6 +18,7 @@ const WD = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
 export function DashboardPage() {
   const { resolveUser } = useAppState()
+  const users = useTeam()
   const { professionals } = useCompany()
   const [period, setPeriod] = useState<Period>('semana')
   const navigate = useNavigate()
