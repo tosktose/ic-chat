@@ -91,7 +91,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (!r.valid) return { ...l, key, state: 'restrito', reason: r.reason, checking: false, lastCheck: 'agora' }
       if (!r.expiresAt) return { ...l, key, checking: false, reason: undefined } // sem rede, dentro da tolerância
       const days = r.daysLeft ?? 0
-      const state: LicenseState = r.kind === 'teste' ? 'teste' : days <= 3 ? 'vencendo' : 'ativa'
+      const state: LicenseState = r.kind === 'teste' ? (days <= 3 ? 'vencendo' : 'teste') : days <= 7 ? 'vencendo' : 'ativa'
       return { ...l, key, plan, state, reason: undefined, checking: false, daysLeft: days, expiresAt: new Date(r.expiresAt).toLocaleDateString('pt-BR'), pcsMax: r.maxDevices ?? null, lastCheck: 'agora' }
     })
   }

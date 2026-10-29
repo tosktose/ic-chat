@@ -14,7 +14,7 @@ import {
 import { Activity, Bot, CalendarCheck, CheckCircle2, Clock, Hand, Hourglass, Inbox, Plus, Sparkles } from 'lucide-react'
 import { ChannelBadge } from '@/components/brand'
 import { Button } from '@/components/ui/button'
-import { Avatar, Segmented } from '@/components/ui/misc'
+import { Avatar, Segmented, Tooltip } from '@/components/ui/misc'
 import { Dialog, Sheet } from '@/components/ui/overlay'
 import { Field, Input, Select } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -238,7 +238,7 @@ function DraggableCard({ card }: { card: KanbanCard }) {
 
 function CardView({ card, dragging }: { card: KanbanCard; dragging?: boolean }) {
   const navigate = useNavigate()
-  const { conversations } = useData()
+  const { conversations, updateConversation } = useData()
   const conv = conversations.find((v) => v.id === card.conversationId)!
   const contact = contactById(conv.contactId)
   const agent = userById(conv.assignee)
@@ -278,15 +278,31 @@ function CardView({ card, dragging }: { card: KanbanCard; dragging?: boolean }) 
             <TagChip key={t.id} tag={t} />
           ))}
         </div>
-        {conv.aiEnabled && !agent ? (
-          <span className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-violet-500/12 px-2 py-0.5 text-[10.5px] font-semibold text-violet-600 dark:text-violet-300">
-            <Bot className="size-3" /> IA
-          </span>
-        ) : agent ? (
-          <Avatar name={agent.name} size={22} />
-        ) : (
-          <span className="text-[10.5px] text-subtle">sem responsável</span>
-        )}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {agent ? (
+            <Avatar name={agent.name} size={22} />
+          ) : !conv.aiEnabled ? (
+            <span className="text-[10.5px] text-subtle">sem responsável</span>
+          ) : null}
+          <Tooltip
+            content={conv.aiEnabled ? 'Pausar a IA neste atendimento' : 'Deixar a IA atender'}
+            description={conv.aiEnabled ? 'A IA para de responder este cliente e a equipe assume. Você pode religar quando quiser.' : 'A IA volta a responder este cliente automaticamente.'}
+          >
+            <button
+              type="button"
+              aria-label={conv.aiEnabled ? 'Pausar a IA' : 'Ligar a IA'}
+              aria-pressed={conv.aiEnabled}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); updateConversation(conv.id, { aiEnabled: !conv.aiEnabled }); toast.success(conv.aiEnabled ? 'IA pausada neste atendimento' : 'IA ligada neste atendimento') }}
+              className={cn(
+                'flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px] font-semibold transition-colors',
+                conv.aiEnabled ? 'bg-violet-500/12 text-violet-600 hover:bg-violet-500/20 dark:text-violet-300' : 'bg-surface-2 text-muted hover:bg-border'
+              )}
+            >
+              <Bot className="size-3" /> {conv.aiEnabled ? 'IA ligada' : 'IA pausada'}
+            </button>
+          </Tooltip>
+        </div>
       </div>
     </div>
   )

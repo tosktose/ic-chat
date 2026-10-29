@@ -422,3 +422,19 @@ export async function myAiSummary(): Promise<AiSummary> {
     ledger: (d.ledger as AiSummary['ledger']) ?? []
   }
 }
+
+/* ---------------- integrações (OpenRouter, Evolution API, n8n, Google) ---------------- */
+export interface IntegrationState { preview: string; updated_at: string }
+
+/** Só informa quais campos estão preenchidos; chaves secretas voltam mascaradas (••••1234). */
+export async function listIntegrations(): Promise<Record<string, IntegrationState>> {
+  const { data, error } = await db().rpc('admin_integrations')
+  if (error) throw error
+  return Object.fromEntries(((data ?? []) as { key: string; preview: string; updated_at: string }[]).map((r) => [r.key, { preview: r.preview, updated_at: r.updated_at }]))
+}
+
+/** Grava (ou apaga, se vazio) um campo de integração. */
+export async function setIntegration(key: string, value: string): Promise<void> {
+  const { error } = await db().rpc('admin_set_integration', { p_key: key, p_value: value })
+  if (error) throw error
+}

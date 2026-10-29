@@ -18,6 +18,16 @@ import { Field, Input, Select } from '@/components/ui/input'
 import { Avatar, Badge, Segmented, Switch } from '@/components/ui/misc'
 import { Dialog, Sheet } from '@/components/ui/overlay'
 import { cn } from '@/lib/utils'
+import { isWebApp, supabase } from '@/lib/supabase'
+import { getSiteUrl } from '@/lib/site-url'
+
+/** Envia de verdade o link de nova senha para o e-mail do usuário (mesmo fluxo do "esqueci minha senha"). */
+async function sendPasswordLink(email: string) {
+  if (!isWebApp || !supabase) return toast.success('Link de nova senha enviado', { description: email })
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${getSiteUrl()}/redefinir-senha` })
+  if (error) toast.error('Não foi possível enviar o link', { description: error.message })
+  else toast.success('Link de nova senha enviado', { description: `Confira ${email} (e a caixa de spam).` })
+}
 
 /** Formato comum de usuário para as telas do Super Admin e do gerente. */
 export interface DetailUser {
@@ -48,10 +58,10 @@ export function UserQuickActions({
 }) {
   return (
     <div className={cn('flex items-center gap-0.5', className)} onClick={(e) => e.stopPropagation()}>
-      <Button variant="ghost" size="icon-sm" aria-label="Redefinir senha" onClick={() => toast.success('Link de nova senha enviado', { description: user.email })}>
+      <Button variant="ghost" size="icon-sm" aria-label="Redefinir senha" onClick={() => void sendPasswordLink(user.email)}>
         <KeyRound />
       </Button>
-      <Button variant="ghost" size="icon-sm" aria-label="Encerrar sessões" onClick={() => toast.success('Sessões encerradas', { description: user.name })}>
+      <Button variant="ghost" size="icon-sm" aria-label="Encerrar sessões" disabled={isWebApp} title={isWebApp ? 'Na versão online a sessão termina quando a pessoa sai ou bloqueamos o acesso' : 'Encerrar sessões'} onClick={() => toast.success('Sessões encerradas', { description: user.name })}>
         <LogOut />
       </Button>
       {user.active ? (
@@ -211,7 +221,7 @@ export function UserDetailView({
         <Button variant="ghost" size="icon" className="text-danger" aria-label="Excluir usuário" onClick={() => setConfirmRemove(true)}>
             <Trash2 />
           </Button>
-        <Button variant="outline" size="sm" onClick={() => toast.success('Link de nova senha enviado', { description: user.email })}>
+        <Button variant="outline" size="sm" onClick={() => void sendPasswordLink(user.email)}>
           <KeyRound /> Redefinir senha
         </Button>
         <Button
