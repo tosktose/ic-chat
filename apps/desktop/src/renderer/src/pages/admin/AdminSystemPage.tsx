@@ -8,6 +8,7 @@ import { Field, Input } from '@/components/ui/input'
 import { Badge, Card, CardHeader } from '@/components/ui/misc'
 import { adminError, loadSettings, saveSettings, type PublicSettings } from '@/lib/admin-api'
 import { isWebApp } from '@/lib/supabase'
+import { IntegrationsCard } from './IntegrationsCard'
 
 const EMPTY: PublicSettings = { company_name: '', support_email: '', support_whatsapp: '', site_url: '' }
 
@@ -69,6 +70,8 @@ export function AdminSystemPage() {
             <p className="rounded-xl bg-surface-2 p-3 text-xs leading-5 text-muted">O domínio canônico é https://www.icchat.com.br. O endereço configurado aqui é usado nos fluxos de plataforma.</p>
           </div>
         </Card>
+
+        {isWebApp && <IntegrationsCard />}
 
         <Card>
           <CardHeader title={<span className="flex items-center gap-2"><ShieldCheck className="size-4" /> Verificação de licenças</span>} action={<Badge tone="success">No Supabase</Badge>} />

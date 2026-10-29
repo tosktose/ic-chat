@@ -22,8 +22,6 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
 
-  const apiKey = Deno.env.get('ICCHAT_AI_API_KEY')
-  if (!apiKey) return json({ error: 'ia_nao_configurada' }, 503)
 
   // Quem está pedindo? (JWT do usuário logado) e de qual empresa
   const supa = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
@@ -50,17 +48,23 @@ Deno.serve(async (req) => {
 
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'ic_chat' } })
 
+  // Chave, modelo e endereço: o que o Super Admin preencheu em Configurações do sistema vale mais; os Secrets do Supabase são o reserva
+  const { data: cfgRows } = await admin.from('platform_secrets').select('key, value').in('key', ['openrouter_api_key', 'openrouter_model', 'openrouter_base_url'])
+  const cfg = Object.fromEntries((cfgRows ?? []).map((r: { key: string; value: string }) => [r.key, r.value]))
+  const apiKey = cfg.openrouter_api_key || Deno.env.get('ICCHAT_AI_API_KEY')
+  if (!apiKey) return json({ error: 'ia_nao_configurada' }, 503)
+
   // 1) Tem crédito? (plano do mês + saldo avulso)
   const { data: before } = await admin.rpc('ai_summary', { p_tenant: tenantId })
   if (!before || Number((before as { available: number }).available) <= 0) return json({ error: 'creditos_esgotados' }, 402)
 
   // 2) Chama o provedor
-  const base = (Deno.env.get('ICCHAT_AI_BASE_URL') ?? 'https://openrouter.ai/api/v1').replace(/\/$/, '')
+  const base = (cfg.openrouter_base_url || Deno.env.get('ICCHAT_AI_BASE_URL') || 'https://openrouter.ai/api/v1').replace(/\/$/, '')
   const res = await fetch(`${base}/chat/completions`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
     body: JSON.stringify({
-      model: Deno.env.get('ICCHAT_AI_MODEL') ?? 'openai/gpt-4o-mini',
+      model: cfg.openrouter_model || Deno.env.get('ICCHAT_AI_MODEL') || 'openai/gpt-4o-mini',
       max_tokens: 500,
       messages: [...(system ? [{ role: 'system', content: system }] : []), ...messages]
     })

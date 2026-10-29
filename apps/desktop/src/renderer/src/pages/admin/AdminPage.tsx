@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { isWebApp } from '@/lib/supabase'
-import { adminError, extendTenant, setTenantBlocked } from '@/lib/admin-api'
+import { adminError, extendTenant, setTenantBlocked, setTenantHidden } from '@/lib/admin-api'
 import { useNavigate } from 'react-router'
 import {
   Ban,
@@ -17,6 +17,7 @@ import {
   Search,
   Send,
   TimerReset,
+  EyeOff,
   UserPlus
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -203,6 +204,21 @@ function RealTenantActions({ t }: { t: Tenant }) {
   const run = async (fn: () => Promise<void>, ok: string) => {
     try { await fn(); toast.success(ok, { description: t.name }); reload() } catch (e) { toast.error('Não foi possível concluir', { description: adminError(e) }) }
   }
+  const hide = async () => {
+    if (!window.confirm(`Ocultar "${t.name}" do painel do IC Chat?
+
+Nada é excluído: a pessoa, os dados e os outros sistemas que usam este banco continuam intactos. Só some desta lista, e dá para desfazer.`)) return
+    try {
+      await setTenantHidden(t.id, true)
+      reload()
+      toast.success('Empresa oculta do IC Chat', {
+        description: 'Nada foi excluído.',
+        action: { label: 'Desfazer', onClick: () => { void setTenantHidden(t.id, false).then(() => reload()) } }
+      })
+    } catch (e) {
+      toast.error('Não foi possível ocultar', { description: adminError(e) })
+    }
+  }
   return (
     <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
       <Button variant="ghost" size="icon-sm" aria-label="Renovar por 30 dias" title="Renovar +30 dias" onClick={() => run(() => extendTenant(t.id, 30), 'Empresa renovada por 30 dias')}><CalendarPlus /></Button>
@@ -212,6 +228,7 @@ function RealTenantActions({ t }: { t: Tenant }) {
       ) : (
         <Button variant="ghost" size="icon-sm" className="hover:text-danger" aria-label="Bloquear empresa" title="Bloquear (falta de pagamento)" onClick={() => { if (window.confirm(`Bloquear ${t.name}? O acesso (site e app) é cortado.`)) void run(() => setTenantBlocked(t.id, true), 'Empresa bloqueada') }}><Ban /></Button>
       )}
+      <Button variant="ghost" size="icon-sm" aria-label="Ocultar empresa do IC Chat" title="Ocultar do IC Chat (não exclui nada)" onClick={() => void hide()}><EyeOff /></Button>
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, HashRouter, Navigate, Route, Routes, useLocation } from 'react-router'
 import { Tooltip } from 'radix-ui'
 import { Toaster } from 'sonner'
+import { Analytics } from '@vercel/analytics/react'
 import { AppShell } from '@/components/layout/AppShell'
 import { canAccess, homeByRole } from '@/components/layout/nav'
 import { AppStateProvider, useAppState } from '@/lib/app-state'
@@ -76,8 +77,13 @@ function Guard({ children }: { children: ReactNode }) {
 
 function PageLoading() {
   return (
-    <div className="flex h-full items-center justify-center">
-      <span className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-label="Carregando" />
+    <div className="flex h-full flex-col items-center justify-center gap-4 bg-background" role="status" aria-label="Carregando">
+      <span className="relative grid size-[76px] place-items-center">
+        <span className="absolute inset-0 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+        <img src="/favicon.png" alt="" className="size-10 rounded-[10px]" />
+      </span>
+      <span className="h-[3px] w-[120px] overflow-hidden rounded-full bg-primary/15"><span className="block h-full w-[45%] animate-pulse rounded-full bg-primary" /></span>
+      <p className="text-[13px] tracking-wide text-muted">Carregando seu painel…</p>
     </div>
   )
 }
@@ -172,6 +178,7 @@ export function App() {
       </AppStateProvider>
     </ThemeProvider>
     </ErrorBoundary>
+    {isWebApp && <Analytics />}
     </AuthProvider>
   )
 }

@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import {
   Building2,
+  CalendarDays,
   Clock,
   Database,
   KeyRound,
@@ -29,6 +30,7 @@ import { cn } from '@/lib/utils'
 import { useCompany } from '@/lib/company'
 import { CompanyTab } from './CompanyTab'
 import { LicenseTab } from './LicenseTab'
+import { GoogleTab } from './GoogleTab'
 import { DataTab } from './DataTab'
 import { ProfessionalsTab, QuickRepliesTab, ServicesTab } from './CatalogTabs'
 
@@ -38,6 +40,7 @@ const TABS = [
   { id: 'servicos', label: 'Serviços', icon: Clock },
   { id: 'etiquetas', label: 'Etiquetas', icon: Tags },
   { id: 'respostas', label: 'Respostas rápidas', icon: MessageSquareText },
+  { id: 'google', label: 'Google Agenda', icon: CalendarDays },
   { id: 'dados', label: 'Dados', icon: Database },
   { id: 'licenca', label: 'Licença', icon: KeyRound },
   { id: 'aparencia', label: 'Aparência', icon: Palette }
@@ -74,6 +77,7 @@ export function SettingsPage() {
           {tab === 'servicos' && <ServicesTab />}
           {tab === 'etiquetas' && <TagsTab />}
           {tab === 'respostas' && <QuickRepliesTab />}
+          {tab === 'google' && <GoogleTab />}
           {tab === 'dados' && <DataTab />}
           {tab === 'licenca' && <LicenseTab />}
           {tab === 'aparencia' && <AppearanceTab />}

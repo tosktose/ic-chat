@@ -150,9 +150,9 @@ type TenantRpc = {
 }
 
 export async function listTenants(): Promise<AdminTenant[]> {
-  const { data, error } = await db().rpc('admin_tenants')
+  const [{ data, error }, hidden] = await Promise.all([db().rpc('admin_tenants'), hiddenTenantIds()])
   if (error) throw error
-  return ((data ?? []) as TenantRpc[]).map((t) => ({
+  return ((data ?? []) as TenantRpc[]).filter((t) => !hidden.has(String(t.id))).map((t) => ({
     id: t.id, name: t.name, created_at: t.created_at, owner_email: t.owner_email, owner_name: t.owner_name, origin_role: t.origin_role, members: t.members,
     subscription: t.sub_status ? { status: t.sub_status, plan: t.sub_plan ?? 'trial', trial_ends_at: t.trial_ends_at, current_period_ends_at: t.period_ends_at } : null,
     licenses_active: t.licenses_active, last_payment_at: t.last_payment_at
@@ -160,9 +160,9 @@ export async function listTenants(): Promise<AdminTenant[]> {
 }
 
 export async function listMembers(): Promise<AdminMember[]> {
-  const { data, error } = await db().rpc('admin_members')
+  const [{ data, error }, hidden] = await Promise.all([db().rpc('admin_members'), hiddenTenantIds()])
   if (error) throw error
-  return (data ?? []) as AdminMember[]
+  return ((data ?? []) as AdminMember[]).filter((m) => !hidden.has(String(m.tenant_id)))
 }
 
 export async function setAffiliate(userId: string, enabled: boolean, commissionRate = 10): Promise<void> {
@@ -281,6 +281,17 @@ export async function extendTenant(tenantId: string, days: number): Promise<void
 export async function setTenantBlocked(tenantId: string, blocked: boolean): Promise<void> {
   const { error } = await db().rpc('admin_set_tenant_blocked', { p_tenant: tenantId, p_blocked: blocked })
   if (error) throw error
+}
+
+/** Oculta (ou volta a mostrar) a empresa só no painel do IC Chat. Nada é apagado, nem do banco compartilhado. */
+export async function setTenantHidden(tenantId: string, hidden: boolean): Promise<void> {
+  const { error } = await db().rpc('admin_set_tenant_hidden', { p_tenant: tenantId, p_hidden: hidden })
+  if (error) throw error
+}
+
+async function hiddenTenantIds(): Promise<Set<string>> {
+  const { data, error } = await db().rpc('admin_hidden_tenants')
+  return error ? new Set() : new Set(((data ?? []) as string[]).map(String))
 }
 
 /* ---------------- planos ---------------- */
@@ -410,4 +421,20 @@ export async function myAiSummary(): Promise<AiSummary> {
     available: num(d.available), tokens_per_credit: num(d.tokens_per_credit), price_per_credit: num(d.price_per_credit),
     ledger: (d.ledger as AiSummary['ledger']) ?? []
   }
+}
+
+/* ---------------- integrações (OpenRouter, Evolution API, n8n, Google) ---------------- */
+export interface IntegrationState { preview: string; updated_at: string }
+
+/** Só informa quais campos estão preenchidos; chaves secretas voltam mascaradas (••••1234). */
+export async function listIntegrations(): Promise<Record<string, IntegrationState>> {
+  const { data, error } = await db().rpc('admin_integrations')
+  if (error) throw error
+  return Object.fromEntries(((data ?? []) as { key: string; preview: string; updated_at: string }[]).map((r) => [r.key, { preview: r.preview, updated_at: r.updated_at }]))
+}
+
+/** Grava (ou apaga, se vazio) um campo de integração. */
+export async function setIntegration(key: string, value: string): Promise<void> {
+  const { error } = await db().rpc('admin_set_integration', { p_key: key, p_value: value })
+  if (error) throw error
 }

@@ -15,6 +15,8 @@ export default defineConfig({
     baseURL: external ?? 'http://localhost:4173',
     channel: 'chrome',
     locale: 'pt-BR',
+    // O convite de notificações cobre a tela até o usuário decidir; nos testes a permissão já vem concedida
+    permissions: ['notifications'],
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure'
   },

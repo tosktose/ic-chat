@@ -11,11 +11,13 @@ import {
   useSensors,
   type DragEndEvent
 } from '@dnd-kit/core'
-import { Activity, Bot, CalendarCheck, CheckCircle2, Clock, Hand, Hourglass, Inbox, Sparkles } from 'lucide-react'
+import { Activity, Bot, CalendarCheck, CheckCircle2, Clock, Hand, Hourglass, Inbox, Plus, Sparkles } from 'lucide-react'
 import { ChannelBadge } from '@/components/brand'
 import { Button } from '@/components/ui/button'
-import { Avatar, Segmented } from '@/components/ui/misc'
-import { Sheet } from '@/components/ui/overlay'
+import { Avatar, Segmented, Tooltip } from '@/components/ui/misc'
+import { Dialog, Sheet } from '@/components/ui/overlay'
+import { Field, Input, Select } from '@/components/ui/input'
+import { toast } from 'sonner'
 import { TagChip } from '@/components/tags'
 import { useTags } from '@/lib/tags'
 import { cn } from '@/lib/utils'
@@ -67,6 +69,7 @@ export function KanbanPage() {
   const [filter, setFilter] = useState<'todos' | 'ia' | 'equipe'>('todos')
   const [activeId, setActiveId] = useState<string | null>(null)
   const [feedOpen, setFeedOpen] = useState(false)
+  const [newOpen, setNewOpen] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -107,6 +110,7 @@ export function KanbanPage() {
               { value: 'equipe', label: 'Só equipe' }
             ]}
           />
+          <Button size="sm" onClick={() => setNewOpen(true)}><Plus /> Novo cartão</Button>
           <Button variant="outline" size="sm" className="2xl:hidden" onClick={() => setFeedOpen(true)}>
             <Activity /> Atividade da IA
           </Button>
@@ -125,10 +129,72 @@ export function KanbanPage() {
       <aside className="hidden w-[320px] shrink-0 flex-col border-l border-border bg-surface 2xl:flex">
         <AiFeed />
       </aside>
+      <NewCardDialog open={newOpen} onOpenChange={setNewOpen} />
       <Sheet open={feedOpen} onOpenChange={setFeedOpen} title="Atividade da IA">
         <AiFeed />
       </Sheet>
     </div>
+  )
+}
+
+/** Cartão manual: o atendente cria o cliente (ou escolhe um existente) e já escolhe a etapa e se a IA atende. */
+function NewCardDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { addContact, openConversation, updateConversation, findContactByPhone } = useData()
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [note, setNote] = useState('')
+  const [stage, setStage] = useState<KanbanStage>('nova')
+  const [ai, setAi] = useState(false)
+  const digits = phone.replace(/\D/g, '')
+  const existing = digits.length >= 8 ? findContactByPhone(phone) : undefined
+  const valid = (existing || name.trim().length >= 2) && digits.length >= 10
+  const reset = () => { setName(''); setPhone(''); setNote(''); setStage('nova'); setAi(false) }
+
+  const save = () => {
+    const contact = existing ?? addContact({ name: name.trim(), phone: digits.startsWith('55') ? digits : `55${digits}`, tags: [] })
+    const id = openConversation(contact.id)
+    updateConversation(id, { kanbanStage: stage, status: STATUS_OF[stage], aiEnabled: ai, ...(note.trim() ? { lastMessage: note.trim() } : {}) })
+    toast.success('Cartão criado', { description: `${contact.name} · ${STAGES.find((s) => s.id === stage)?.label}` })
+    reset()
+    onOpenChange(false)
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Novo cartão"
+      description="Crie um atendimento na mão, sem depender da IA."
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button disabled={!valid} onClick={save}><Plus /> Criar cartão</Button>
+        </>
+      }
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="WhatsApp do cliente" hint={existing ? <span className="text-success">Cliente já cadastrado: {existing.name}</span> : 'Com DDD'}>
+          <Input autoFocus value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(11) 90000-0000" />
+        </Field>
+        <Field label="Nome">
+          <Input value={existing ? existing.name : name} disabled={Boolean(existing)} onChange={(e) => setName(e.target.value)} placeholder="Nome do cliente" />
+        </Field>
+        <Field label="Etapa">
+          <Select value={stage} onChange={(e) => setStage(e.target.value as KanbanStage)}>
+            {STAGES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+          </Select>
+        </Field>
+        <Field label="Quem atende">
+          <Select value={ai ? 'ia' : 'equipe'} onChange={(e) => setAi(e.target.value === 'ia')}>
+            <option value="equipe">Só a equipe</option>
+            <option value="ia">IA atende</option>
+          </Select>
+        </Field>
+        <Field label="Observação (opcional)" className="sm:col-span-2">
+          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex.: pediu orçamento de escova progressiva" />
+        </Field>
+      </div>
+    </Dialog>
   )
 }
 
@@ -172,7 +238,7 @@ function DraggableCard({ card }: { card: KanbanCard }) {
 
 function CardView({ card, dragging }: { card: KanbanCard; dragging?: boolean }) {
   const navigate = useNavigate()
-  const { conversations } = useData()
+  const { conversations, updateConversation } = useData()
   const conv = conversations.find((v) => v.id === card.conversationId)!
   const contact = contactById(conv.contactId)
   const agent = userById(conv.assignee)
@@ -212,15 +278,31 @@ function CardView({ card, dragging }: { card: KanbanCard; dragging?: boolean }) 
             <TagChip key={t.id} tag={t} />
           ))}
         </div>
-        {conv.aiEnabled && !agent ? (
-          <span className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-violet-500/12 px-2 py-0.5 text-[10.5px] font-semibold text-violet-600 dark:text-violet-300">
-            <Bot className="size-3" /> IA
-          </span>
-        ) : agent ? (
-          <Avatar name={agent.name} size={22} />
-        ) : (
-          <span className="text-[10.5px] text-subtle">sem responsável</span>
-        )}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {agent ? (
+            <Avatar name={agent.name} size={22} />
+          ) : !conv.aiEnabled ? (
+            <span className="text-[10.5px] text-subtle">sem responsável</span>
+          ) : null}
+          <Tooltip
+            content={conv.aiEnabled ? 'Pausar a IA neste atendimento' : 'Deixar a IA atender'}
+            description={conv.aiEnabled ? 'A IA para de responder este cliente e a equipe assume. Você pode religar quando quiser.' : 'A IA volta a responder este cliente automaticamente.'}
+          >
+            <button
+              type="button"
+              aria-label={conv.aiEnabled ? 'Pausar a IA' : 'Ligar a IA'}
+              aria-pressed={conv.aiEnabled}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); updateConversation(conv.id, { aiEnabled: !conv.aiEnabled }); toast.success(conv.aiEnabled ? 'IA pausada neste atendimento' : 'IA ligada neste atendimento') }}
+              className={cn(
+                'flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px] font-semibold transition-colors',
+                conv.aiEnabled ? 'bg-violet-500/12 text-violet-600 hover:bg-violet-500/20 dark:text-violet-300' : 'bg-surface-2 text-muted hover:bg-border'
+              )}
+            >
+              <Bot className="size-3" /> {conv.aiEnabled ? 'IA ligada' : 'IA pausada'}
+            </button>
+          </Tooltip>
+        </div>
       </div>
     </div>
   )

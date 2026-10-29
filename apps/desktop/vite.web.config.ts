@@ -40,6 +40,10 @@ function jsonLd(page: SeoPage, base: string): string {
 
 /** Texto real da página dentro do HTML: o Google e leitores sem JavaScript enxergam o conteúdo. O React troca por cima ao carregar. */
 function bodyHtml(page: SeoPage, notFound = false): string {
+  if (page.path === '/app') {
+    // Tela de carregamento do app (aparece até o React entrar): logo, anel suave e barra fina, no claro e no escuro
+    return '<style>.ic-splash{position:fixed;inset:0;display:grid;place-items:center;background:#f8fafc;color:#0f172a;font-family:system-ui,sans-serif}@media(prefers-color-scheme:dark){.ic-splash{background:#0b1220;color:#e2e8f0}}.ic-splash div{display:flex;flex-direction:column;align-items:center;gap:18px}.ic-splash .ring{position:relative;width:76px;height:76px;display:grid;place-items:center}.ic-splash .ring:before{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid rgba(37,99,235,.18);border-top-color:#2563eb;animation:ic-spin 1.1s linear infinite}.ic-splash img{width:40px;height:40px;border-radius:10px}.ic-splash p{margin:0;font-size:13px;letter-spacing:.02em;opacity:.7}.ic-splash .bar{width:120px;height:3px;border-radius:3px;background:rgba(37,99,235,.15);overflow:hidden}.ic-splash .bar:after{content:"";display:block;width:45%;height:100%;background:#2563eb;border-radius:3px;animation:ic-bar 1.3s ease-in-out infinite}@keyframes ic-spin{to{transform:rotate(360deg)}}@keyframes ic-bar{0%{transform:translateX(-110%)}100%{transform:translateX(260%)}}</style><div class="ic-splash" role="status" aria-label="Carregando"><div><span class="ring"><img src="/favicon.png" alt="" /></span><span class="bar"></span><p>Carregando seu painel…</p></div></div>'
+  }
   const links = KEYWORD_PAGES.map((p) => `<a href="${p.path}">${esc(p.crumb ?? p.h1)}</a>`).join(' · ')
   if (notFound) {
     return `<div style="max-width:640px;margin:0 auto;padding:48px 20px;font-family:system-ui,sans-serif;color:#0f172a"><h1>Página não encontrada</h1><p>O endereço pode ter mudado ou nunca ter existido.</p><p><a href="/">Voltar ao início do IC Chat</a></p></div>`
@@ -82,7 +86,7 @@ function seoFiles(siteUrl: string): Plugin {
         .map((p) => `  <url>\n    <loc>${base}${p.path === '/' ? '/' : p.path}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`)
         .join('\n')
       this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n` })
-      const disallow = ['/dashboard', '/inbox', '/kanban', '/funil', '/captacao', '/ia', '/canais', '/relatorios', '/equipe', '/config', '/agenda', '/contatos', '/perfil', '/meu-painel', '/admin', '/assinar', '/esqueci-senha', '/redefinir-senha']
+      const disallow = ['/dashboard', '/inbox', '/kanban', '/funil', '/captacao', '/ia', '/canais', '/relatorios', '/equipe', '/config', '/agenda', '/contatos', '/perfil', '/meu-painel', '/afiliados', '/admin', '/assinar', '/esqueci-senha', '/redefinir-senha']
       this.emitFile({ type: 'asset', fileName: 'robots.txt', source: `User-agent: *\nAllow: /\n${disallow.map((p) => `Disallow: ${p}`).join('\n')}\n\nSitemap: ${base}/sitemap.xml\n` })
     },
     closeBundle() {
@@ -97,6 +101,8 @@ function seoFiles(siteUrl: string): Plugin {
       // 404 de verdade: a Vercel responde com status 404 e este arquivo para qualquer endereço que não exista
       const notFound: SeoPage = { path: '/404', title: 'Página não encontrada | IC Chat', description: 'A página que você procura não existe ou foi movida.', index: false, changefreq: 'yearly', priority: '0', h1: 'Página não encontrada', lead: '', sections: [], faq: [] }
       writeFileSync(resolve(outDir, '404.html'), renderPage(shell, notFound, base, true))
+      // Molde vazio das rotas do app (/dashboard, /admin...): sem o texto da home, para não aparecer nada antes do app carregar
+      writeFileSync(resolve(outDir, 'app.html'), renderPage(shell, { ...notFound, path: '/app', title: 'IC Chat', description: 'IC Chat: atendimento, CRM e chatbot com IA para WhatsApp.', h1: 'IC Chat' }, base, true))
     }
   }
 }
