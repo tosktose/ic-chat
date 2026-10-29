@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import { useSeo } from '@/lib/seo'
 
 export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
-  const { configured, signIn, signUp, signInWithGoogle } = useAuth()
+  const { configured, session, signIn, signUp, signInWithGoogle, signOut } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState('')
@@ -34,7 +34,12 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
         navigate('/dashboard', { replace: true })
       }
     } catch (error) {
-      toast.error('Não foi possível acessar sua conta', { description: error instanceof Error ? error.message : 'Tente novamente.' })
+      const raw = error instanceof Error ? error.message : ''
+      const description = /invalid login credentials/i.test(raw) ? 'E-mail ou senha incorretos. Confira os dados ou crie uma conta.'
+        : /email not confirmed/i.test(raw) ? 'Confirme seu e-mail pelo link que enviamos antes de entrar.'
+        : /already registered/i.test(raw) ? 'Este e-mail já tem conta. Entre com ele.'
+        : raw || 'Tente novamente.'
+      toast.error('Não foi possível acessar sua conta', { description })
     } finally { setLoading(false) }
   }
 
@@ -67,6 +72,15 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
             <IcLogo className="mb-7 md:hidden" />
             <h2 className="text-2xl font-bold">{confirmation ? 'Confirme seu e-mail' : signup ? 'Comece seu teste grátis' : 'Bem-vindo de volta'}</h2>
             <p className="mt-2 text-sm leading-6 text-muted">{confirmation ? `Enviamos o link de confirmação para ${email}. Confirme seu endereço para acessar o IC Chat.` : signup ? 'Crie sua conta e tenha 7 dias para explorar o IC Chat.' : 'Entre para continuar de onde sua equipe parou.'}</p>
+            {session && !confirmation && (
+              <div className="mt-5 rounded-xl border border-primary/30 bg-primary-soft p-3.5 text-sm">
+                <p className="text-foreground">Você já está conectado como <b className="break-all">{session.user.email}</b>.</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => navigate('/dashboard')}>Continuar com esta conta</Button>
+                  <Button size="sm" variant="outline" onClick={() => void signOut()}>Sair e usar outra</Button>
+                </div>
+              </div>
+            )}
             {!confirmation && <>
               {!configured && <div className="mt-5 rounded-xl border border-warning/30 bg-warning-soft p-3 text-sm text-warning">A autenticação ainda depende da chave pública do Supabase no ambiente de implantação.</div>}
               <Button variant="outline" className="mt-6 w-full" disabled={!configured || loading} onClick={google}><Globe2 /> Continuar com Google</Button>
