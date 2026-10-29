@@ -40,7 +40,8 @@ Para cada tela: ❶ tem mock? ❷ botões funcionam? ❸ salva e persiste após 
 - [x] 5.2 Código pronto: supabase/functions/create-checkout (preço definido no servidor; token só nos Secrets) · ⏳ falta publicar a função e colar o token
 - [x] 5.3 Código pronto: supabase/functions/mp-webhook (consulta o pagamento na API do MP, confere valor, idempotente) · ⏳ falta publicar e cadastrar a URL no MP
 - [ ] 5.4 Falta de pagamento → assinatura past_due → app instalado bloqueia na próxima verificação
-- [ ] 5.5 Rodar a migração 20261029_000003_payments.sql e testar um pagamento de teste real (cartão de teste do Mercado Pago)
+- [x] 5.5a Migração 20261029_000003_payments.sql executada (29/10/2026). Lógica testada no banco com rollback: aprovado libera plano e licença, aviso repetido não duplica, estorno suspende.
+- [ ] 5.5b Publicar as Edge Functions, colar os Secrets e testar um pagamento real de teste (cartão de teste do Mercado Pago)
 
 ## Pendências conhecidas (honestas)
 - "Novo analista" na Equipe e "Nova empresa" no Super Admin ficam **desativados** na web: criar usuário de outra pessoa exige uma função segura no servidor (Edge Function). Fica para a próxima rodada.
