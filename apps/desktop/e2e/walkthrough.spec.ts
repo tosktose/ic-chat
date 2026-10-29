@@ -2,7 +2,16 @@ import { test } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { iso, mockBackend } from './backend'
 import { fakeSession } from './helpers'
+
+const contacts = [
+  { id: 'c-1', tenant_id: 't-1', name: 'Cliente Alfa', phone: '11999990001', tags: [], visits: 2, spent: 240, created_at: iso(5000), extra: {} },
+  { id: 'c-2', tenant_id: 't-1', name: 'Cliente Beta', phone: '11999990002', tags: [], visits: 0, spent: 0, created_at: iso(400), extra: {} }
+]
+const conversations = [
+  { id: 'v-1', tenant_id: 't-1', contact_id: 'c-1', channel: 'whatsapp', status: 'nova', unread: 1, last_message: 'Oi, quero um orçamento', last_time: '09:10', ai_enabled: false, tags: [], created_at: iso(30), updated_at: iso(30), extra: {} }
+]
 
 // Tira um print de cada tela (conta nova, banco vazio) para revisão visual: WALKTHROUGH=1 npm run test:e2e -- walkthrough
 const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../docs/qa')
@@ -14,7 +23,7 @@ test.describe('Revisão visual', () => {
   for (const route of ROUTES) {
     test(`print ${route}`, async ({ page }) => {
       mkdirSync(OUT, { recursive: true })
-      await fakeSession(page, 'cliente-novo@exemplo.com')
+      await mockBackend(page, { seed: { contacts, conversations } })
       await page.goto(route)
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(800)

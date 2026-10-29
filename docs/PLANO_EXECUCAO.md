@@ -33,7 +33,9 @@ Este arquivo é o registro. Detalhes de cada rodada em `REGISTRO.md`. Prints de 
 Para cada tela: ❶ tem mock? ❷ botões funcionam? ❸ salva e persiste após recarregar? ❹ layout ok?
 - [x] Painel · [x] Atendimento · [x] Kanban (arrastar + gravar + recarregar) · [x] Contatos (criar + gravar)
 - [x] Relatórios (Excel/CSV baixa; PDF monta a impressão) · [x] Configurações (salvar + recarregar) · [x] Equipe
-- [ ] Agenda (criar agendamento) · [ ] Funil (criar/arrastar negócio) · [ ] Captação · [ ] Assistente IA · [ ] Canais · [ ] Perfil · [ ] Super Admin (usuários, planos, créditos)
+- [x] Agenda (criar agendamento + gravar; sem histórico/Google inventados; orienta a cadastrar profissional) · [x] Funil (criar negócio com responsável real; filtro com a equipe real) · [x] Captação (vazia, sem números inventados) · [x] Assistente IA (padrão genérico; estouro de largura corrigido) · [x] Canais (sem WhatsApp "conectado" falso) · [x] Perfil (e-mail e nome reais) · [x] Super Admin (empresas, usuários, planos, sistema, créditos)
+- [x] Auditoria de layout: nenhuma das 14 telas estoura a largura em PC (1366 e 1100) e celular (390). Corrigidos: Assistente IA e Equipe.
+- [ ] Ainda sem teste de ponta a ponta com o Supabase real logado como cliente (só com banco simulado)
 
 ## Fase 3b — Super Admin conectado ao banco 🔄
 - [x] Empresas mostram o dono (e-mail) de cada uma; as 4 que apareciam são contas reais do banco compartilhado

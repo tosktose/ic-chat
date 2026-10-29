@@ -227,7 +227,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         role: isWebApp ? webRole : role,
         me: isWebApp && session?.user ? {
           id: session.user.id,
-          name: String(session.user.user_metadata?.full_name ?? session.user.user_metadata?.name ?? session.user.email ?? 'Minha conta'),
+          name: String(session.user.user_metadata?.full_name ?? session.user.user_metadata?.name ?? session.user.email?.split('@')[0] ?? 'Minha conta'),
           role: webRole, presence: 'online', activeChats: 0
         } : resolveUser(sessionUsers[role]),
         myPresence,
@@ -240,7 +240,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           }
         },
         myDisplayName: isWebApp && session?.user
-          ? String(session.user.user_metadata?.full_name ?? session.user.user_metadata?.name ?? session.user.email ?? 'Você').split(' ')[0]
+          ? String(session.user.user_metadata?.full_name ?? session.user.user_metadata?.name ?? session.user.email?.split('@')[0] ?? 'Você').split(' ')[0]
           : profiles[sessionUsers[role].id]?.displayName || resolveUser(sessionUsers[role]).name.split(' ')[0],
         myPhone: profiles[sessionUsers[role].id]?.phone,
         resolveUser,

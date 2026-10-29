@@ -62,10 +62,10 @@ const DEFAULT_CONFIG: AiConfig = {
   enabled: false,
   provider: 'anthropic',
   model: 'claude-sonnet-5',
-  name: 'Bella',
+  name: 'Assistente',
   tone: 'amigavel',
   instructions:
-    'Seja simpática e objetiva. Sempre ofereça até 3 horários livres. Nunca invente preços: consulte a tabela. Se o cliente reclamar ou pedir para falar com alguém, transfira para a equipe.',
+    'Seja cordial e objetiva. Quando houver agenda, ofereça até 3 horários livres. Nunca invente preços: consulte a tabela de serviços. Se o cliente reclamar ou pedir para falar com alguém, transfira para a equipe.',
   emojis: true,
   tools: { agenda: true, agendar: true, precos: true, historico: false },
   handoff: { pedido: true, reclamacao: true, incerteza: true, foraAssunto: true },

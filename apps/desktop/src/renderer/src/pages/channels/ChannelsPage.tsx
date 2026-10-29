@@ -9,6 +9,7 @@ import { Avatar, Badge, Card, CardHeader } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/lib/company'
+import { isWebApp } from '@/lib/supabase'
 import { useGoogle } from '@/lib/google'
 import { GoogleCalendarDialog } from '@/components/GoogleCalendarDialog'
 import { useWhatsApp } from '@/lib/whatsapp'
@@ -19,7 +20,7 @@ export function ChannelsPage() {
   const google = useGoogle()
   // Estado da conexão por QR (no sistema real vem do Core/Baileys em tempo real)
   const real = useWhatsApp()
-  const [demoWa, setDemoWa] = useState<'conectado' | 'reconectando' | 'desconectado'>('conectado')
+  const [demoWa, setDemoWa] = useState<'conectado' | 'reconectando' | 'desconectado'>(isWebApp ? 'desconectado' : 'conectado')
   // No app instalado o estado vem do WhatsApp de verdade; no navegador, demonstração
   const wa: 'conectado' | 'reconectando' | 'desconectado' = real.available
     ? real.state.status === 'conectado'
@@ -52,6 +53,11 @@ export function ChannelsPage() {
               <p className="mt-1 text-[13px] text-muted">Use o número que você já tem. Conecta em segundos, escaneando o QR Code no celular.</p>
             </div>
           </div>
+          {isWebApp && !real.available ? (
+            <div className="mx-5 rounded-xl border border-dashed border-border-strong bg-surface-2 p-4 text-[13px] leading-6 text-muted">
+              <b className="text-foreground">Disponível no aplicativo para Windows.</b> A conexão por QR Code roda no computador da empresa. Instale o app, entre com esta mesma conta e conecte o número por lá.
+            </div>
+          ) : (
           <div className="mx-5 flex items-center gap-3 rounded-xl border border-border p-3">
             <span className="relative flex size-2.5">
               {wa === 'conectado' && <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />}
@@ -95,6 +101,7 @@ export function ChannelsPage() {
               </>
             )}
           </div>
+          )}
           <div className="m-5 mt-3 flex gap-2.5 rounded-xl bg-warning-soft p-3 text-[12.5px] text-warning">
             <ShieldAlert className="mt-0.5 size-4 shrink-0" />
             <p>Este método não é oficial da Meta. Envio em massa ou para quem não tem seu número salvo pode causar <b>bloqueio do número</b>. O IC Chat limita o ritmo de envio para proteger você.</p>
@@ -130,7 +137,7 @@ export function ChannelsPage() {
                 <Button variant="ghost" size="sm" className="ml-auto text-danger" onClick={() => { setOfficial(null); toast.success('WhatsApp Oficial desconectado') }}>Desconectar</Button>
               </div>
             ) : (
-              <Button className="w-full" onClick={() => setOfficialOpen(true)}>Conectar WhatsApp Oficial</Button>
+              <Button className="w-full" disabled={isWebApp} title={isWebApp ? 'A ligação com a API oficial da Meta é feita com o suporte' : undefined} onClick={() => setOfficialOpen(true)}>{isWebApp ? 'Em breve nesta versão' : 'Conectar WhatsApp Oficial'}</Button>
             )}
           </div>
         </Card>

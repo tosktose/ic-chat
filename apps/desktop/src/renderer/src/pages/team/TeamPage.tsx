@@ -41,7 +41,7 @@ export function TeamPage() {
       description={`Usuários ${company.name ? `da ${company.name}` : 'da empresa'}. Todos atendem pelo mesmo WhatsApp da empresa.`}
       actions={<Button onClick={() => setOpen(true)} disabled={isWebApp} title={isWebApp ? 'Convite de analistas por e-mail chega em breve' : undefined}><UserPlus /> Novo analista</Button>}
     >
-      <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <Card>
           <CardHeader title="Usuários" description="Gerentes administram a empresa · Analistas atendem os clientes" />
           <div className="flex flex-col">

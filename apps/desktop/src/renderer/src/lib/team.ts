@@ -4,6 +4,12 @@ import { useAuth } from '@/lib/auth'
 import { isWebApp, supabase } from '@/lib/supabase'
 
 /** Equipe da empresa: no app de demonstração vêm os exemplos; na versão web vêm do banco (tenant_members). */
+/** Busca um usuário pelo id: equipe real na web, exemplos só no app de demonstração. */
+export function useUserById(): (id?: string) => User | undefined {
+  const team = useTeam()
+  return (id) => team.find((u) => u.id === id)
+}
+
 export function useTeam(): User[] {
   const { session } = useAuth()
   const [members, setMembers] = useState<User[]>([])

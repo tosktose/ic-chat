@@ -9,7 +9,7 @@ const MOCK_MARKERS = [
   'Juliana Prado', 'Larissa Gomes', 'Lucas Martins', 'Luís Ferreira', 'Marcos Vieira', 'Maria Silva', 'Patrícia Nunes', 'Pedro Henrique',
   'Rafael Almeida', 'Renata Alves', 'Rodrigo Mendes', 'Sônia Ribeiro', 'Studio Bella', 'Barbearia do Zé', 'Clínica Derma+',
   'Espaço Bem-Estar', 'Salão Glamour', 'Pet Shop Amigo Fiel', 'Nail Design Lu', 'Corte + barba', 'Retoque de raiz', 'RECEPCAO-01',
-  'ICCH-7K2M'
+  'ICCH-7K2M', 'marianalv', 'ju.andrade', 'carol_dias', 'ana.souza@gmail.com', 'bruno.lima@gmail.com', 'studiobella', 'Antes e depois da escova'
 ]
 
 // Telas do gerente (conta comum). /admin é testado à parte com o superadmin.

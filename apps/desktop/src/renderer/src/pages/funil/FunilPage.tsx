@@ -16,7 +16,8 @@ import { Button } from '@/components/ui/button'
 import { Avatar, Badge, Segmented } from '@/components/ui/misc'
 import { StatCard, StatGrid } from '@/components/ui/stats'
 import { cn } from '@/lib/utils'
-import { userById, users } from '@/data/mock'
+import { useTeam, useUserById } from '@/lib/team'
+import { useAppState } from '@/lib/app-state'
 import { useData } from '@/lib/data'
 import { Dialog } from '@/components/ui/overlay'
 import { Field, Input, Select } from '@/components/ui/input'
@@ -37,6 +38,7 @@ import {
 function Cartao({ n, arrastando }: { n: Negocio; arrastando?: boolean }) {
   const { contactById } = useData()
   const contato = contactById(n.contactId)
+  const userById = useUserById()
   const dono = userById(n.donoId)
   const parado = estaParado(n)
   return (
@@ -141,6 +143,7 @@ function Coluna({
 export function FunilPage() {
   const { deals: lista, contacts, updateDeal } = useData()
   const [dono, setDono] = useState('todos')
+  const team = useTeam()
   const [arrastando, setArrastando] = useState<Negocio | null>(null)
   const [novoAberto, setNovoAberto] = useState(false)
   const sensores = useSensors(
@@ -182,8 +185,7 @@ export function FunilPage() {
             onChange={setDono}
             options={[
               { value: 'todos', label: 'Todos' },
-              { value: 'u2', label: 'Juliana' },
-              { value: 'u3', label: 'Marcos' }
+              ...team.filter((u) => u.role !== 'superadmin').slice(0, 4).map((u) => ({ value: u.id, label: u.name.split(' ')[0] }))
             ]}
           />
           <Button onClick={() => setNovoAberto(true)} disabled={!contacts.length}>
@@ -253,7 +255,9 @@ function NovoNegocioDialog({ open, onClose }: { open: boolean; onClose: () => vo
   const [valor, setValor] = useState('')
   const [origem, setOrigem] = useState<OrigemNegocio>('Desconhecida')
   const [campanha, setCampanha] = useState('')
-  const [donoId, setDonoId] = useState('u2')
+  const users = useTeam()
+  const { me } = useAppState()
+  const [donoId, setDonoId] = useState(me.id)
   const [etapa, setEtapa] = useState<EtapaFunil>('novo')
   const [proximaAcao, setProximaAcao] = useState('')
   const amount = Number(valor.replace(',', '.'))

@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { Avatar, Badge, Card, CardHeader, Progress, Segmented, Switch } from '@/components/ui/misc'
 import { useAppState } from '@/lib/app-state'
+import { useAuth } from '@/lib/auth'
+import { isWebApp } from '@/lib/supabase'
 import { useNotifications } from '@/lib/notifications'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
@@ -34,7 +36,8 @@ export function ProfilePage() {
   }
 
   const org = role === 'superadmin' ? 'itaCondo' : company.name
-  const email = role === 'superadmin' ? 'luis@itacondo.com.br' : `${me.name.split(' ')[0].toLowerCase()}@studiobella.com.br`
+  const { session } = useAuth()
+  const email = isWebApp ? (session?.user.email ?? '') : role === 'superadmin' ? 'luis@itacondo.com.br' : `${me.name.split(' ')[0].toLowerCase()}@studiobella.com.br`
 
   return (
     <Page title="Meu perfil" description="Seus dados, senha e preferências. Só você vê e altera esta tela.">

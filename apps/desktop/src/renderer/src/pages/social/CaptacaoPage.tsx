@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { isWebApp } from '@/lib/supabase'
 import { Eye, Info, MessageSquarePlus, Plus, Zap } from 'lucide-react'
 import { ChannelBadge } from '@/components/brand'
 import { Page } from '@/components/layout/Page'
@@ -132,7 +133,8 @@ function CardRegra({ r, onToggle }: { r: RegraCaptacao; onToggle: () => void }) 
 /* Página                                                               */
 /* ------------------------------------------------------------------ */
 export function CaptacaoPage() {
-  const [regras, setRegras] = useState(regrasIniciais)
+  const [regras, setRegras] = useState(isWebApp ? [] : regrasIniciais)
+  const listaCapturas = isWebApp ? [] : capturas
 
   const ativas = regras.filter((r) => r.ativa)
   const capturados = ativas.reduce((s, r) => s + r.capturados7d, 0)
@@ -145,7 +147,7 @@ export function CaptacaoPage() {
       title="Comentário vira conversa"
       description="Quem comenta no seu post recebe um direct automático e entra no atendimento."
       actions={
-        <Button>
+        <Button disabled={isWebApp} title={isWebApp ? 'Disponível quando o Instagram estiver conectado ao IC Chat' : undefined}>
           <Plus /> Nova regra
         </Button>
       }
@@ -209,7 +211,8 @@ export function CaptacaoPage() {
               <MessageSquarePlus className="size-4 text-primary" /> Capturas recentes
             </h3>
             <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface shadow-soft">
-              {capturas.map((c) => {
+              {listaCapturas.length === 0 && <li className="p-4 text-center text-sm text-muted">Nenhuma captura ainda. Elas aparecem aqui quando alguém comentar em um post com regra ligada.</li>}
+              {listaCapturas.map((c) => {
                 const st = statusCaptura[c.status]
                 return (
                   <li key={c.id} className="p-3">
