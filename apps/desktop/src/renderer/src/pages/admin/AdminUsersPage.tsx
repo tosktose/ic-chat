@@ -5,15 +5,15 @@ import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
 import { Avatar, Badge, Card, Segmented, Switch } from '@/components/ui/misc'
 import { NewUserDialog, UserDetailSheet, UserQuickActions, type DetailUser } from '@/components/UserDetail'
-import { tenantById, type TenantUser } from '@/data/saas'
+import type { TenantUser } from '@/data/saas'
 import { useSaas } from '@/lib/saas'
 import { adminError, setAffiliate } from '@/lib/admin-api'
 import { isWebApp } from '@/lib/supabase'
 import { toast } from 'sonner'
 
-const toDetail = (u: TenantUser): DetailUser => {
-  const t = tenantById(u.tenantId)
-  return { ...u, company: t.name, companyWhatsapp: t.whatsapp }
+const toDetail = (u: TenantUser, tenants: ReturnType<typeof useSaas>['tenants']): DetailUser => {
+  const tenant = tenants.find((item) => item.id === u.tenantId)
+  return { ...u, company: tenant?.name ?? 'Empresa indisponível', companyWhatsapp: tenant?.whatsapp }
 }
 
 type RoleFilter = 'todos' | 'gerente' | 'analista'
@@ -31,6 +31,9 @@ export function AdminUsersPage() {
     setAffiliateBusy(userId)
     try {
       await setAffiliate(userId, enabled, rate ?? 10)
+      setDetail((current) => current?.id === userId
+        ? { ...current, affiliateActive: enabled, affiliateCommissionRate: rate ?? 10 }
+        : current)
       reload()
       toast.success(enabled ? 'Afiliado ativado' : 'Afiliado desativado', {
         description: enabled ? `Comissão inicial: ${rate ?? 10}%` : 'O link deixa de aceitar novas indicações.'
@@ -100,7 +103,7 @@ export function AdminUsersPage() {
             </thead>
             <tbody>
               {list.map((u) => (
-                <tr key={u.id} onClick={() => setDetail(toDetail(u))} className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-2/40">
+                <tr key={u.id} onClick={() => setDetail(toDetail(u, tenants))} className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-2/40">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       <Avatar name={u.name} size={32} />
@@ -110,7 +113,7 @@ export function AdminUsersPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap">{tenantById(u.tenantId).name}</td>
+                  <td className="px-3 py-3 whitespace-nowrap">{tenants.find((item) => item.id === u.tenantId)?.name ?? 'Empresa indisponível'}</td>
                   <td className="px-3 py-3"><Badge tone={u.role === 'gerente' ? 'primary' : 'neutral'}>{u.role === 'gerente' ? 'Gerente' : 'Analista'}</Badge></td>
                   {isWebApp && <td className="px-3 py-3" onClick={(event) => event.stopPropagation()}>
                     <div className="flex items-center gap-2">
@@ -128,7 +131,7 @@ export function AdminUsersPage() {
                   <td className="px-3 py-3"><Badge tone={u.active ? 'success' : 'neutral'}>{u.active ? 'Ativo' : 'Bloqueado'}</Badge></td>
                   <td className="px-3 py-3 whitespace-nowrap text-muted">{u.lastSeen}</td>
                   <td className="px-3 py-3">
-                    <UserQuickActions user={toDetail(u)} className="justify-end" onSetActive={(active) => updateUser(u.id, { active })} />
+                      <UserQuickActions user={toDetail(u, tenants)} className="justify-end" onSetActive={(active) => updateUser(u.id, { active })} />
                   </td>
                 </tr>
               ))}
@@ -151,6 +154,7 @@ export function AdminUsersPage() {
         onClose={() => setDetail(null)}
         onSave={(patch) => detail && updateUser(detail.id, patch)}
         onRemove={() => detail && removeUser(detail.id)}
+        onAffiliateChange={(active, rate) => detail && void changeAffiliate(detail.id, active, rate)}
       />
     </Page>
   )

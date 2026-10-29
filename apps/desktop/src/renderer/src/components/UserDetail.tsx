@@ -1,17 +1,13 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ArrowLeft,
   Ban,
-  CalendarCheck,
-  Clock,
+  HandCoins,
   KeyRound,
-  Laptop,
   LogOut,
   Mail,
-  MessagesSquare,
   Phone,
   RotateCcw,
-  ShieldCheck,
   Trash2,
   UserPlus
 } from 'lucide-react'
@@ -33,6 +29,8 @@ export interface DetailUser {
   lastSeen: string
   company: string
   companyWhatsapp?: string
+  affiliateActive?: boolean
+  affiliateCommissionRate?: number | null
 }
 
 const roleLabel = { gerente: 'Gerente', analista: 'Analista' }
@@ -80,17 +78,20 @@ export function UserDetailView({
   user,
   onBack,
   onSave,
-  onRemove
+  onRemove,
+  onAffiliateChange
 }: {
   user: DetailUser
   onBack?: () => void
   onSave?: (patch: UserPatch) => void
   onRemove?: () => void
+  onAffiliateChange?: (active: boolean, rate: number) => void
 }) {
   const [tab, setTab] = useState<'perfil' | 'acesso' | 'atividade'>('perfil')
   const [role, setRole] = useState(user.role)
   const [active, setActive] = useState(user.active)
   const [name, setName] = useState(user.name)
+  const [affiliateRate, setAffiliateRate] = useState(String(user.affiliateCommissionRate ?? 10))
   const [confirmRemove, setConfirmRemove] = useState(false)
 
   useEffect(() => {
@@ -98,6 +99,7 @@ export function UserDetailView({
     setRole(user.role)
     setActive(user.active)
     setName(user.name)
+    setAffiliateRate(String(user.affiliateCommissionRate ?? 10))
     setConfirmRemove(false)
   }, [user])
 
@@ -153,6 +155,31 @@ export function UserDetailView({
                 <p>Atende pelo WhatsApp da empresa <b>{user.companyWhatsapp}</b>.</p>
               </div>
             )}
+            {onAffiliateChange && (
+              <div className="rounded-xl border border-border p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <HandCoins className="size-4 text-primary" />
+                  <div>
+                    <p className="text-sm font-semibold">Programa de afiliados</p>
+                    <p className="text-xs text-muted">Ative esta pessoa e defina a comissão sobre pagamentos aprovados.</p>
+                  </div>
+                </div>
+                <SwitchRow
+                  title={user.affiliateActive ? 'Afiliado ativo' : 'Ativar como afiliado'}
+                  description={user.affiliateActive ? `Link de indicação ativo · ${user.affiliateCommissionRate ?? (Number(affiliateRate) || 10)}%` : 'A pessoa poderá compartilhar o próprio link de indicação.'}
+                  checked={Boolean(user.affiliateActive)}
+                  onChange={(enabled) => onAffiliateChange(enabled, Number(affiliateRate) || 10)}
+                />
+                <div className="mt-3 flex items-end gap-2">
+                  <Field label="Comissão (%)" className="flex-1">
+                    <Input type="number" min="0" max="100" step="0.5" value={affiliateRate} onChange={(event) => setAffiliateRate(event.target.value)} />
+                  </Field>
+                  <Button variant="outline" size="sm" disabled={!Number.isFinite(Number(affiliateRate)) || Number(affiliateRate) < 0 || Number(affiliateRate) > 100} onClick={() => onAffiliateChange(Boolean(user.affiliateActive), Number(affiliateRate))}>
+                    Salvar comissão
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -164,62 +191,16 @@ export function UserDetailView({
                 <option value="analista">Analista</option>
               </Select>
             </Field>
-            {role === 'analista' && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Recebe conversas da fila">
-                  <Select><option>Sim, em rodízio</option><option>Só quando atribuídas</option></Select>
-                </Field>
-                <Field label="Máx. de conversas simultâneas">
-                  <Input type="number" defaultValue={5} min={1} max={30} />
-                </Field>
-              </div>
-            )}
             <SwitchRow title="Acesso liberado" description="Desligue para bloquear o login imediatamente" checked={active} onChange={setActive} />
-            <SwitchRow title="Verificação em 2 etapas" description="Código por e-mail a cada novo computador" defaultOn />
-            <SwitchRow title="Exigir troca de senha no próximo acesso" />
           </div>
         )}
 
         {tab === 'atividade' && (
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-3 gap-2">
-              <Mini icon={<MessagesSquare />} label="Conversas (7 dias)" value={role === 'analista' ? '86' : '12'} />
-              <Mini icon={<CalendarCheck />} label="Agendou" value={role === 'analista' ? '27' : '4'} />
-              <Mini icon={<Clock />} label="1ª resposta" value="2m 05s" />
-            </div>
-            <div>
-              <p className="mb-2 text-[11px] font-semibold tracking-wider text-subtle uppercase">Sessões ativas</p>
-              {[
-                { pc: 'RECEPCAO-01', where: 'Windows · São Paulo', when: user.lastSeen },
-                { pc: 'NOTEBOOK-JULIANA', where: 'Windows · São Paulo', when: 'há 2 dias' }
-              ].map((s) => (
-                <div key={s.pc} className="mb-2 flex items-center gap-3 rounded-xl border border-border p-3">
-                  <Laptop className="size-4 text-muted" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium">{s.pc}</p>
-                    <p className="text-xs text-muted">{s.where} · {s.when}</p>
-                  </div>
-                  <Button variant="ghost" size="icon-sm" aria-label="Encerrar esta sessão" onClick={() => toast.success('Sessão encerrada')}>
-                    <LogOut />
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <div>
-              <p className="mb-2 text-[11px] font-semibold tracking-wider text-subtle uppercase">Histórico</p>
-              <ol className="flex flex-col gap-2.5 text-[13px]">
-                {[
-                  ['Entrou no sistema', user.lastSeen],
-                  ['Senha alterada', 'há 12 dias'],
-                  ['Usuário criado', 'há 1 mês']
-                ].map(([t, w]) => (
-                  <li key={t} className="flex items-center gap-2.5">
-                    <ShieldCheck className="size-4 text-subtle" />
-                    <span className="flex-1">{t}</span>
-                    <span className="text-xs text-muted">{w}</span>
-                  </li>
-                ))}
-              </ol>
+            <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted">
+              <p className="font-medium text-foreground">Sem eventos de atividade disponíveis</p>
+              <p className="mt-1">Conversas, sessões e histórico serão mostrados quando houver registros reais para este usuário.</p>
+              <p className="mt-2">Último acesso registrado: {user.lastSeen || 'sem registro'}.</p>
             </div>
           </div>
         )}
@@ -289,16 +270,18 @@ export function UserDetailSheet({
   user,
   onClose,
   onSave,
-  onRemove
+  onRemove,
+  onAffiliateChange
 }: {
   user: DetailUser | null
   onClose: () => void
   onSave?: (patch: UserPatch) => void
   onRemove?: () => void
+  onAffiliateChange?: (active: boolean, rate: number) => void
 }) {
   return (
     <Sheet open={Boolean(user)} onOpenChange={(v) => !v && onClose()} title={user?.name ?? 'Usuário'} className="max-w-md">
-      {user && <UserDetailView user={user} onSave={onSave} onRemove={() => { onRemove?.(); onClose() }} />}
+      {user && <UserDetailView user={user} onSave={onSave} onRemove={() => { onRemove?.(); onClose() }} onAffiliateChange={onAffiliateChange} />}
     </Sheet>
   )
 }
@@ -383,15 +366,5 @@ function SwitchRow({ title, description, checked, onChange, defaultOn }: { title
       </div>
       <Switch checked={value} onCheckedChange={onChange ?? setLocal} />
     </label>
-  )
-}
-
-function Mini({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-surface-2 p-3 [&_svg]:size-4 [&_svg]:text-muted">
-      {icon}
-      <p className="mt-1.5 text-lg font-bold tabular-nums">{value}</p>
-      <p className="text-[11px] leading-tight text-muted">{label}</p>
-    </div>
   )
 }
