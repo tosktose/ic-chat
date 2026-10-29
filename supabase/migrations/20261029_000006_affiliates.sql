@@ -107,7 +107,7 @@ begin
   if p_enabled then
     insert into ic_chat.affiliate_profiles(user_id, referral_code, commission_rate, active)
       values (p_user_id, lower(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10)), p_commission_rate, true)
-      on conflict (user_id) do update set commission_rate = excluded.commission_rate, active = true, updated_at = now();
+      on conflict on constraint affiliate_profiles_pkey do update set commission_rate = excluded.commission_rate, active = true, updated_at = now();
   else
     update ic_chat.affiliate_profiles set active = false, commission_rate = p_commission_rate, updated_at = now() where affiliate_profiles.user_id = p_user_id;
   end if;
