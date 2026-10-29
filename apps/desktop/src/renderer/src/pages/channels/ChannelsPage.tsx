@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ExternalLink, Loader2, Info, Plus, QrCode, RefreshCw, ShieldAlert, ShieldCheck, Smartphone, Unplug } from 'lucide-react'
+import { ArrowDownToLine, ExternalLink, Loader2, Info, Plus, QrCode, RefreshCw, ShieldAlert, ShieldCheck, Smartphone, Unplug } from 'lucide-react'
 import { toast } from 'sonner'
 import { ChannelBadge, GoogleIcon } from '@/components/brand'
 import { Page } from '@/components/layout/Page'
@@ -14,6 +14,8 @@ import { useGoogle } from '@/lib/google'
 import { GoogleCalendarDialog } from '@/components/GoogleCalendarDialog'
 import { useWhatsApp } from '@/lib/whatsapp'
 import { formatPhone } from '@/lib/utils'
+
+const desktopDownloadUrl = import.meta.env.VITE_ICCHAT_DESKTOP_DOWNLOAD_URL
 
 export function ChannelsPage() {
   const { professionals, info } = useCompany()
@@ -107,7 +109,15 @@ export function ChannelsPage() {
             <p>Este método não é oficial da Meta. Envio em massa ou para quem não tem seu número salvo pode causar <b>bloqueio do número</b>. O IC Chat limita o ritmo de envio para proteger você.</p>
           </div>
           <div className="mt-auto border-t border-border p-4">
-            <Button variant="outline" className="w-full" onClick={() => setQrOpen(true)}><Plus /> Conectar outro número</Button>
+            {isWebApp && !real.available ? desktopDownloadUrl ? (
+              <a href={desktopDownloadUrl} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border px-4 text-sm font-medium transition hover:bg-surface-2">
+                <ArrowDownToLine className="size-4" /> Baixar aplicativo para Windows
+              </a>
+            ) : (
+              <p className="text-center text-xs text-muted">Conecte seu WhatsApp pelo aplicativo para Windows.</p>
+            ) : (
+              <Button variant="outline" className="w-full" onClick={() => setQrOpen(true)}><Plus /> Conectar outro número</Button>
+            )}
           </div>
         </Card>
 
@@ -181,11 +191,6 @@ export function ChannelsPage() {
         open={qrOpen}
         onOpenChange={setQrOpen}
         real={real.available ? real : undefined}
-        onConnected={() => {
-          setWa('conectado')
-          setQrOpen(false)
-          toast.success('WhatsApp conectado', { description: 'As conversas começaram a chegar no Atendimento.' })
-        }}
       />
       <OfficialDialog
         open={officialOpen}
@@ -240,46 +245,13 @@ function SocialCard({ kind, title, text, badge }: { kind: 'instagram' | 'messeng
   )
 }
 
-/** QR "falso" só para a demonstração do layout */
-function FakeQr() {
-  const n = 29
-  const cells: [number, number][] = []
-  let seed = 7
-  for (let y = 0; y < n; y++)
-    for (let x = 0; x < n; x++) {
-      seed = (seed * 9301 + 49297) % 233280
-      const finder = (x < 8 && y < 8) || (x > n - 9 && y < 8) || (x < 8 && y > n - 9)
-      if (!finder && seed / 233280 > 0.52) cells.push([x, y])
-    }
-  const Finder = ({ x, y }: { x: number; y: number }) => (
-    <g>
-      <rect x={x} y={y} width={7} height={7} fill="#0f172a" rx={1.2} />
-      <rect x={x + 1} y={y + 1} width={5} height={5} fill="#fff" rx={0.8} />
-      <rect x={x + 2} y={y + 2} width={3} height={3} fill="#0f172a" rx={0.6} />
-    </g>
-  )
-  return (
-    <svg viewBox={`-1 -1 ${n + 2} ${n + 2}`} className="size-full" shapeRendering="crispEdges">
-      <rect x={-1} y={-1} width={n + 2} height={n + 2} fill="#fff" />
-      {cells.map(([x, y]) => (
-        <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="#0f172a" />
-      ))}
-      <Finder x={0} y={0} />
-      <Finder x={n - 7} y={0} />
-      <Finder x={0} y={n - 7} />
-    </svg>
-  )
-}
-
 function QrDialog({
   open,
   onOpenChange,
-  onConnected,
   real
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
-  onConnected: () => void
   real?: ReturnType<typeof useWhatsApp>
 }) {
   const [pairing, setPairing] = useState(false)
@@ -312,12 +284,11 @@ function QrDialog({
       title="Conectar WhatsApp"
       description={mode === 'qr' ? 'Escaneie o código com o celular que tem o WhatsApp da empresa.' : 'Conecte digitando um código no celular, sem câmera.'}
       footer={
-        <>
+        real ? <>
           <Button variant="ghost" className="mr-auto" onClick={() => setMode(mode === 'qr' ? 'codigo' : 'qr')}>
             {mode === 'qr' ? <><Smartphone /> Conectar com código de 8 dígitos</> : <><QrCode /> Voltar para o QR Code</>}
           </Button>
-          {!real && <Button onClick={onConnected} tooltip="Demonstração: simula a leitura do código no celular">Já conectei no celular</Button>}
-        </>
+        </> : <p className="text-sm text-muted">A conexão real está disponível no aplicativo para Windows.</p>
       }
     >
       {mode === 'codigo' ? (
@@ -336,9 +307,7 @@ function QrDialog({
                     else toast.error('Não foi possível gerar o código', { description: r.error })
                     return
                   }
-                  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-                  const pick = () => abc[Math.floor(Math.random() * abc.length)]
-                  setCode(Array.from({ length: 8 }, pick).join(''))
+                  toast.error('Conexão real disponível somente no aplicativo para Windows')
                 }}
               >
                 {pairing ? <Loader2 className="animate-spin" /> : null} Gerar código
@@ -369,9 +338,7 @@ function QrDialog({
                 {real.state.status === 'conectado' ? 'Conectado!' : 'Gerando QR Code…'}
               </div>
             )
-          ) : (
-            <FakeQr />
-          )}
+          ) : <p className="p-4 text-center text-xs text-slate-600">Use o aplicativo para Windows para gerar um QR Code real.</p>}
           <div className="absolute top-1/2 left-1/2 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-xl bg-white shadow">
             <ChannelBadge kind="whatsapp" size={34} className="ring-0" />
           </div>
