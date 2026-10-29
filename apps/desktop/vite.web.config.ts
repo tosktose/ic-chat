@@ -40,6 +40,7 @@ function jsonLd(page: SeoPage, base: string): string {
 
 /** Texto real da página dentro do HTML: o Google e leitores sem JavaScript enxergam o conteúdo. O React troca por cima ao carregar. */
 function bodyHtml(page: SeoPage, notFound = false): string {
+  if (page.path === '/app') return ''
   const links = KEYWORD_PAGES.map((p) => `<a href="${p.path}">${esc(p.crumb ?? p.h1)}</a>`).join(' · ')
   if (notFound) {
     return `<div style="max-width:640px;margin:0 auto;padding:48px 20px;font-family:system-ui,sans-serif;color:#0f172a"><h1>Página não encontrada</h1><p>O endereço pode ter mudado ou nunca ter existido.</p><p><a href="/">Voltar ao início do IC Chat</a></p></div>`
@@ -82,7 +83,7 @@ function seoFiles(siteUrl: string): Plugin {
         .map((p) => `  <url>\n    <loc>${base}${p.path === '/' ? '/' : p.path}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`)
         .join('\n')
       this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n` })
-      const disallow = ['/dashboard', '/inbox', '/kanban', '/funil', '/captacao', '/ia', '/canais', '/relatorios', '/equipe', '/config', '/agenda', '/contatos', '/perfil', '/meu-painel', '/admin', '/assinar', '/esqueci-senha', '/redefinir-senha']
+      const disallow = ['/dashboard', '/inbox', '/kanban', '/funil', '/captacao', '/ia', '/canais', '/relatorios', '/equipe', '/config', '/agenda', '/contatos', '/perfil', '/meu-painel', '/afiliados', '/admin', '/assinar', '/esqueci-senha', '/redefinir-senha']
       this.emitFile({ type: 'asset', fileName: 'robots.txt', source: `User-agent: *\nAllow: /\n${disallow.map((p) => `Disallow: ${p}`).join('\n')}\n\nSitemap: ${base}/sitemap.xml\n` })
     },
     closeBundle() {
@@ -97,6 +98,8 @@ function seoFiles(siteUrl: string): Plugin {
       // 404 de verdade: a Vercel responde com status 404 e este arquivo para qualquer endereço que não exista
       const notFound: SeoPage = { path: '/404', title: 'Página não encontrada | IC Chat', description: 'A página que você procura não existe ou foi movida.', index: false, changefreq: 'yearly', priority: '0', h1: 'Página não encontrada', lead: '', sections: [], faq: [] }
       writeFileSync(resolve(outDir, '404.html'), renderPage(shell, notFound, base, true))
+      // Molde vazio das rotas do app (/dashboard, /admin...): sem o texto da home, para não aparecer nada antes do app carregar
+      writeFileSync(resolve(outDir, 'app.html'), renderPage(shell, { ...notFound, path: '/app', title: 'IC Chat', description: 'IC Chat: atendimento, CRM e chatbot com IA para WhatsApp.', h1: 'IC Chat' }, base, true))
     }
   }
 }

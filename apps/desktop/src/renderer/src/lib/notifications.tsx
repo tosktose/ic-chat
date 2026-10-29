@@ -175,6 +175,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       return
     }
     lastLicense.current = license.state
+    // Um aviso por dia para cada situação: sem repetir a cada login (e "licença ativa" não precisa de aviso)
+    if (license.state === 'ativa') return
+    const dayKey = `icchat.licenseNotice.${license.state}`
+    const today = new Date().toDateString()
+    try {
+      if (localStorage.getItem(dayKey) === today) return
+      localStorage.setItem(dayKey, today)
+    } catch { /* sem armazenamento: avisa mesmo assim */ }
     const msg = {
       ativa: { kind: 'sistema' as const, title: 'Licença ativa', body: `Válida até ${license.expiresAt}.` },
       teste: { kind: 'licenca' as const, title: `Teste grátis: ${license.daysLeft} dias restantes`, body: 'Ative o plano para continuar depois do teste.' },
