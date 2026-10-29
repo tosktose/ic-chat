@@ -1,5 +1,6 @@
 import {
   BookUser,
+  CreditCard,
   Building2,
   CalendarDays,
   FileBarChart,
@@ -59,6 +60,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: '/ia', label: 'Assistente IA', short: 'IA', icon: Sparkles, group: 'Configuração' },
     { to: '/canais', label: 'Canais', icon: Plug, group: 'Configuração' },
     { to: '/equipe', label: 'Equipe', icon: Users, group: 'Configuração' },
+    { to: '/assinar', label: 'Assinatura', short: 'Plano', icon: CreditCard, group: 'Configuração' },
     { to: '/config', label: 'Configurações', short: 'Config.', icon: Settings, group: 'Configuração' }
   ],
   analista: [

@@ -23,6 +23,7 @@ import { LandingPage } from '@/pages/LandingPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { LegalPage } from '@/pages/LegalPage'
 import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/PasswordResetPage'
+import { SubscribePage, CheckoutReturnPage } from '@/pages/billing/SubscribePage'
 import { LicenseGate } from '@/components/LicenseGate'
 import { CookieConsent } from '@/components/CookieConsent'
 
@@ -128,6 +129,8 @@ export function App() {
                 <Route path="/canais" element={<Guard><ChannelsPage /></Guard>} />
                 <Route path="/relatorios" element={<Guard><ReportsPage /></Guard>} />
                 <Route path="/equipe" element={<Guard><TeamPage /></Guard>} />
+                <Route path="/assinar" element={<Guard><SubscribePage /></Guard>} />
+                <Route path="/assinar/retorno" element={<Guard><CheckoutReturnPage /></Guard>} />
                 <Route path="/config" element={<Guard><SettingsPage /></Guard>} />
                 {/* Gerente e analista */}
                 <Route path="/inbox" element={<Guard><InboxPage /></Guard>} />

@@ -22,6 +22,7 @@ import { NewAppointmentDialog } from '@/components/NewAppointmentDialog'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { navByPath, navFor, roleLabel, type NavItem } from '@/components/layout/nav'
 import { useAppState } from '@/lib/app-state'
+import { isWebApp } from '@/lib/supabase'
 import { useData } from '@/lib/data'
 import type { Role } from '@/data/mock'
 import { useTheme } from '@/lib/theme'
@@ -263,7 +264,7 @@ function TopBar() {
       </Tooltip>
 
       {role !== 'superadmin' && (
-        <LicensePill onClick={() => navigate(role === 'gerente' ? '/config?tab=licenca' : '/inbox')} state={license.state} days={license.daysLeft} />
+        <LicensePill onClick={() => navigate(role === 'gerente' ? (isWebApp ? '/assinar' : '/config?tab=licenca') : '/inbox')} state={license.state} days={license.daysLeft} />
       )}
 
       <NotificationBell />

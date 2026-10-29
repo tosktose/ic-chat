@@ -36,11 +36,11 @@ Para cada tela: ❶ tem mock? ❷ botões funcionam? ❸ salva e persiste após 
 - [ ] Agenda (criar agendamento) · [ ] Funil (criar/arrastar negócio) · [ ] Captação · [ ] Assistente IA · [ ] Canais · [ ] Perfil · [ ] Super Admin (usuários, planos, créditos)
 
 ## Fase 5 — Cobrança com Mercado Pago ⏳ (aguardando o aplicativo do Mercado Pago)
-- [ ] 5.1 Tela **Assinar** para o usuário logado (planos Start/Pro/Business, Pix e cartão)
-- [ ] 5.2 Função segura no servidor (Supabase Edge Function) que cria o pagamento/assinatura — o Access Token fica só no servidor
-- [ ] 5.3 Webhook do Mercado Pago (valida a assinatura da notificação) → atualiza a assinatura da empresa e renova a licença
-- [ ] 5.4 Falta de pagamento → assinatura  → app instalado bloqueia na próxima verificação
-- [ ] 5.5 Testes com o ambiente de teste do Mercado Pago
+- [x] 5.1 Tela **Assinar** (/assinar) + retorno do pagamento (/assinar/retorno), atalho no topo e no menu — testada (billing.spec.ts)
+- [x] 5.2 Código pronto: supabase/functions/create-checkout (preço definido no servidor; token só nos Secrets) · ⏳ falta publicar a função e colar o token
+- [x] 5.3 Código pronto: supabase/functions/mp-webhook (consulta o pagamento na API do MP, confere valor, idempotente) · ⏳ falta publicar e cadastrar a URL no MP
+- [ ] 5.4 Falta de pagamento → assinatura past_due → app instalado bloqueia na próxima verificação
+- [ ] 5.5 Rodar a migração 20261029_000003_payments.sql e testar um pagamento de teste real (cartão de teste do Mercado Pago)
 
 ## Pendências conhecidas (honestas)
 - "Novo analista" na Equipe e "Nova empresa" no Super Admin ficam **desativados** na web: criar usuário de outra pessoa exige uma função segura no servidor (Edge Function). Fica para a próxima rodada.
