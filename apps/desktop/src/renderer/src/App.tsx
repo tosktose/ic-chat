@@ -20,6 +20,9 @@ import { AuthProvider, useAuth } from '@/lib/auth'
 import { isWebApp } from '@/lib/supabase'
 import { AuthPage } from '@/pages/AuthPage'
 import { LandingPage } from '@/pages/LandingPage'
+import { NotFoundPage } from '@/pages/NotFoundPage'
+import { LegalPage } from '@/pages/LegalPage'
+import { CookieConsent } from '@/components/CookieConsent'
 
 const Router = isWebApp ? BrowserRouter : HashRouter
 
@@ -109,6 +112,8 @@ export function App() {
               <Route path="/" element={isWebApp ? <LandingPage /> : <Home />} />
               <Route path="/login" element={isWebApp ? <AuthPage mode="login" /> : <LoginPage />} />
               <Route path="/cadastro" element={isWebApp ? <AuthPage mode="signup" /> : <LoginPage />} />
+              <Route path="/privacidade" element={<LegalPage kind="privacidade" />} />
+              <Route path="/termos" element={<LegalPage kind="termos" />} />
               <Route element={<AppShell />}>
                 {/* Gerente */}
                 <Route path="/dashboard" element={<Guard><DashboardPage /></Guard>} />
@@ -136,8 +141,9 @@ export function App() {
                 <Route path="/admin/planos" element={<Guard><AdminPlansPage /></Guard>} />
                 <Route path="/admin/sistema" element={<Guard><AdminSystemPage /></Guard>} />
               </Route>
-              <Route path="*" element={<Navigate to={isWebApp ? '/' : '/login'} replace />} />
+              <Route path="*" element={isWebApp ? <NotFoundPage /> : <Navigate to="/login" replace />} />
             </Routes>
+            {isWebApp && <CookieConsent />}
             </AiProvider>
             </WhatsAppProvider>
             </TagsProvider>

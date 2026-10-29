@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth'
 import { toast } from 'sonner'
+import { useSeo } from '@/lib/seo'
 
 export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const { configured, signIn, signUp, signInWithGoogle } = useAuth()
@@ -16,6 +17,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const [company, setCompany] = useState('')
   const [confirmation, setConfirmation] = useState(false)
   const signup = mode === 'signup'
+  useSeo({ title: signup ? 'Teste grátis por 7 dias — IC Chat' : 'Entrar — IC Chat', description: signup ? 'Crie sua conta e teste o IC Chat por 7 dias, sem cartão de crédito.' : undefined, path: signup ? '/cadastro' : '/login', noindex: !signup })
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -74,13 +76,19 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
                 <Field label="E-mail"><Input required type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@empresa.com.br" icon={<Mail />} /></Field>
                 <Field label="Senha"><Input required minLength={8} type="password" autoComplete={signup ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo de 8 caracteres" icon={<LockKeyhole />} /></Field>
                 {signup && <p className="text-xs leading-5 text-muted">Ao criar a conta, você inicia um teste de 7 dias. Depois, escolha um plano para continuar.</p>}
+                {signup && (
+                  <label className="flex items-start gap-2.5 text-xs leading-5 text-muted">
+                    <input type="checkbox" required className="mt-0.5 size-4 shrink-0 accent-[var(--primary)]" />
+                    <span>Li e concordo com os <Link to="/termos" target="_blank" className="font-semibold text-primary hover:underline">Termos de Uso</Link> e a <Link to="/privacidade" target="_blank" className="font-semibold text-primary hover:underline">Política de Privacidade</Link>.</span>
+                  </label>
+                )}
                 <Button type="submit" className="mt-1 w-full" size="lg" disabled={!configured || loading}>{loading ? 'Aguarde…' : signup ? 'Criar conta e testar grátis' : 'Entrar'} <ArrowRight /></Button>
               </form>
               <p className="mt-6 text-center text-sm text-muted">{signup ? 'Já tem conta?' : 'Ainda não tem conta?'} <Link className="font-semibold text-primary hover:underline" to={signup ? '/login' : '/cadastro'}>{signup ? 'Entrar' : 'Teste grátis'}</Link></p>
             </>}
           </section>
         </div>
-        <p className="mt-5 text-center text-xs text-muted">Ao continuar, você concorda com os termos de uso e a política de privacidade.</p>
+        <p className="mt-5 text-center text-xs text-muted">Tratamos seus dados conforme a LGPD. Veja a <Link to="/privacidade" className="underline">Política de Privacidade</Link>.</p>
       </div>
     </main>
   )

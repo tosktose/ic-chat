@@ -1,9 +1,12 @@
-import { ArrowDownToLine, ArrowRight, ArrowUpRight, CalendarDays, Check, CheckCheck, ChevronDown, Menu, MessageCircle, MessageSquare, Play, ShieldCheck, Sparkles, Target, Users, X, Zap } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowDownToLine, ArrowRight, CalendarDays, Check, ChevronDown, Globe, Menu, MessageSquare, Monitor, ShieldCheck, Sparkles, Target, Users, X } from 'lucide-react'
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import { IcLogo, InstagramIcon } from '@/components/brand'
+import { InstagramIcon, WhatsAppIcon } from '@/components/brand'
+import logo from '@/assets/logo-transparent.png'
+import { openCookiePreferences } from '@/lib/consent'
+import { useSeo } from '@/lib/seo'
 
-const downloadUrl = import.meta.env.VITE_ICCHAT_DESKTOP_DOWNLOAD_URL
+const downloadUrl = import.meta.env.VITE_ICCHAT_DESKTOP_DOWNLOAD_URL as string | undefined
 
 const plans = [
   { name: 'Start', price: 79, summary: 'Para organizar o atendimento e não perder nenhum contato.', features: ['Até 3 usuários', 'Caixa de entrada e contatos', 'Funil de vendas', 'Agenda e relatórios essenciais'], recommended: false },
@@ -11,83 +14,363 @@ const plans = [
   { name: 'Business', price: 299, summary: 'Para operações em crescimento e mais de uma unidade.', features: ['Usuários ampliados', 'Tudo do Pro', 'Múltiplas unidades', 'Integrações e suporte prioritário'], recommended: false }
 ]
 
-export function LandingPage() {
-  const [menuOpen, setMenuOpen] = useState(false)
+const faqs = [
+  ['O que acontece depois do teste de 7 dias?', 'Você escolhe o plano que faz sentido para a sua empresa. Sem uma assinatura ativa, o acesso aos dados fica suspenso até a regularização — nada é apagado.'],
+  ['Preciso instalar alguma coisa?', 'Não. O IC Chat funciona direto no navegador. A versão para Windows é opcional, para quem prefere um aplicativo instalado no computador.'],
+  ['Meus dados ficam separados dos de outras empresas?', 'Sim. Cada empresa enxerga apenas os próprios dados, com regras de acesso aplicadas no banco de dados. Tratamos tudo conforme a LGPD.'],
+  ['Posso conectar WhatsApp e Instagram?', 'O sistema organiza o atendimento multicanal. A disponibilidade de cada conexão depende da configuração das APIs oficiais da Meta e da sua conta comercial.']
+]
+
+/** Revela o conteúdo suavemente quando ele entra na tela. */
+function Reveal({ children, delay = 0, className = '' }: { children: ReactNode; delay?: number; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    if (!('IntersectionObserver' in window)) { el.classList.add('is-in'); return }
+    const io = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { el.classList.add('is-in'); io.disconnect() } },
+      { threshold: 0.12, rootMargin: '0px 0px -6% 0px' }
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+  return <div ref={ref} className={`lp-reveal ${className}`} style={{ '--d': `${delay}ms` } as CSSProperties}>{children}</div>
+}
+
+const script = [
+  { from: 'them', text: 'Oi! Vi vocês no Instagram. Como funciona o plano Pro?' },
+  { from: 'me', text: 'Olá, Larissa! Já te explico. Quantas pessoas atendem por aí?' },
+  { from: 'them', text: 'Somos 4. Dá pra ver tudo num lugar só?' },
+  { from: 'me', text: 'Dá sim — e cada conversa vira uma oportunidade no funil. ✨' }
+]
+
+/** Conversa que se escreve sozinha, em loop. */
+function ChatDemo() {
+  const [shown, setShown] = useState(1)
+  const [typing, setTyping] = useState(false)
+  useEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setShown(script.length); return }
+    let alive = true
+    const timers: number[] = []
+    const later = (fn: () => void, ms: number) => timers.push(window.setTimeout(() => alive && fn(), ms))
+    const step = (n: number) => {
+      if (n >= script.length) { later(() => { setShown(1); step(1) }, 4200); return }
+      setTyping(true)
+      later(() => { setTyping(false); setShown(n + 1); step(n + 1) }, 1500)
+    }
+    later(() => step(1), 1200)
+    return () => { alive = false; timers.forEach(clearTimeout) }
+  }, [])
   return (
-    <main className="overflow-hidden bg-[#f8faff] text-slate-950 selection:bg-blue-200">
-      <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 sm:px-8">
-          <Link to="/" aria-label="IC Chat, início"><IcLogo /></Link>
-          <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
-            <a href="#funcionalidades" className="hover:text-blue-700">Funcionalidades</a><a href="#como-funciona" className="hover:text-blue-700">Como funciona</a><a href="#planos" className="hover:text-blue-700">Planos</a><a href="#duvidas" className="hover:text-blue-700">Dúvidas</a>
-          </nav>
-          <div className="hidden items-center gap-3 md:flex"><Link to="/login" className="px-3 py-2 text-sm font-semibold text-slate-700 hover:text-blue-700">Entrar</Link><Link to="/cadastro" className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-700 px-4 text-sm font-semibold text-white shadow-lg shadow-blue-700/20 transition hover:-translate-y-0.5 hover:bg-blue-800">Teste grátis <ArrowRight className="size-4" /></Link></div>
-          <button className="rounded-lg p-2 text-slate-700 md:hidden" aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X /> : <Menu />}</button>
+    <div className="flex flex-col gap-2.5 p-4">
+      {script.slice(0, shown).map((m, i) => (
+        <div key={i} className={`lp-pop max-w-[82%] rounded-2xl px-3.5 py-2 text-[12.5px] leading-5 ${m.from === 'me' ? 'self-end rounded-br-md bg-blue-600 text-white' : 'self-start rounded-bl-md bg-white text-slate-700 shadow-sm ring-1 ring-slate-100'}`}>{m.text}</div>
+      ))}
+      {typing && (
+        <div className={`flex gap-1 rounded-2xl bg-white px-3.5 py-3 shadow-sm ring-1 ring-slate-100 ${script[shown].from === 'me' ? 'self-end' : 'self-start'}`}>
+          {[0, 1, 2].map((d) => <i key={d} className="lp-dot size-1.5 rounded-full bg-slate-400" style={{ animationDelay: `${d * 160}ms` }} />)}
         </div>
-        {menuOpen && <nav className="grid gap-1 border-t border-slate-100 bg-white px-5 py-3 text-sm md:hidden"><a onClick={() => setMenuOpen(false)} href="#funcionalidades" className="rounded-lg px-3 py-2">Funcionalidades</a><a onClick={() => setMenuOpen(false)} href="#como-funciona" className="rounded-lg px-3 py-2">Como funciona</a><a onClick={() => setMenuOpen(false)} href="#planos" className="rounded-lg px-3 py-2">Planos</a><Link to="/login" className="rounded-lg px-3 py-2">Entrar</Link><Link to="/cadastro" className="rounded-lg bg-blue-700 px-3 py-2 font-semibold text-white">Testar grátis por 7 dias</Link></nav>}
-      </header>
+      )}
+    </div>
+  )
+}
 
-      <section className="relative isolate px-5 pt-16 pb-20 sm:px-8 sm:pt-24 lg:pt-28">
-        <div className="pointer-events-none absolute -top-24 left-1/2 -z-10 h-[560px] w-[960px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,.16),rgba(248,250,255,0)_65%)]" />
-        <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[.9fr_1.1fr] lg:gap-8">
-          <div className="relative z-10 max-w-xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/90 px-3.5 py-1.5 text-xs font-semibold text-blue-800 shadow-sm"><span className="size-1.5 rounded-full bg-emerald-500" /> Atendimento, relacionamento e vendas no mesmo lugar</div>
-            <h1 className="mt-6 text-4xl leading-[1.08] font-bold tracking-[-.045em] text-slate-950 sm:text-5xl lg:text-[58px]">A conversa começa no WhatsApp. <span className="bg-gradient-to-r from-blue-700 to-cyan-500 bg-clip-text text-transparent">A venda não pode se perder ali.</span></h1>
-            <p className="mt-5 max-w-lg text-base leading-7 text-slate-600 sm:text-lg">Organize seus contatos, acompanhe cada oportunidade e veja quais canais trazem clientes para o seu negócio.</p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row"><Link to="/cadastro" className="inline-flex h-13 items-center justify-center gap-2 rounded-xl bg-blue-700 px-6 text-sm font-bold text-white shadow-xl shadow-blue-700/25 transition hover:-translate-y-0.5 hover:bg-blue-800">Experimente grátis por 7 dias <ArrowRight className="size-4" /></Link><a href="#como-funciona" className="inline-flex h-13 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-800"><Play className="size-4 fill-current" /> Conheça o sistema</a></div>
-            <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-slate-500"><span className="inline-flex items-center gap-1.5"><Check className="size-3.5 text-emerald-600" /> Sem cartão no teste</span><span className="inline-flex items-center gap-1.5"><ShieldCheck className="size-3.5 text-blue-600" /> Seus dados separados por empresa</span></div>
-          </div>
+function Mockup() {
+  const ref = useRef<HTMLDivElement>(null)
+  const move = (e: MouseEvent) => {
+    const el = ref.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const x = (e.clientX - r.left) / r.width - 0.5
+    const y = (e.clientY - r.top) / r.height - 0.5
+    el.style.transform = `perspective(1400px) rotateY(${x * 7}deg) rotateX(${-y * 6}deg)`
+  }
+  const leave = () => { if (ref.current) ref.current.style.transform = 'perspective(1400px) rotateY(0) rotateX(0)' }
+  const bars = [38, 56, 44, 72, 60, 88, 76]
+  return (
+    <div className="relative mx-auto w-full max-w-[640px]" onMouseMove={move} onMouseLeave={leave}>
+      <div className="lp-float-slow absolute -top-6 -left-4 z-20 hidden items-center gap-2.5 rounded-2xl bg-white/90 px-3.5 py-2.5 shadow-xl ring-1 ring-slate-100 backdrop-blur sm:flex">
+        <span className="grid size-8 place-items-center rounded-xl bg-emerald-50 text-emerald-600"><WhatsAppIcon className="size-4" /></span>
+        <span><b className="block text-xs text-slate-900">Nova mensagem</b><small className="text-[10px] text-slate-500">Rafael pediu os valores</small></span>
+      </div>
+      <div className="lp-float absolute -right-3 -bottom-5 z-20 hidden items-center gap-2.5 rounded-2xl bg-white/90 px-3.5 py-2.5 shadow-xl ring-1 ring-slate-100 backdrop-blur sm:flex">
+        <span className="grid size-8 place-items-center rounded-xl bg-blue-50 text-blue-700"><Target className="size-4" /></span>
+        <span><b className="block text-xs text-slate-900">+ R$ 4.800 no funil</b><small className="text-[10px] text-slate-500">Oportunidade criada agora</small></span>
+      </div>
 
-          <div className="relative mx-auto w-full max-w-[680px] lg:ml-auto">
-            <div className="absolute -inset-7 -z-10 rounded-[42px] bg-gradient-to-br from-blue-200/60 via-cyan-100/40 to-violet-200/40 blur-2xl" />
-            <div className="rounded-[24px] border border-slate-200/90 bg-white p-2.5 shadow-[0_36px_100px_-35px_rgba(30,64,175,.35)] sm:p-3.5">
-              <div className="flex h-9 items-center justify-between px-2"><div className="flex gap-1.5"><i className="size-2.5 rounded-full bg-rose-300"/><i className="size-2.5 rounded-full bg-amber-300"/><i className="size-2.5 rounded-full bg-emerald-300"/></div><span className="text-[10px] font-medium tracking-wide text-slate-400">PRÉVIA DA INTERFACE · IC CHAT</span><span className="w-7"/></div>
-              <div className="grid min-h-[390px] overflow-hidden rounded-[16px] border border-slate-100 bg-slate-50 sm:grid-cols-[48px_190px_1fr]">
-                <aside className="hidden flex-col items-center gap-3 border-r border-slate-200 bg-white py-4 sm:flex"><div className="grid size-8 place-items-center rounded-xl bg-blue-700 text-[10px] font-black text-white">IC</div><span className="mt-2 grid size-8 place-items-center rounded-lg bg-blue-50 text-blue-700"><MessageSquare className="size-4"/></span><span className="grid size-8 place-items-center text-slate-400"><Users className="size-4"/></span><span className="grid size-8 place-items-center text-slate-400"><CalendarDays className="size-4"/></span><span className="grid size-8 place-items-center text-slate-400"><Target className="size-4"/></span></aside>
-                <aside className="hidden border-r border-slate-200 bg-white p-3 sm:block"><div className="mb-4 flex items-center justify-between"><span className="text-xs font-bold text-slate-800">Atendimento</span><span className="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700">12 novas</span></div><div className="mb-3 flex h-8 items-center rounded-lg bg-slate-50 px-2 text-[10px] text-slate-400">Buscar conversa…</div>{[['LM','Larissa M.','Oi! Vi pelo Instagram…','09:42','bg-pink-100 text-pink-700'],['RC','Rafael C.','Pode me mandar os valores?','09:36','bg-amber-100 text-amber-700'],['BF','Bruna F.','Obrigada pelo retorno!','09:21','bg-violet-100 text-violet-700'],['TA','Tiago A.','Queria agendar para sexta','Ontem','bg-emerald-100 text-emerald-700']].map(([initials,name,message,time,color],i)=><div key={name} className={`flex gap-2.5 rounded-xl p-2 ${i===0?'bg-blue-50':''}`}><span className={`grid size-7 shrink-0 place-items-center rounded-full text-[9px] font-bold ${color}`}>{initials}</span><div className="min-w-0 flex-1"><div className="flex justify-between"><b className="truncate text-[10px] text-slate-800">{name}</b><small className="text-[8px] text-slate-400">{time}</small></div><p className="mt-0.5 truncate text-[9px] text-slate-500">{message}</p></div></div>)}</aside>
-                <section className="min-w-0 p-3 sm:p-4"><div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-2.5"><div className="flex items-center gap-2.5"><span className="grid size-8 place-items-center rounded-full bg-pink-100 text-[9px] font-bold text-pink-700">LM</span><div><b className="block text-[10px] text-slate-800">Larissa Martins</b><span className="inline-flex items-center gap-1 text-[8px] text-emerald-700"><InstagramIcon className="size-2.5"/> Instagram · nova oportunidade</span></div></div><span className="rounded-md bg-emerald-50 px-2 py-1 text-[8px] font-semibold text-emerald-700">Em atendimento</span></div>
-                  <div className="my-3 grid grid-cols-3 gap-2">{[['CONTATOS','1.284'],['EM ABERTO','R$ 18,4 mil'],['CONVERSÃO','32%']].map(([k,v])=><div key={k} className="rounded-xl border border-slate-200 bg-white p-2.5"><span className="block text-[7px] font-bold tracking-wider text-slate-400">{k}</span><b className="mt-1 block text-[11px] text-slate-900 sm:text-sm">{v}</b></div>)}</div>
-                  <div className="relative flex h-[120px] items-end justify-between overflow-hidden rounded-xl border border-slate-200 bg-white p-3"><div className="absolute top-3 left-3"><span className="text-[8px] text-slate-400">Oportunidades por etapa</span><b className="mt-0.5 block text-xs text-slate-800">Pipeline comercial</b></div><svg className="absolute inset-x-3 bottom-3 h-14 w-[calc(100%-24px)]" viewBox="0 0 400 70" preserveAspectRatio="none" aria-label="Gráfico de exemplo"><defs><linearGradient id="landing-chart" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#3b82f6" stopOpacity=".25"/><stop offset="1" stopColor="#3b82f6" stopOpacity="0"/></linearGradient></defs><path d="M0 60 C40 54 52 32 95 40 S158 25 200 33 S267 5 305 20 S360 3 400 8 L400 70 L0 70Z" fill="url(#landing-chart)"/><path d="M0 60 C40 54 52 32 95 40 S158 25 200 33 S267 5 305 20 S360 3 400 8" fill="none" stroke="#2563eb" strokeWidth="2.5"/></svg></div>
-                  <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-900 px-3 py-2.5 text-white"><div className="flex items-center gap-2"><span className="grid size-6 place-items-center rounded-lg bg-blue-500"><Sparkles className="size-3"/></span><span className="text-[9px] font-semibold">Sugestão para a equipe</span></div><span className="text-[8px] text-slate-300">Retorne em até 10 min</span><ArrowUpRight className="size-3 text-cyan-300"/></div>
-                </section>
+      <div ref={ref} className="rounded-[26px] bg-white/70 p-2 shadow-[0_50px_120px_-40px_rgba(30,64,175,.45)] ring-1 ring-slate-200/80 backdrop-blur transition-transform duration-300 ease-out will-change-transform">
+        <div className="overflow-hidden rounded-[20px] bg-slate-50 ring-1 ring-slate-100">
+          <div className="flex h-9 items-center gap-1.5 border-b border-slate-100 bg-white px-4"><i className="size-2.5 rounded-full bg-slate-200" /><i className="size-2.5 rounded-full bg-slate-200" /><i className="size-2.5 rounded-full bg-slate-200" /></div>
+          <div className="grid sm:grid-cols-[1fr_1.15fr]">
+            <div className="hidden border-r border-slate-100 bg-white p-3.5 sm:block">
+              <div className="mb-3 flex items-center justify-between"><b className="text-xs text-slate-800">Atendimento</b><span className="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700">12 novas</span></div>
+              {[['LM', 'Larissa M.', 'Como funciona o plano Pro?', 'bg-pink-100 text-pink-700'], ['RC', 'Rafael C.', 'Pode me mandar os valores?', 'bg-amber-100 text-amber-700'], ['BF', 'Bruna F.', 'Obrigada pelo retorno!', 'bg-violet-100 text-violet-700'], ['TA', 'Tiago A.', 'Queria agendar para sexta', 'bg-emerald-100 text-emerald-700']].map(([i, n, m, c], k) => (
+                <div key={n} className={`flex items-center gap-2.5 rounded-xl p-2 ${k === 0 ? 'bg-blue-50' : ''}`}>
+                  <span className={`grid size-8 shrink-0 place-items-center rounded-full text-[10px] font-bold ${c}`}>{i}</span>
+                  <div className="min-w-0"><b className="block truncate text-[11px] text-slate-800">{n}</b><p className="truncate text-[10px] text-slate-500">{m}</p></div>
+                </div>
+              ))}
+              <div className="mt-4 rounded-xl border border-slate-100 p-3">
+                <span className="text-[9px] font-semibold tracking-wider text-slate-400">LEADS NA SEMANA</span>
+                <div className="mt-2 flex h-14 items-end gap-1.5">{bars.map((h, i) => <i key={i} className="lp-bar flex-1 rounded-t bg-gradient-to-t from-blue-600 to-cyan-400" style={{ height: `${h}%`, animationDelay: `${i * 90 + 400}ms` }} />)}</div>
               </div>
             </div>
-            <div className="absolute -right-3 -bottom-6 hidden items-center gap-2 rounded-2xl border border-slate-100 bg-white px-3.5 py-3 shadow-xl sm:flex"><span className="grid size-8 place-items-center rounded-xl bg-emerald-50 text-emerald-600"><CheckCheck className="size-4"/></span><span><b className="block text-xs text-slate-900">Tudo acompanhado</b><small className="text-[10px] text-slate-500">Da primeira mensagem ao fechamento</small></span></div>
+            <div className="flex min-h-[340px] flex-col bg-[#eef2f8]">
+              <div className="flex items-center gap-2.5 border-b border-slate-200/70 bg-white px-4 py-3">
+                <span className="grid size-8 place-items-center rounded-full bg-pink-100 text-[10px] font-bold text-pink-700">LM</span>
+                <div><b className="block text-xs text-slate-800">Larissa Martins</b><span className="inline-flex items-center gap-1 text-[10px] text-slate-500"><InstagramIcon className="size-3 text-pink-500" /> Instagram</span></div>
+                <span className="ml-auto rounded-md bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700">Em atendimento</span>
+              </div>
+              <ChatDemo />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SectionTitle({ eyebrow, title, copy }: { eyebrow: string; title: string; copy?: string }) {
+  return (
+    <Reveal className="mx-auto max-w-2xl text-center">
+      <span className="text-[11px] font-bold tracking-[.22em] text-blue-700 uppercase">{eyebrow}</span>
+      <h2 className="mt-4 text-3xl font-semibold tracking-[-.035em] text-slate-950 sm:text-[42px] sm:leading-[1.1]">{title}</h2>
+      {copy && <p className="mt-4 text-base leading-7 text-slate-600">{copy}</p>}
+    </Reveal>
+  )
+}
+
+export function LandingPage() {
+  useSeo({ title: 'IC Chat — Atendimento que vira venda', description: 'Atenda pelo WhatsApp e Instagram, organize contatos e acompanhe oportunidades em um CRM simples. Experimente o IC Chat por 7 dias grátis.', path: '/' })
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+  const scroller = useRef<HTMLElement>(null)
+
+  return (
+    // O app é "tela cheia" (body sem rolagem); a landing tem a própria área rolável.
+    <main
+      ref={scroller}
+      onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 12)}
+      className="lp-scroll fixed inset-0 overflow-x-hidden overflow-y-auto bg-[#fbfcff] text-slate-950 selection:bg-blue-200"
+      style={{ colorScheme: 'light' }}
+    >
+      <header className={`sticky top-0 z-40 transition-all duration-300 ${scrolled ? 'border-b border-slate-200/70 bg-white/80 backdrop-blur-xl' : 'border-b border-transparent'}`}>
+        <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 sm:px-8">
+          <Link to="/" aria-label="IC Chat, início"><img src={logo} alt="IC Chat" className="h-9 w-auto sm:h-10" /></Link>
+          <nav className="hidden items-center gap-9 text-[13px] font-medium text-slate-600 md:flex">
+            {[['#funcionalidades', 'Funcionalidades'], ['#como-funciona', 'Como funciona'], ['#planos', 'Planos'], ['#baixar', 'Aplicativo'], ['#duvidas', 'Dúvidas']].map(([h, l]) => <a key={h} href={h} className="transition hover:text-blue-700">{l}</a>)}
+          </nav>
+          <div className="hidden items-center gap-2 md:flex">
+            <Link to="/login" className="rounded-lg px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:text-blue-700">Entrar</Link>
+            <Link to="/cadastro" className="inline-flex h-10 items-center gap-2 rounded-full bg-slate-950 px-5 text-[13px] font-semibold text-white transition hover:bg-blue-700">Teste grátis <ArrowRight className="size-3.5" /></Link>
+          </div>
+          <button className="rounded-lg p-2 text-slate-700 md:hidden" aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X /> : <Menu />}</button>
+        </div>
+        {menuOpen && (
+          <nav className="grid gap-1 border-t border-slate-100 bg-white px-5 py-3 text-sm md:hidden">
+            {[['#funcionalidades', 'Funcionalidades'], ['#como-funciona', 'Como funciona'], ['#planos', 'Planos'], ['#baixar', 'Aplicativo'], ['#duvidas', 'Dúvidas']].map(([h, l]) => <a key={h} onClick={() => setMenuOpen(false)} href={h} className="rounded-lg px-3 py-2.5">{l}</a>)}
+            <Link to="/login" className="rounded-lg px-3 py-2.5">Entrar</Link>
+            <Link to="/cadastro" className="mt-1 rounded-full bg-slate-950 px-3 py-3 text-center font-semibold text-white">Testar grátis por 7 dias</Link>
+          </nav>
+        )}
+      </header>
+
+      {/* HERO */}
+      <section className="relative isolate overflow-hidden px-5 pt-14 pb-24 sm:px-8 sm:pt-20 lg:pt-24">
+        <div className="pointer-events-none absolute inset-0 -z-10">
+          <div className="lp-drift absolute -top-32 -left-24 h-[460px] w-[460px] rounded-full bg-blue-300/30 blur-[110px]" />
+          <div className="lp-drift absolute top-10 right-0 h-[420px] w-[420px] rounded-full bg-cyan-200/50 blur-[110px]" style={{ animationDelay: '-8s' }} />
+          <div className="lp-drift absolute bottom-0 left-1/3 h-[340px] w-[340px] rounded-full bg-violet-200/40 blur-[110px]" style={{ animationDelay: '-14s' }} />
+          <div className="lp-grain absolute inset-0" />
+        </div>
+        <div className="mx-auto grid max-w-7xl items-center gap-16 lg:grid-cols-[.95fr_1.05fr] lg:gap-10">
+          <div className="relative z-10 max-w-xl">
+            <Reveal>
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-slate-200/80 backdrop-blur"><span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" /><span className="relative size-2 rounded-full bg-emerald-500" /></span> Atendimento, contatos e vendas em um só lugar</div>
+            </Reveal>
+            <Reveal delay={90}>
+              <h1 className="mt-7 text-[40px] leading-[1.04] font-semibold tracking-[-.05em] text-slate-950 sm:text-6xl lg:text-[68px]">A conversa começa no chat. <span className="bg-gradient-to-r from-blue-700 via-blue-500 to-cyan-400 bg-clip-text text-transparent">A venda não se perde.</span></h1>
+            </Reveal>
+            <Reveal delay={180}>
+              <p className="mt-6 max-w-lg text-[17px] leading-8 text-slate-600">Organize contatos, acompanhe cada oportunidade e descubra quais canais realmente trazem clientes — com a leveza de um app que sua equipe quer usar.</p>
+            </Reveal>
+            <Reveal delay={270}>
+              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+                <Link to="/cadastro" className="group inline-flex h-14 items-center justify-center gap-2 rounded-full bg-slate-950 px-8 text-sm font-semibold text-white shadow-2xl shadow-slate-900/20 transition hover:bg-blue-700">Experimentar grátis por 7 dias <ArrowRight className="size-4 transition group-hover:translate-x-1" /></Link>
+                <a href="#baixar" className="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-white px-7 text-sm font-semibold text-slate-800 ring-1 ring-slate-200 transition hover:ring-blue-300"><ArrowDownToLine className="size-4" /> Baixar o app</a>
+              </div>
+              <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-slate-500"><span className="inline-flex items-center gap-1.5"><Check className="size-3.5 text-emerald-600" /> Sem cartão no teste</span><span className="inline-flex items-center gap-1.5"><ShieldCheck className="size-3.5 text-blue-600" /> Em conformidade com a LGPD</span></div>
+            </Reveal>
+          </div>
+          <Reveal delay={200}><Mockup /></Reveal>
+        </div>
+      </section>
+
+      {/* FAIXA DE CANAIS */}
+      <section aria-label="Canais" className="overflow-hidden border-y border-slate-200/70 bg-white/60 py-6">
+        <div className="lp-marquee flex w-max items-center gap-14 pr-14 text-sm font-medium text-slate-400">
+          {[0, 1].map((k) => (
+            <div key={k} className="flex shrink-0 items-center gap-14" aria-hidden={k === 1}>
+              {[[WhatsAppIcon, 'WhatsApp'], [InstagramIcon, 'Instagram'], [CalendarDays, 'Agenda'], [Target, 'Funil de vendas'], [Sparkles, 'Assistente de IA'], [Users, 'Contatos'], [MessageSquare, 'Caixa de entrada']].map(([Icon, label]) => {
+                const I = Icon as typeof Target
+                return <span key={`${k}-${label as string}`} className="inline-flex items-center gap-2.5"><I className="size-[18px]" /> {label as string}</span>
+              })}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FUNCIONALIDADES (bento) */}
+      <section id="funcionalidades" className="px-5 py-24 sm:px-8 sm:py-32">
+        <div className="mx-auto max-w-7xl">
+          <SectionTitle eyebrow="Funcionalidades" title="Tudo o que sua equipe precisa, sem o excesso." copy="Atenda com contexto, transforme interesse em oportunidade e acompanhe o que está funcionando." />
+          <div className="mt-16 grid gap-4 lg:grid-cols-6">
+            <Reveal className="lg:col-span-3"><article className="group relative h-full overflow-hidden rounded-[28px] bg-white p-8 ring-1 ring-slate-200/80 transition duration-500 hover:shadow-2xl hover:shadow-blue-900/10">
+              <span className="grid size-11 place-items-center rounded-2xl bg-blue-50 text-blue-700"><MessageSquare className="size-5" /></span>
+              <h3 className="mt-6 text-xl font-semibold tracking-tight">Uma caixa de entrada para a equipe toda</h3>
+              <p className="mt-2 max-w-sm text-sm leading-6 text-slate-600">Conversas, histórico e responsável de cada contato num só lugar, com respostas rápidas e notas internas.</p>
+              <div className="pointer-events-none absolute -right-10 -bottom-10 size-48 rounded-full bg-gradient-to-br from-blue-100 to-cyan-100 opacity-70 blur-2xl transition duration-700 group-hover:scale-125" />
+            </article></Reveal>
+            <Reveal delay={80} className="lg:col-span-3"><article className="group relative h-full overflow-hidden rounded-[28px] bg-slate-950 p-8 text-white transition duration-500 hover:shadow-2xl hover:shadow-blue-900/30">
+              <span className="grid size-11 place-items-center rounded-2xl bg-white/10 text-cyan-300"><Target className="size-5" /></span>
+              <h3 className="mt-6 text-xl font-semibold tracking-tight">Funil visual de oportunidades</h3>
+              <p className="mt-2 max-w-sm text-sm leading-6 text-slate-300">Veja valor, etapa e próxima ação de cada negociação e arraste cards conforme a venda avança.</p>
+              <div className="mt-6 flex gap-2">{['Novo', 'Proposta', 'Fechado'].map((s, i) => <span key={s} className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-medium text-slate-200 transition group-hover:bg-white/15" style={{ transitionDelay: `${i * 70}ms` }}>{s}</span>)}</div>
+            </article></Reveal>
+            {[
+              { icon: Users, t: 'Contatos com contexto', c: 'Origem, preferências e histórico sempre à mão.' },
+              { icon: CalendarDays, t: 'Agenda conectada', c: 'Horários, profissionais e compromissos dos clientes.' },
+              { icon: Sparkles, t: 'Assistente de IA', c: 'Apoio para dúvidas frequentes e tarefas repetitivas.' },
+              { icon: ShieldCheck, t: 'Dados protegidos', c: 'Acesso por equipe e dados separados por empresa.' }
+            ].map(({ icon: Icon, t, c }, i) => (
+              <Reveal key={t} delay={i * 70} className="lg:col-span-3"><article className="group flex h-full items-start gap-4 rounded-[28px] bg-white p-6 ring-1 ring-slate-200/80 transition duration-500 hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-900/5">
+                <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-slate-50 text-slate-700 transition group-hover:bg-blue-600 group-hover:text-white"><Icon className="size-5" /></span>
+                <div><h3 className="font-semibold tracking-tight">{t}</h3><p className="mt-1 text-sm leading-6 text-slate-600">{c}</p></div>
+              </article></Reveal>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="border-y border-slate-200 bg-white py-8"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-12 gap-y-4 px-5 text-xs font-medium text-slate-500 sm:text-sm"><span className="text-slate-400">UMA ROTINA MAIS ORGANIZADA COM</span><span className="inline-flex items-center gap-2"><MessageCircle className="size-4 text-emerald-600"/> WhatsApp</span><span className="inline-flex items-center gap-2"><InstagramIcon className="size-4 text-fuchsia-600"/> Instagram</span><span className="inline-flex items-center gap-2"><CalendarDays className="size-4 text-blue-600"/> Agenda</span><span className="inline-flex items-center gap-2"><Target className="size-4 text-violet-600"/> Funil de vendas</span></div></section>
+      {/* COMO FUNCIONA */}
+      <section id="como-funciona" className="relative overflow-hidden bg-slate-950 px-5 py-24 text-white sm:px-8 sm:py-32">
+        <div className="pointer-events-none absolute -top-40 right-0 size-[520px] rounded-full bg-blue-600/25 blur-[130px]" />
+        <div className="relative mx-auto grid max-w-7xl gap-16 lg:grid-cols-[.8fr_1.2fr]">
+          <Reveal>
+            <span className="text-[11px] font-bold tracking-[.22em] text-cyan-300 uppercase">Como funciona</span>
+            <h2 className="mt-4 max-w-md text-3xl font-semibold tracking-[-.035em] sm:text-[42px] sm:leading-[1.1]">Do primeiro oi a uma visão clara do negócio.</h2>
+            <p className="mt-5 max-w-md text-base leading-7 text-slate-400">Sem planilhas espalhadas e sem conversa perdida: três passos simples para organizar o atendimento.</p>
+            <Link to="/cadastro" className="mt-8 inline-flex h-12 items-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300">Quero experimentar <ArrowRight className="size-4" /></Link>
+          </Reveal>
+          <div className="relative grid gap-4">
+            <div className="absolute top-6 bottom-6 left-[27px] hidden w-px bg-gradient-to-b from-blue-500/60 via-cyan-400/30 to-transparent sm:block" />
+            {[['01', 'Centralize', 'Reúna contatos e organize as conversas por canal e responsável.'], ['02', 'Acompanhe', 'Registre origem, interesse e o próximo passo de cada oportunidade.'], ['03', 'Melhore', 'Use o funil e os indicadores para priorizar retornos e entender resultados.']].map(([n, t, c], i) => (
+              <Reveal key={n} delay={i * 110}><div className="relative flex gap-5 rounded-3xl bg-white/[.04] p-6 ring-1 ring-white/10 transition duration-500 hover:bg-white/[.07]">
+                <span className="relative z-10 grid size-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-400 text-sm font-bold text-white shadow-lg shadow-blue-600/30">{n}</span>
+                <div><h3 className="text-lg font-semibold">{t}</h3><p className="mt-1 text-sm leading-6 text-slate-400">{c}</p></div>
+              </div></Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
 
-      <section id="funcionalidades" className="px-5 py-20 sm:px-8 sm:py-28"><div className="mx-auto max-w-7xl"><div className="mx-auto max-w-2xl text-center"><span className="text-xs font-bold tracking-[.18em] text-blue-700 uppercase">Menos conversa perdida. Mais visão do negócio.</span><h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">O que sua equipe precisa, conectado de verdade.</h2><p className="mt-4 text-base leading-7 text-slate-600">Atenda com contexto, transforme interesse em oportunidade e acompanhe o que está funcionando.</p></div><div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[
-        {icon:MessageSquare,title:'Uma caixa de entrada',copy:'Veja conversas e histórico do cliente num lugar organizado para a equipe.'},
-        {icon:Users,title:'Contatos com contexto',copy:'Tenha informações, preferências, origem e histórico sempre à mão.'},
-        {icon:Target,title:'Funil visual',copy:'Acompanhe cada oportunidade, valor, etapa e próxima ação.'},
-        {icon:Zap,title:'Atendimento mais ágil',copy:'Padronize respostas e organize o trabalho entre pessoas e automações.'},
-        {icon:CalendarDays,title:'Agenda conectada',copy:'Organize horários, profissionais e compromissos dos clientes.'},
-        {icon:Sparkles,title:'Assistente de IA',copy:'Apoie a equipe em dúvidas frequentes e tarefas repetitivas.'},
-        {icon:ArrowUpRight,title:'Origem das vendas',copy:'Registre canal e campanha para entender de onde vêm as oportunidades.'},
-        {icon:ShieldCheck,title:'Acesso por equipe',copy:'Cada empresa acompanha os próprios dados com controles de acesso.'}
-      ].map(({icon:Icon,title,copy},i)=><article key={title} className="group rounded-2xl border border-slate-200 bg-white p-5 transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-900/5"><span className={`grid size-10 place-items-center rounded-xl ${['bg-blue-50 text-blue-700','bg-cyan-50 text-cyan-700','bg-violet-50 text-violet-700','bg-emerald-50 text-emerald-700'][i%4]}`}><Icon className="size-5"/></span><h3 className="mt-5 font-bold text-slate-900">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{copy}</p><span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-blue-700 opacity-0 transition group-hover:opacity-100">Conheça <ArrowRight className="size-3"/></span></article>)}</div></div></section>
+      {/* PLANOS */}
+      <section id="planos" className="px-5 py-24 sm:px-8 sm:py-32">
+        <div className="mx-auto max-w-7xl">
+          <SectionTitle eyebrow="Planos" title="Comece no seu ritmo." copy="Teste todas as funcionalidades por 7 dias, sem cartão de crédito." />
+          <div className="mt-16 grid items-stretch gap-5 lg:grid-cols-3">
+            {plans.map((plan, i) => (
+              <Reveal key={plan.name} delay={i * 90}><article className={`relative flex h-full flex-col rounded-[28px] p-8 transition duration-500 hover:-translate-y-1 ${plan.recommended ? 'bg-slate-950 text-white shadow-2xl shadow-blue-900/25' : 'bg-white ring-1 ring-slate-200/80 hover:shadow-xl hover:shadow-blue-900/5'}`}>
+                {plan.recommended && <span className="absolute -top-3 left-8 rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 px-3 py-1 text-[10px] font-bold tracking-wide text-white uppercase">Mais escolhido</span>}
+                <h3 className="text-lg font-semibold">{plan.name}</h3>
+                <p className={`mt-2 min-h-12 text-sm leading-6 ${plan.recommended ? 'text-slate-400' : 'text-slate-600'}`}>{plan.summary}</p>
+                <p className="mt-6 flex items-baseline gap-1"><span className="text-5xl font-semibold tracking-tight">R$ {plan.price}</span><span className={`text-sm ${plan.recommended ? 'text-slate-400' : 'text-slate-500'}`}>/mês</span></p>
+                <p className={`mt-1 text-xs ${plan.recommended ? 'text-slate-500' : 'text-slate-500'}`}>após os 7 dias de teste</p>
+                <Link to={`/cadastro?plano=${plan.name.toLowerCase()}`} className={`mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition ${plan.recommended ? 'bg-white text-slate-950 hover:bg-cyan-300' : 'bg-slate-950 text-white hover:bg-blue-700'}`}>Testar por 7 dias <ArrowRight className="size-4" /></Link>
+                <ul className={`mt-8 flex flex-col gap-3 border-t pt-7 ${plan.recommended ? 'border-white/10' : 'border-slate-100'}`}>
+                  {plan.features.map((f) => <li key={f} className={`flex items-start gap-2.5 text-sm ${plan.recommended ? 'text-slate-200' : 'text-slate-700'}`}><Check className={`mt-0.5 size-4 shrink-0 ${plan.recommended ? 'text-cyan-300' : 'text-emerald-600'}`} />{f}</li>)}
+                </ul>
+              </article></Reveal>
+            ))}
+          </div>
+          <p className="mt-6 text-center text-xs text-slate-500">Valores e limites iniciais. Condições finais podem ser ajustadas antes da cobrança.</p>
+        </div>
+      </section>
 
-      <section id="como-funciona" className="bg-[#0b1530] px-5 py-20 text-white sm:px-8 sm:py-24"><div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2"><div><span className="text-xs font-bold tracking-[.18em] text-cyan-300 uppercase">Comece sem complicação</span><h2 className="mt-4 max-w-xl text-3xl leading-tight font-bold tracking-tight sm:text-4xl">Do primeiro oi a uma visão clara do que acontece.</h2><p className="mt-4 max-w-lg text-sm leading-7 text-slate-300">O IC Chat organiza os passos do atendimento e aproxima a equipe das metas comerciais — sem planilhas espalhadas.</p><Link to="/cadastro" className="mt-7 inline-flex h-12 items-center gap-2 rounded-xl bg-cyan-400 px-5 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:-translate-y-0.5 hover:bg-cyan-300">Quero experimentar <ArrowRight className="size-4"/></Link></div><div className="grid gap-3">{[
-        ['01','Centralize','Reúna contatos e organize as conversas por canal e responsável.'],
-        ['02','Acompanhe','Registre a origem, o interesse e o próximo passo de cada oportunidade.'],
-        ['03','Melhore','Use o funil e os indicadores para priorizar retornos e entender resultados.']
-      ].map(([n,title,copy])=><div key={n} className="flex gap-4 rounded-2xl border border-white/10 bg-white/[.045] p-5"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-500/20 text-sm font-bold text-cyan-200">{n}</span><div><h3 className="font-semibold">{title}</h3><p className="mt-1 text-sm leading-6 text-slate-300">{copy}</p></div></div>)}</div></div></section>
+      {/* DUAS FORMAS DE USAR / DOWNLOAD */}
+      <section id="baixar" className="px-5 pb-24 sm:px-8 sm:pb-32">
+        <div className="mx-auto max-w-7xl">
+          <SectionTitle eyebrow="Duas formas de usar" title="No navegador ou no seu computador." copy="Mesma conta, mesmos dados. Escolha o que combina com a rotina da sua equipe." />
+          <div className="mt-14 grid gap-5 md:grid-cols-2">
+            <Reveal><article className="flex h-full flex-col justify-between rounded-[28px] bg-white p-8 ring-1 ring-slate-200/80 sm:p-10">
+              <div>
+                <span className="grid size-12 place-items-center rounded-2xl bg-blue-50 text-blue-700"><Globe className="size-6" /></span>
+                <h3 className="mt-6 text-2xl font-semibold tracking-tight">Versão online</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Crie sua conta e comece agora, de qualquer lugar. Nada para instalar, sempre atualizado.</p>
+              </div>
+              <Link to="/cadastro" className="mt-8 inline-flex h-12 w-fit items-center gap-2 rounded-full bg-slate-950 px-6 text-sm font-semibold text-white transition hover:bg-blue-700">Criar conta grátis <ArrowRight className="size-4" /></Link>
+            </article></Reveal>
+            <Reveal delay={100}><article className="relative flex h-full flex-col justify-between overflow-hidden rounded-[28px] bg-gradient-to-br from-blue-700 via-blue-600 to-cyan-500 p-8 text-white sm:p-10">
+              <div className="pointer-events-none absolute -top-16 -right-16 size-64 rounded-full bg-white/15 blur-3xl" />
+              <div className="relative">
+                <span className="grid size-12 place-items-center rounded-2xl bg-white/15"><Monitor className="size-6" /></span>
+                <h3 className="mt-6 text-2xl font-semibold tracking-tight">Aplicativo para Windows</h3>
+                <p className="mt-2 text-sm leading-6 text-blue-50/90">Instale no computador, receba notificações e mantenha o atendimento sempre à mão. Entre com a mesma conta da versão online.</p>
+              </div>
+              <div className="relative mt-8">
+                {downloadUrl
+                  ? <a href={downloadUrl} className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-blue-800 transition hover:bg-cyan-100"><ArrowDownToLine className="size-4" /> Baixar para Windows</a>
+                  : <span className="inline-flex h-12 items-center gap-2 rounded-full bg-white/15 px-6 text-sm font-semibold ring-1 ring-white/30"><ArrowDownToLine className="size-4" /> Download disponível em breve</span>}
+                <p className="mt-3 text-xs text-blue-100/80">Windows 10 ou superior · versão 0.6.0</p>
+              </div>
+            </article></Reveal>
+          </div>
+        </div>
+      </section>
 
-      <section id="planos" className="bg-white px-5 py-20 sm:px-8 sm:py-28"><div className="mx-auto max-w-7xl"><div className="mx-auto max-w-2xl text-center"><span className="text-xs font-bold tracking-[.18em] text-blue-700 uppercase">Planos para cada fase</span><h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Comece no seu ritmo.</h2><p className="mt-4 text-base text-slate-600">Teste todas as funcionalidades por 7 dias. Sem cartão de crédito para começar.</p></div><div className="mt-12 grid items-stretch gap-4 lg:grid-cols-3">{plans.map((plan)=><article key={plan.name} className={`relative flex flex-col rounded-3xl border p-6 sm:p-7 ${plan.recommended?'border-blue-600 bg-[#f8faff] shadow-xl shadow-blue-900/10 ring-1 ring-blue-600':'border-slate-200 bg-white'}`}>{plan.recommended&&<span className="absolute -top-3 left-6 rounded-full bg-blue-700 px-3 py-1 text-[10px] font-bold tracking-wide text-white uppercase">Mais escolhido</span>}<h3 className="text-lg font-bold text-slate-900">{plan.name}</h3><p className="mt-2 min-h-12 text-sm leading-6 text-slate-600">{plan.summary}</p><p className="mt-6"><span className="text-4xl font-bold tracking-tight text-slate-950">R$ {plan.price}</span><span className="text-sm text-slate-500"> /mês</span></p><p className="mt-1 text-xs text-slate-500">após os 7 dias de teste</p><Link to={`/cadastro?plano=${plan.name.toLowerCase()}`} className={`mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition hover:-translate-y-0.5 ${plan.recommended?'bg-blue-700 text-white hover:bg-blue-800':'border border-slate-200 text-slate-800 hover:border-blue-300 hover:text-blue-700'}`}>Testar por 7 dias <ArrowRight className="size-4"/></Link><div className="my-6 h-px bg-slate-200"/><ul className="flex flex-col gap-3">{plan.features.map((feature)=><li key={feature} className="flex items-start gap-2.5 text-sm text-slate-700"><Check className="mt-0.5 size-4 shrink-0 text-emerald-600"/>{feature}</li>)}</ul></article>)}</div><p className="mt-5 text-center text-xs text-slate-500">Valores e limites iniciais propostos no roadmap. Condições finais podem ser ajustadas antes da cobrança.</p></div></section>
+      {/* FAQ */}
+      <section id="duvidas" className="px-5 pb-28 sm:px-8">
+        <div className="mx-auto max-w-3xl">
+          <SectionTitle eyebrow="Perguntas frequentes" title="Ficou com alguma dúvida?" />
+          <Reveal className="mt-10 divide-y divide-slate-200 border-y border-slate-200">
+            {faqs.map(([q, a]) => (
+              <details key={q} className="group py-5">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-[15px] font-semibold text-slate-900">{q}<ChevronDown className="size-4 shrink-0 text-slate-400 transition duration-300 group-open:rotate-180" /></summary>
+                <p className="mt-3 max-w-2xl pr-8 text-sm leading-7 text-slate-600">{a}</p>
+              </details>
+            ))}
+          </Reveal>
+        </div>
+      </section>
 
-      <section id="baixar" className="px-5 pb-20 sm:px-8"><div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-cyan-50 p-7 sm:flex-row sm:items-center sm:p-10"><div><span className="text-xs font-bold tracking-[.15em] text-blue-700 uppercase">No navegador ou no computador</span><h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-950">Seu atendimento acompanha a rotina.</h2><p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">Acesse online pela equipe ou use o aplicativo para Windows quando precisar de uma instalação local.</p></div>{downloadUrl?<a href={downloadUrl} className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm hover:border-blue-300"><ArrowDownToLine className="size-4"/> Baixar para Windows</a>:<span className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-500"><ArrowDownToLine className="size-4"/> Instalador Windows</span>}</div></section>
+      {/* CTA FINAL */}
+      <section className="px-5 pb-24 sm:px-8">
+        <Reveal><div className="relative mx-auto max-w-7xl overflow-hidden rounded-[36px] bg-slate-950 px-6 py-16 text-center text-white sm:py-20">
+          <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[640px] -translate-x-1/2 rounded-full bg-blue-600/40 blur-[110px]" />
+          <h2 className="relative mx-auto max-w-2xl text-3xl font-semibold tracking-[-.035em] sm:text-5xl sm:leading-[1.08]">Pronto para não perder mais nenhuma venda?</h2>
+          <p className="relative mx-auto mt-4 max-w-md text-slate-400">7 dias para conhecer tudo. Sem cartão de crédito.</p>
+          <Link to="/cadastro" className="relative mt-8 inline-flex h-14 items-center gap-2 rounded-full bg-white px-8 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300">Começar agora <ArrowRight className="size-4" /></Link>
+        </div></Reveal>
+      </section>
 
-      <section id="duvidas" className="px-5 pb-24 sm:px-8"><div className="mx-auto max-w-3xl"><div className="text-center"><span className="text-xs font-bold tracking-[.18em] text-blue-700 uppercase">Perguntas frequentes</span><h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Ficou com alguma dúvida?</h2></div><div className="mt-8 divide-y divide-slate-200 border-y border-slate-200">{[
-        ['O que acontece depois do teste de 7 dias?','Você pode escolher o plano que faz sentido para sua empresa. Sem uma assinatura ativa, o acesso aos dados do sistema fica suspenso até a regularização.'],
-        ['Preciso instalar alguma coisa?','Não. O IC Chat funciona no navegador. A versão para Windows é uma opção adicional para quem prefere instalar o aplicativo.'],
-        ['Meus dados ficam separados dos de outras empresas?','Sim. O desenho do sistema separa os dados por empresa e aplica regras de acesso no banco de dados.'],
-        ['Posso conectar WhatsApp e Instagram?','O sistema organiza atendimento multicanal. A disponibilidade de cada conexão depende da configuração das APIs oficiais da Meta e da conta comercial.']
-      ].map(([question,answer])=><details key={question} className="group py-5"><summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-sm font-semibold text-slate-900">{question}<ChevronDown className="size-4 shrink-0 text-slate-500 transition group-open:rotate-180"/></summary><p className="mt-3 max-w-2xl pr-8 text-sm leading-6 text-slate-600">{answer}</p></details>)}</div></div></section>
-
-      <footer className="border-t border-slate-200 bg-white px-5 py-8 sm:px-8"><div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-4 sm:flex-row sm:items-center"><div><IcLogo/><p className="mt-2 text-xs text-slate-500">Atendimento que conecta. Relacionamento que vende.</p></div><div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500"><Link to="/login" className="hover:text-blue-700">Entrar</Link><Link to="/cadastro" className="hover:text-blue-700">Teste grátis</Link><a href="#planos" className="hover:text-blue-700">Planos</a><span>© 2026 ItaCondo</span></div></div></footer>
+      <footer className="border-t border-slate-200/80 bg-white px-5 py-10 sm:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-8 md:flex-row md:items-start md:justify-between">
+          <div>
+            <img src={logo} alt="IC Chat de ItaCondo" className="h-10 w-auto" />
+            <p className="mt-3 max-w-xs text-xs leading-5 text-slate-500">Atendimento que conecta. Relacionamento que vende.</p>
+          </div>
+          <div className="flex flex-wrap gap-x-8 gap-y-3 text-[13px] text-slate-600">
+            <Link to="/login" className="hover:text-blue-700">Entrar</Link>
+            <Link to="/cadastro" className="hover:text-blue-700">Teste grátis</Link>
+            <a href="#planos" className="hover:text-blue-700">Planos</a>
+            <Link to="/privacidade" className="hover:text-blue-700">Política de Privacidade</Link>
+            <Link to="/termos" className="hover:text-blue-700">Termos de Uso</Link>
+            <button onClick={openCookiePreferences} className="hover:text-blue-700">Preferências de cookies</button>
+          </div>
+        </div>
+        <p className="mx-auto mt-8 max-w-7xl text-xs text-slate-400">© 2026 ItaCondo. Todos os direitos reservados.</p>
+      </footer>
     </main>
   )
 }
