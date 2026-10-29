@@ -21,6 +21,7 @@ import { CommandPalette } from '@/components/layout/CommandPalette'
 import { NewAppointmentDialog } from '@/components/NewAppointmentDialog'
 import { NotificationPrompt } from '@/components/NotificationPrompt'
 import { GuideBot } from '@/components/GuideBot'
+import { WelcomeActivated } from '@/components/WelcomeActivated'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { navByPath, navFor, roleLabel, type NavItem } from '@/components/layout/nav'
 import { useAppState } from '@/lib/app-state'
@@ -73,6 +74,7 @@ export function AppShell() {
       <NewAppointmentDialog />
       <NotificationPrompt />
       <GuideBot />
+      <WelcomeActivated />
     </div>
   )
 }

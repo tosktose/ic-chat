@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { adminError, listMembers, listPlans, listTenants, savePlanRow, type AdminTenant } from '@/lib/admin-api'
+import { adminError, listMembers, listPlans, listTenants, savePlanRow, setTenantBlocked, setTenantHidden, type AdminTenant } from '@/lib/admin-api'
 import { isSuperAdmin, useAuth } from '@/lib/auth'
 import { isWebApp, supabase } from '@/lib/supabase'
 import {
@@ -216,12 +216,29 @@ export function SaasProvider({ children }: { children: ReactNode }) {
       },
       updateUser: (id, patch) => {
         const u = userList.find((x) => x.id === id)
-        if (u) Object.assign(u, patch)
+        if (!u) return
+        const before = u.active
+        Object.assign(u, patch)
         bump()
+        // Na versão web, bloquear/liberar grava de verdade: corta ou devolve o acesso da empresa dessa pessoa
+        if (isWebApp && patch.active !== undefined && patch.active !== before) {
+          setTenantBlocked(u.tenantId, !patch.active)
+            .then(() => setTick((n) => n + 1))
+            .catch((e) => { u.active = before; bump(); toast.error('Não foi possível alterar o acesso', { description: adminError(e) }) })
+        }
       },
       removeUser: (id) => {
         const i = userList.findIndex((x) => x.id === id)
-        if (i >= 0) userList.splice(i, 1)
+        if (i < 0) return
+        const u = userList[i]
+        // Na versão web nada é apagado do banco compartilhado: a empresa só deixa de aparecer no IC Chat (dá para desfazer)
+        if (isWebApp) {
+          setTenantHidden(u.tenantId, true)
+            .then(() => setTick((n) => n + 1))
+            .catch((e) => toast.error('Não foi possível ocultar', { description: adminError(e) }))
+          return
+        }
+        userList.splice(i, 1)
         bump()
       },
       savePlan: (p, originalName) => {

@@ -218,7 +218,7 @@ export function UserDetailView({
 
       {/* Ações sempre visíveis */}
       <div className="pb-safe flex flex-wrap items-center gap-2 border-t border-border p-4">
-        <Button variant="ghost" size="icon" className="text-danger" aria-label="Excluir usuário" onClick={() => setConfirmRemove(true)}>
+        <Button variant="ghost" size="icon" className="text-danger" aria-label={isWebApp ? 'Ocultar do IC Chat' : 'Excluir usuário'} onClick={() => setConfirmRemove(true)}>
             <Trash2 />
           </Button>
         <Button variant="outline" size="sm" onClick={() => void sendPasswordLink(user.email)}>
@@ -250,8 +250,8 @@ export function UserDetailView({
       <Dialog
         open={confirmRemove}
         onOpenChange={setConfirmRemove}
-        title="Excluir usuário?"
-        description={`${user.name} perde o acesso imediatamente. As conversas atendidas continuam no histórico.`}
+        title={isWebApp ? 'Ocultar do IC Chat?' : 'Excluir usuário?'}
+        description={isWebApp ? `${user.name} deixa de aparecer no IC Chat. Nada é apagado: a conta e os outros sistemas continuam intactos e você pode desfazer.` : `${user.name} perde o acesso imediatamente. As conversas atendidas continuam no histórico.`}
         footer={
           <>
             <Button variant="outline" onClick={() => setConfirmRemove(false)}>Cancelar</Button>
@@ -260,11 +260,11 @@ export function UserDetailView({
               onClick={() => {
                 onRemove?.()
                 setConfirmRemove(false)
-                toast.success('Usuário excluído', { description: user.name })
+                toast.success(isWebApp ? 'Oculto do IC Chat' : 'Usuário excluído', { description: user.name })
                 onBack?.()
               }}
             >
-              Excluir
+              {isWebApp ? 'Ocultar' : 'Excluir'}
             </Button>
           </>
         }

@@ -21,9 +21,18 @@ async function validSignature(req: Request, dataId: string, secret: string): Pro
   return mac === parts.v1
 }
 
+
+// Chaves do Mercado Pago: o que o Super Admin gravou no painel vale mais; os Secrets do Supabase são o reserva
+async function integrationConfig(admin: ReturnType<typeof createClient>, keys: string[]): Promise<Record<string, string>> {
+  const { data } = await admin.from('platform_secrets').select('key, value').in('key', keys)
+  return Object.fromEntries((data ?? []).map((r: { key: string; value: string }) => [r.key, r.value]))
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('ok')
-  const token = Deno.env.get('ICCHAT_MP_ACCESS_TOKEN')
+  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'ic_chat' } })
+  const cfg = await integrationConfig(admin, ['mp_access_token', 'mp_webhook_secret'])
+  const token = cfg.mp_access_token || Deno.env.get('ICCHAT_MP_ACCESS_TOKEN')
   if (!token) return new Response('not configured', { status: 503 })
 
   const url = new URL(req.url)
@@ -35,7 +44,7 @@ Deno.serve(async (req) => {
   // Só nos interessam avisos de pagamento
   if (!type.includes('payment') || !dataId) return new Response('ignored')
 
-  const secret = Deno.env.get('ICCHAT_MP_WEBHOOK_SECRET')
+  const secret = cfg.mp_webhook_secret || Deno.env.get('ICCHAT_MP_WEBHOOK_SECRET')
   if (secret && !(await validSignature(req, dataId, secret))) return new Response('invalid signature', { status: 401 })
 
   // Fonte da verdade: o próprio Mercado Pago
@@ -46,7 +55,6 @@ Deno.serve(async (req) => {
   const [tenantId, plan, quoteId] = String(pay.external_reference ?? '').split('|')
   if (!tenantId || !plan) return new Response('unknown reference') // pagamento que não é nosso
 
-  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'ic_chat' } })
 
   // Compra de pacote de créditos de IA ("pack:<id>"): credita o saldo avulso (a função confere o valor e não duplica)
   if (plan.startsWith('pack:')) {

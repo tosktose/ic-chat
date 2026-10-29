@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Bot, CalendarDays, Check, Plug, Workflow } from 'lucide-react'
+import { Bot, CalendarDays, Check, Mail, Plug, Wallet, Workflow } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,23 @@ interface FieldDef { key: string; label: string; hint: string; placeholder: stri
 interface Group { title: string; icon: typeof Bot; blurb: string; fields: FieldDef[] }
 
 const GROUPS: Group[] = [
+  {
+    title: 'Cobrança (Mercado Pago)', icon: Wallet,
+    blurb: 'Quem assina ou compra créditos paga pelo Mercado Pago. As chaves ficam só no servidor. Use primeiro as chaves de TESTE; depois troque pelas de produção.',
+    fields: [
+      { key: 'mp_access_token', label: 'Access Token', hint: 'Mercado Pago → Suas integrações → Credenciais. Começa com APP_USR- ou TEST-.', placeholder: 'APP_USR-…', secret: true },
+      { key: 'mp_public_key', label: 'Public Key (opcional)', hint: 'Chave pública da mesma aplicação. Só é usada se o checkout passar a ser dentro do site.', placeholder: 'APP_USR-…' },
+      { key: 'mp_webhook_secret', label: 'Assinatura secreta do webhook', hint: 'Mercado Pago → Webhooks. Endereço do aviso: …supabase.co/functions/v1/mp-webhook, evento "Pagamentos".', placeholder: 'chave secreta', secret: true }
+    ]
+  },
+  {
+    title: 'E-mails do sistema (Resend)', icon: Mail,
+    blurb: 'Confirmação de conta, parabéns por ativar e aviso de acesso expirando saem pelo IC Chat, sem mexer no Supabase compartilhado. Crie a chave em resend.com e verifique seu domínio.',
+    fields: [
+      { key: 'resend_api_key', label: 'Chave da API do Resend', hint: 'Começa com re_.', placeholder: 're_…', secret: true },
+      { key: 'email_from', label: 'Remetente', hint: 'Ex.: IC Chat <nao-responda@icchat.com.br> (o domínio precisa estar verificado no Resend).', placeholder: 'IC Chat <nao-responda@seudominio.com.br>' }
+    ]
+  },
   {
     title: 'Inteligência artificial (OpenRouter)', icon: Bot,
     blurb: 'A IA que atende os clientes. Crie a chave em openrouter.ai/keys e escolha um modelo barato em openrouter.ai/models.',
@@ -23,6 +40,7 @@ const GROUPS: Group[] = [
     blurb: 'Servidor que conecta o número de WhatsApp por QR Code. Preencha quando o servidor estiver no ar.',
     fields: [
       { key: 'evolution_url', label: 'Endereço do servidor', hint: 'Ex.: https://evolution.seudominio.com.br', placeholder: 'https://…' },
+      { key: 'evolution_instance', label: 'Nome da instância dos avisos', hint: 'Instância da Evolution API usada para enviar os avisos do sistema por WhatsApp.', placeholder: 'icchat-avisos' },
       { key: 'evolution_api_key', label: 'Chave global (apikey)', hint: 'A chave definida no servidor da Evolution API.', placeholder: 'chave', secret: true }
     ]
   },
