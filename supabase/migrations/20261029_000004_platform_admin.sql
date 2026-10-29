@@ -51,7 +51,11 @@ create table if not exists ic_chat.plans (
 );
 alter table ic_chat.plans enable row level security;
 drop policy if exists plans_read on ic_chat.plans;
-create policy plans_read on ic_chat.plans for select to anon, authenticated using (active or ic_chat.is_platform_admin());
+drop policy if exists plans_read_public on ic_chat.plans;
+drop policy if exists plans_read_auth on ic_chat.plans;
+-- O visitante só lê planos ativos; só quem está logado pode ser checado como admin (anon não executa is_platform_admin)
+create policy plans_read_public on ic_chat.plans for select to anon using (active);
+create policy plans_read_auth on ic_chat.plans for select to authenticated using (active or ic_chat.is_platform_admin());
 drop policy if exists plans_admin_write on ic_chat.plans;
 create policy plans_admin_write on ic_chat.plans for all to authenticated
   using (ic_chat.is_platform_admin()) with check (ic_chat.is_platform_admin());

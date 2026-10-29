@@ -42,7 +42,7 @@ Para cada tela: ❶ tem mock? ❷ botões funcionam? ❸ salva e persiste após 
 - [x] Créditos de IA: sem custo/consumo inventado (aparece vazio até o consumo ser registrado)
 - [x] Removido o "servidor de licenças" de mentira: as licenças são verificadas no próprio Supabase
 - [x] Bug corrigido: tabelas do Super Admin ficavam vazias mesmo com dados (lista em cache)
-- [ ] Executar a migração 4 no banco de produção
+- [x] Migração 4 executada no banco de produção (29/10/2026) e testada como visitante: contato público abre, planos públicos abrem, tabelas e funções de admin recusadas
 - [ ] WhatsApp de suporte: informar o número em Super Admin → Configurações do sistema
 
 ## Fase 5 — Cobrança com Mercado Pago ⏳ (aguardando o aplicativo do Mercado Pago)
