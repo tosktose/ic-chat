@@ -14,8 +14,8 @@ Este guia descreve a publicação web do IC Chat usando Supabase, GitHub e Verce
 
 1. Confirme que a migration `supabase/migrations/20261028_000001_create_ic_chat_schema.sql` foi aplicada no projeto correto.
 2. Confirme que o schema `ic_chat` está habilitado na Data API. Mantenha os demais schemas do projeto como estavam.
-3. Em Authentication, habilite os provedores de login necessários. O cadastro Google deve retornar para o domínio da aplicação.
-4. Configure o Site URL para `https://ic-chat-desktop.vercel.app`.
+3. Em Authentication, habilite os provedores de login necessários. O cadastro por e-mail e o login Google usam a origem atual da aplicação como destino.
+4. Preserve o Site URL global existente, pois este projeto Supabase atende outros aplicativos.
 5. Inclua `https://ic-chat-desktop.vercel.app/**` na lista de Redirect URLs permitidas. Para previews, adicione apenas os domínios de preview que forem realmente usados.
 6. O callback OAuth do Google é o callback do Supabase: `https://umnoiivuntnvsxkysvrr.supabase.co/auth/v1/callback`. Esse endereço precisa estar autorizado no cliente OAuth do Google.
 
