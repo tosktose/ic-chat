@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { appointments as seedAppointments, sessionUsers, type Appointment, type Role, type User } from '@/data/mock'
 import { isSuperAdmin, useAuth } from '@/lib/auth'
 import { isWebApp, supabase } from '@/lib/supabase'
+import { clearKey, saveKey, storedKey, validateLicense, type LicenseReason, type LicenseResult } from '@/lib/license'
 
 /** Estados da licença (seção 5.8 do documento do projeto) */
 export type LicenseState = 'ativa' | 'teste' | 'vencendo' | 'carencia' | 'restrito'
@@ -15,14 +16,10 @@ export interface LicenseInfo {
   pcsUsed: number
   pcsMax: number | null
   lastCheck: string
-}
-
-const presets: Record<LicenseState, Partial<LicenseInfo>> = {
-  ativa: { daysLeft: 142, expiresAt: '15/02/2027' },
-  teste: { daysLeft: 5, expiresAt: '02/10/2026' },
-  vencendo: { daysLeft: 3, expiresAt: '30/09/2026' },
-  carencia: { daysLeft: -1, expiresAt: '26/09/2026' },
-  restrito: { daysLeft: -4, expiresAt: '23/09/2026' }
+  /** Motivo do bloqueio (quando a licença não vale) */
+  reason?: LicenseReason
+  /** Verificando a chave no servidor ao abrir o app */
+  checking?: boolean
 }
 
 interface AppState {
@@ -60,9 +57,10 @@ interface AppState {
   signature: boolean
   setSignature: (v: boolean) => void
   license: LicenseInfo
-  simulateLicense: (s: LicenseState) => void
-  /** Ativa uma chave nova (no sistema real, validada pelo servidor de licenças) */
-  activateLicense: (key: string) => void
+  /** Valida a chave no servidor de licenças e, se valer, ativa neste computador */
+  activateLicense: (key: string) => Promise<LicenseResult>
+  /** Remove a chave deste computador */
+  deactivateLicense: () => void
   sidebarCollapsed: boolean
   setSidebarCollapsed: (v: boolean) => void
   sidebarHidden: boolean
@@ -82,16 +80,34 @@ const Ctx = createContext<AppState | null>(null)
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth()
   const tenantIdRef = useRef<string | undefined>(undefined)
-  const [license, setLicense] = useState<LicenseInfo>({
-    state: 'teste',
-    plan: 'Pro',
-    key: 'ICCH-7K2M-Q9XD-4TPL-8WNB',
-    expiresAt: '02/10/2026',
-    daysLeft: 5,
-    pcsUsed: 2,
-    pcsMax: 10,
-    lastCheck: 'há 12 min'
-  })
+  const [license, setLicense] = useState<LicenseInfo>(() =>
+    isWebApp
+      ? { state: 'ativa', plan: 'Pro', key: '', expiresAt: '', daysLeft: 0, pcsUsed: 0, pcsMax: null, lastCheck: '' }
+      : { state: 'ativa', plan: 'Pro', key: storedKey(), expiresAt: '', daysLeft: 0, pcsUsed: 0, pcsMax: null, lastCheck: 'verificando…', checking: true }
+  )
+  const applyLicense = (key: string, r: LicenseResult) => {
+    const plan = r.kind === 'anual' || r.kind === 'trimestral' ? 'Business' : 'Pro'
+    setLicense((l) => {
+      if (!r.valid) return { ...l, key, state: 'restrito', reason: r.reason, checking: false, lastCheck: 'agora' }
+      if (!r.expiresAt) return { ...l, key, checking: false, reason: undefined } // sem rede, dentro da tolerância
+      const days = r.daysLeft ?? 0
+      const state: LicenseState = r.kind === 'teste' ? 'teste' : days <= 3 ? 'vencendo' : 'ativa'
+      return { ...l, key, plan, state, reason: undefined, checking: false, daysLeft: days, expiresAt: new Date(r.expiresAt).toLocaleDateString('pt-BR'), pcsMax: r.maxDevices ?? null, lastCheck: 'agora' }
+    })
+  }
+  // Desktop: confere a licença ao abrir e a cada 12 horas (inadimplente é bloqueado na próxima conferência)
+  useEffect(() => {
+    if (isWebApp) return
+    let alive = true
+    const check = async () => {
+      const key = storedKey()
+      const r = await validateLicense(key, window.icchat?.isDesktop ? 'Computador IC Chat' : undefined)
+      if (alive) applyLicense(key, r)
+    }
+    void check()
+    const t = window.setInterval(() => void check(), 12 * 3600_000)
+    return () => { alive = false; clearInterval(t) }
+  }, [])
   const [sidebarCollapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem('icchat.sidebar') === 'collapsed'
@@ -282,10 +298,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         signature,
         setSignature,
         license,
-        simulateLicense: (state) => setLicense((l) => ({ ...l, ...presets[state], state })),
-        activateLicense: (key) => {
-          const exp = new Date(Date.now() + 30 * 86400_000)
-          setLicense((l) => ({ ...l, key, state: 'ativa', daysLeft: 30, expiresAt: exp.toLocaleDateString('pt-BR'), lastCheck: 'agora' }))
+        activateLicense: async (key) => {
+          const clean = key.trim().toUpperCase()
+          const r = await validateLicense(clean, window.icchat?.isDesktop ? 'Computador IC Chat' : undefined)
+          if (r.valid) saveKey(clean)
+          applyLicense(r.valid ? clean : storedKey(), r)
+          return r
+        },
+        deactivateLicense: () => {
+          clearKey()
+          setLicense((l) => ({ ...l, key: '', state: 'restrito', reason: 'nokey', checking: false }))
         },
         sidebarCollapsed,
         setSidebarCollapsed: (v) => {

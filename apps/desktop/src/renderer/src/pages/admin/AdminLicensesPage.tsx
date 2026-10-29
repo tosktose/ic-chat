@@ -8,6 +8,8 @@ import { Badge, Card, CardHeader, Segmented } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
 import { randomKey, tenantById, type LicenseKey } from '@/data/saas'
 import { useSaas } from '@/lib/saas'
+import { isWebApp, supabase } from '@/lib/supabase'
+import { RealLicenses } from './RealLicenses'
 
 const tone: Record<LicenseKey['status'], 'success' | 'danger' | 'neutral' | 'warning'> = {
   ativa: 'success',
@@ -21,7 +23,7 @@ const API_TOKENS = [
   { id: 'a2', tenantId: 't2', name: 'Site — agendamento', prefix: 'ict_live_1b7a', created: '02/09/2026', lastUse: 'ontem', scope: 'Agenda' }
 ]
 
-export function AdminLicensesPage() {
+function DemoLicenses() {
   const { keys: licenseKeys, tenants, issueKey, revokeKey } = useSaas()
   const [genTenant, setGenTenant] = useState('')
   const [genKind, setGenKind] = useState<LicenseKey['kind']>('Mensal')
@@ -160,4 +162,9 @@ export function AdminLicensesPage() {
       </Dialog>
     </Page>
   )
+}
+
+/** Na versão web usa o banco de verdade; no app de demonstração mantém os dados de exemplo. */
+export function AdminLicensesPage() {
+  return isWebApp && supabase ? <RealLicenses /> : <DemoLicenses />
 }

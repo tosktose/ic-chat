@@ -23,6 +23,7 @@ import { LandingPage } from '@/pages/LandingPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { LegalPage } from '@/pages/LegalPage'
 import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/PasswordResetPage'
+import { LicenseGate } from '@/components/LicenseGate'
 import { CookieConsent } from '@/components/CookieConsent'
 
 const Router = isWebApp ? BrowserRouter : HashRouter
@@ -117,7 +118,7 @@ export function App() {
               {isWebApp && <Route path="/redefinir-senha" element={<ResetPasswordPage />} />}
               <Route path="/privacidade" element={<LegalPage kind="privacidade" />} />
               <Route path="/termos" element={<LegalPage kind="termos" />} />
-              <Route element={<AppShell />}>
+              <Route element={<LicenseGate><AppShell /></LicenseGate>}>
                 {/* Gerente */}
                 <Route path="/dashboard" element={<Guard><DashboardPage /></Guard>} />
                 <Route path="/kanban" element={<Guard><KanbanPage /></Guard>} />
