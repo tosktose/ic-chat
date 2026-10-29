@@ -12,8 +12,11 @@ async function mockAdminApi(page: import('@playwright/test').Page, calls: string
   const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   await page.route('**/rest/v1/licenses*', (r) => r.fulfill(json(licenses)))
   await page.route('**/rest/v1/license_activations*', (r) => r.fulfill(json([{ license_id: 'l1' }, { license_id: 'l1' }])))
-  await page.route('**/rest/v1/tenants*', (r) =>
-    r.fulfill(json([{ id: 't1', name: 'Clínica Exemplo', created_at: soon, subscriptions: [] }, { id: 't2', name: 'Loja Inadimplente', created_at: soon, subscriptions: [] }]))
+  await page.route('**/rest/v1/rpc/admin_tenants', (r) =>
+    r.fulfill(json([
+      { id: 't1', name: 'Clínica Exemplo', created_at: soon, owner_email: 'dono@clinica.com', owner_name: 'Dono', origin_role: null, members: 1, sub_status: 'trialing', sub_plan: 'trial', trial_ends_at: soon, period_ends_at: null, licenses_active: 0, last_payment_at: null },
+      { id: 't2', name: 'Loja Inadimplente', created_at: soon, owner_email: 'loja@exemplo.com', owner_name: 'Loja', origin_role: null, members: 1, sub_status: 'past_due', sub_plan: 'pro', trial_ends_at: soon, period_ends_at: soon, licenses_active: 0, last_payment_at: null }
+    ]))
   )
   await page.route('**/rest/v1/rpc/generate_license', (r) => {
     calls.push('generate:' + r.request().postData())
@@ -50,7 +53,7 @@ test.describe('Licenças (Super Admin)', () => {
     await mockAdminApi(page, calls)
     await page.goto('/admin/licencas')
     await page.getByRole('button', { name: 'Gerar chave' }).first().click()
-    await page.getByRole('combobox').first().selectOption({ label: 'Clínica Exemplo' })
+    await page.getByRole('combobox').first().selectOption({ label: 'Clínica Exemplo — dono@clinica.com' })
     await page.getByRole('button', { name: 'Gerar chave' }).last().click()
     await expect(page.getByText('ICCH-11111-22222-33333-44444')).toBeVisible()
     expect(calls.some((c) => c.startsWith('generate:') && c.includes('"p_tenant":"t1"'))).toBe(true)
