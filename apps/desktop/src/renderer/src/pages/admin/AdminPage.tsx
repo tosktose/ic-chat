@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { isWebApp } from '@/lib/supabase'
-import { adminError, extendTenant, setTenantBlocked } from '@/lib/admin-api'
+import { adminError, deleteTenant, extendTenant, setTenantBlocked } from '@/lib/admin-api'
 import { useNavigate } from 'react-router'
 import {
   Ban,
@@ -17,6 +17,7 @@ import {
   Search,
   Send,
   TimerReset,
+  Trash2,
   UserPlus
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -203,6 +204,22 @@ function RealTenantActions({ t }: { t: Tenant }) {
   const run = async (fn: () => Promise<void>, ok: string) => {
     try { await fn(); toast.success(ok, { description: t.name }); reload() } catch (e) { toast.error('Não foi possível concluir', { description: adminError(e) }) }
   }
+  const remove = async () => {
+    if (!window.confirm(`Excluir a empresa "${t.name}" do IC Chat? Os dados dela no IC Chat são apagados. A pessoa continua existindo nos outros sistemas.`)) return
+    try {
+      await deleteTenant(t.id)
+      toast.success('Empresa excluída', { description: t.name })
+      reload()
+    } catch (e) {
+      if (/active_subscription|has_payments|has_conversations/.test(String((e as { message?: string })?.message ?? ''))) {
+        if (window.confirm(`${t.name} tem mensalidade ativa, pagamento ou conversas. Excluir mesmo assim? Não dá para desfazer.`)) {
+          try { await deleteTenant(t.id, true); toast.success('Empresa excluída', { description: t.name }); reload() } catch (e2) { toast.error('Não foi possível excluir', { description: adminError(e2) }) }
+        }
+        return
+      }
+      toast.error('Não foi possível excluir', { description: adminError(e) })
+    }
+  }
   return (
     <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
       <Button variant="ghost" size="icon-sm" aria-label="Renovar por 30 dias" title="Renovar +30 dias" onClick={() => run(() => extendTenant(t.id, 30), 'Empresa renovada por 30 dias')}><CalendarPlus /></Button>
@@ -212,6 +229,7 @@ function RealTenantActions({ t }: { t: Tenant }) {
       ) : (
         <Button variant="ghost" size="icon-sm" className="hover:text-danger" aria-label="Bloquear empresa" title="Bloquear (falta de pagamento)" onClick={() => { if (window.confirm(`Bloquear ${t.name}? O acesso (site e app) é cortado.`)) void run(() => setTenantBlocked(t.id, true), 'Empresa bloqueada') }}><Ban /></Button>
       )}
+      <Button variant="ghost" size="icon-sm" className="hover:text-danger" aria-label="Excluir empresa" title="Excluir empresa" onClick={() => void remove()}><Trash2 /></Button>
     </div>
   )
 }

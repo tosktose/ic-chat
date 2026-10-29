@@ -11,6 +11,7 @@ import {
 import { negocios as demoDeals, type Negocio } from '@/data/funil'
 import { useAuth } from '@/lib/auth'
 import { isWebApp, supabase } from '@/lib/supabase'
+import { captureAffiliateCode } from '@/lib/affiliate'
 
 /**
  * Contatos, conversas e mensagens.
@@ -190,6 +191,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const api = supabase.schema('ic_chat')
         const { error: provisionError } = await api.rpc('ensure_tenant_for_current_user', { requested_company: null })
         if (provisionError) throw provisionError
+        // Quem já tinha conta (ex.: de outro sistema) e entra pelo link de indicação ganha a empresa agora:
+        // o banco só aceita se a empresa acabou de ser criada, então contas antigas nunca são reatribuídas.
+        const referral = captureAffiliateCode()
+        if (referral) void api.rpc('claim_affiliate_referral', { p_code: referral, p_started_at: new Date(Date.now() - 5 * 60_000).toISOString() })
         const { data: member, error: memberError } = await api.from('tenant_members').select('tenant_id').eq('user_id', session.user.id).maybeSingle()
         if (memberError) throw memberError
         if (!member?.tenant_id) throw new Error('Esta conta ainda não tem uma empresa IC Chat vinculada.')

@@ -283,6 +283,12 @@ export async function setTenantBlocked(tenantId: string, blocked: boolean): Prom
   if (error) throw error
 }
 
+/** Exclui a empresa do IC Chat (o usuário continua existindo nos outros sistemas). `force` ignora a trava de empresas com uso/pagamento. */
+export async function deleteTenant(tenantId: string, force = false): Promise<void> {
+  const { error } = await db().rpc('admin_delete_tenant', { p_tenant: tenantId, p_force: force })
+  if (error) throw error
+}
+
 /* ---------------- planos ---------------- */
 export async function listPlans(): Promise<PlanRow[]> {
   const { data, error } = await db().from('plans').select('*').order('sort')

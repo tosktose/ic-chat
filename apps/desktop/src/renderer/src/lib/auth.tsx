@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
       options: {
-        data: { company_name: company.trim(), affiliate_referral_code: captureAffiliateCode() },
+        data: { company_name: company.trim(), app: 'icchat', affiliate_referral_code: captureAffiliateCode() },
         emailRedirectTo: getSiteUrl()
       }
       })
