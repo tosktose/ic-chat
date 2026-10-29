@@ -2,6 +2,7 @@ import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, HashRouter, Navigate, Route, Routes, useLocation } from 'react-router'
 import { Tooltip } from 'radix-ui'
 import { Toaster } from 'sonner'
+import { Analytics } from '@vercel/analytics/react'
 import { AppShell } from '@/components/layout/AppShell'
 import { canAccess, homeByRole } from '@/components/layout/nav'
 import { AppStateProvider, useAppState } from '@/lib/app-state'
@@ -172,6 +173,7 @@ export function App() {
       </AppStateProvider>
     </ThemeProvider>
     </ErrorBoundary>
+    {isWebApp && <Analytics />}
     </AuthProvider>
   )
 }
