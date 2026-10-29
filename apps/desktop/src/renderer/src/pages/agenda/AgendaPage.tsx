@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useContactStats } from '@/lib/metrics'
-import { useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
+import { isWebApp } from '@/lib/supabase'
 import { Bot, CalendarPlus, ChevronLeft, ChevronRight, Clock, Link2, UserRound } from 'lucide-react'
 import { GoogleSyncButton } from '@/components/GoogleCalendarDialog'
 import { useGoogle } from '@/lib/google'
@@ -49,13 +50,14 @@ export function AgendaPage() {
   const selectedPros = professionals.map((p) => p.id).filter((id) => !hiddenPros.includes(id))
   const [day, setDay] = useState(TODAY)
   const google = useGoogle()
+  const navigate = useNavigate()
   useEffect(() => {
     void google.loadDay(day)
   }, [day, google.connectedCount, google.config.direction, google.config.blockPersonal])
   const today = info.hours[weekdayOf(day)]
   // Dias passados mostram o histórico; hoje e dias futuros, os agendamentos marcados
   const appointments =
-    day < TODAY && !APP_MODE
+    day < TODAY && !APP_MODE && !isWebApp
       ? demoHistory().appts
           .filter((a) => a.date === day)
           .map((a): Appointment => {
@@ -156,7 +158,17 @@ export function AgendaPage() {
 
       {effectiveView === 'dia' ? (
         today.open ? (
-          <DayGrid pros={pros} appointments={appointments} onOpen={setOpenAppt} hours={today} showNow={day === TODAY} day={day} />
+          professionals.length === 0 ? (
+            <div className="flex flex-1 items-center justify-center p-6 text-center">
+              <div className="max-w-sm">
+                <p className="text-lg font-semibold">Cadastre quem atende</p>
+                <p className="mt-1 text-sm text-muted">A agenda é organizada por profissional. Adicione o primeiro em Configurações → Profissionais para começar a marcar horários.</p>
+                <Button className="mt-4" onClick={() => navigate('/config?tab=profissionais')}>Cadastrar profissional</Button>
+              </div>
+            </div>
+          ) : (
+            <DayGrid pros={pros} appointments={appointments} onOpen={setOpenAppt} hours={today} showNow={day === TODAY} day={day} />
+          )
         ) : (
           <div className="flex flex-1 items-center justify-center p-6 text-center">
             <div>

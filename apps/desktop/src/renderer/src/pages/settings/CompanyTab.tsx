@@ -57,7 +57,8 @@ export function CompanyTab() {
 
   const save = () => {
     if (!form.name.trim()) return toast.error('Informe o nome da empresa')
-    updateInfo({ ...form, hours: info.hours, name: form.name.trim() })
+    if (form.segment === 'outro' && !form.segmentCustom?.trim()) return toast.error('Conte qual é o seu segmento', { description: 'A IA usa essa informação para atender do jeito certo.' })
+    updateInfo({ ...form, hours: info.hours, name: form.name.trim(), segmentCustom: form.segment === 'outro' ? form.segmentCustom?.trim() : undefined })
     toast.success('Dados da empresa salvos', { description: 'O nome e a logo já aparecem em todo o sistema.' })
   }
 
@@ -93,6 +94,11 @@ export function CompanyTab() {
               ))}
             </Select>
           </Field>
+          {form.segment === 'outro' && (
+            <Field label="Qual é o seu segmento?" hint="Ex.: Academia, escritório de advocacia, loja de roupas. A IA usa para entender seu negócio" className="sm:col-span-2">
+              <Input autoFocus maxLength={80} value={form.segmentCustom ?? ''} onChange={(e) => set('segmentCustom', e.target.value)} placeholder="Descreva em poucas palavras" />
+            </Field>
+          )}
           <Field label="CNPJ ou CPF (opcional)">
             <Input value={form.document} onChange={(e) => set('document', e.target.value)} placeholder="00.000.000/0001-00" />
           </Field>

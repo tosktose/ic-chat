@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { useAppState } from '@/lib/app-state'
 import { playSound, type SoundId } from '@/lib/sound'
 import type { Role } from '@/data/mock'
+import { isWebApp } from '@/lib/supabase'
 
 export type NotificationKind = 'mensagem' | 'ia' | 'agenda' | 'alerta' | 'licenca' | 'equipe' | 'sistema'
 
@@ -110,8 +111,8 @@ function loadPrefs(): NotificationPrefs {
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { role, license } = useAppState()
   const navigate = useNavigate()
-  // App instalado: sem notificações de exemplo nem eventos simulados (só os reais)
-  const appMode = Boolean(window.icchat?.db)
+  // Versão web e app instalado: sem notificações de exemplo nem eventos simulados (só os reais)
+  const appMode = isWebApp || Boolean(window.icchat?.db)
   const [notifications, setNotifications] = useState<AppNotification[]>(() => (appMode ? [] : seedFor(role)))
   const [prefs, setPrefsState] = useState<NotificationPrefs>(loadPrefs)
   const [desktopPermission, setDesktopPermission] = useState<Ctx['desktopPermission']>(() =>

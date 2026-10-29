@@ -3,10 +3,8 @@ import { useSearchParams } from 'react-router'
 import {
   Building2,
   Clock,
-  Copy,
   Database,
   KeyRound,
-  Laptop,
   MessageSquareText,
   Monitor,
   Moon,
@@ -14,7 +12,6 @@ import {
   Pencil,
   Plus,
   Scissors,
-  Server,
   Sun,
   Tags,
   Trash2,
@@ -23,15 +20,15 @@ import { toast } from 'sonner'
 import { Page } from '@/components/layout/Page'
 import { Dialog } from '@/components/ui/overlay'
 import { Button } from '@/components/ui/button'
-import { Field, Input } from '@/components/ui/input'
-import { Badge, Card, CardHeader, Progress, Segmented } from '@/components/ui/misc'
+import { Card, CardHeader, Segmented } from '@/components/ui/misc'
 import { RuleIcons, TagChip, TagEditorDialog } from '@/components/tags'
-import { useAppState, type LicenseState } from '@/lib/app-state'
+import { useAppState } from '@/lib/app-state'
 import { useTags, type Tag } from '@/lib/tags'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { useCompany } from '@/lib/company'
 import { CompanyTab } from './CompanyTab'
+import { LicenseTab } from './LicenseTab'
 import { DataTab } from './DataTab'
 import { ProfessionalsTab, QuickRepliesTab, ServicesTab } from './CatalogTabs'
 
@@ -169,130 +166,6 @@ function DeleteTagDialog({ tag, onClose }: { tag: Tag | null; onClose: () => voi
   )
 }
 
-
-function LicenseTab() {
-  const { license, simulateLicense, activateLicense } = useAppState()
-  const [keyOpen, setKeyOpen] = useState(false)
-  const [newKey, setNewKey] = useState('')
-  const keyOk = /^ICCH(-[A-Z0-9]{4}){4}$/.test(newKey.trim().toUpperCase())
-  const stateCfg: Record<LicenseState, { label: string; tone: 'success' | 'primary' | 'warning' | 'danger' }> = {
-    ativa: { label: 'Ativa', tone: 'success' },
-    teste: { label: 'Teste grátis', tone: 'primary' },
-    vencendo: { label: 'Vencendo', tone: 'warning' },
-    carencia: { label: 'Em carência', tone: 'danger' },
-    restrito: { label: 'Modo restrito', tone: 'danger' }
-  }
-  const s = stateCfg[license.state]
-  const pcs = [
-    { name: 'RECEPCAO-01', role: 'Servidor', last: 'agora', me: true },
-    { name: 'NOTEBOOK-GERENCIA', role: 'Atendimento', last: 'há 3 h' }
-  ]
-
-  return (
-    <div className="flex flex-col gap-4">
-      <Card className="overflow-hidden">
-        <div className="brand-gradient flex flex-col gap-4 p-5 text-white sm:flex-row sm:items-center">
-          <div className="flex-1">
-            <p className="text-sm text-white/75">Plano</p>
-            <p className="text-2xl font-bold">IC Chat {license.plan}</p>
-            <Badge className="mt-2 bg-white/20 text-white">{s.label}</Badge>
-          </div>
-          <div className="rounded-xl bg-white/12 px-4 py-3 backdrop-blur">
-            <p className="text-xs text-white/75">{license.daysLeft >= 0 ? 'Válida até' : 'Venceu em'}</p>
-            <p className="text-lg font-bold">{license.expiresAt}</p>
-            <p className="text-xs text-white/75">{license.daysLeft >= 0 ? `${license.daysLeft} dias restantes` : `há ${Math.abs(license.daysLeft)} dias`}</p>
-          </div>
-        </div>
-        <div className="grid gap-4 p-5 sm:grid-cols-2">
-          <Field label="Chave de licença">
-            <Input
-              readOnly
-              value={license.key}
-              className="font-mono tracking-wider"
-              trailing={
-                <button onClick={() => { void navigator.clipboard?.writeText(license.key); toast.success('Chave copiada') }} className="rounded p-1 hover:text-foreground" aria-label="Copiar">
-                  <Copy className="size-4" />
-                </button>
-              }
-            />
-          </Field>
-          <div className="flex flex-col gap-1.5">
-            <p className="text-[13px] font-medium">Computadores</p>
-            <div className="flex h-9 items-center gap-3">
-              <Progress value={license.pcsMax ? (license.pcsUsed / license.pcsMax) * 100 : 5} className="flex-1" />
-              <span className="text-sm font-semibold tabular-nums">{license.pcsUsed} / {license.pcsMax ?? '∞'}</span>
-            </div>
-          </div>
-          <p className="text-xs text-muted sm:col-span-2">
-            Última verificação com o servidor de licenças: {license.lastCheck}. O sistema funciona até 7 dias sem internet. Após o vencimento há 3 dias de carência antes do modo restrito.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 border-t border-border px-5 py-3 sm:flex-row sm:justify-end">
-          <Button variant="outline" onClick={() => setKeyOpen(true)}><KeyRound /> Inserir nova chave</Button>
-          <Button onClick={() => window.open('https://wa.me/5511900000000?text=' + encodeURIComponent(`Olá! Quero renovar a licença do IC Chat (${license.key}).`), '_blank')}>
-            Falar com o suporte para renovar
-          </Button>
-        </div>
-      </Card>
-
-      <Card>
-        <CardHeader title="Computadores ativos" description="Para liberar uma vaga, peça ao suporte IC Chat" />
-        <div className="flex flex-col">
-          {pcs.map((pc) => (
-            <div key={pc.name} className="flex items-center gap-3 border-t border-border px-5 py-3">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-surface-2 text-muted">
-                {pc.role === 'Servidor' ? <Server className="size-4" /> : <Laptop className="size-4" />}
-              </span>
-              <div className="flex-1">
-                <p className="text-[13.5px] font-medium">{pc.name} {pc.me && <span className="text-xs text-muted">(este computador)</span>}</p>
-                <p className="text-xs text-muted">{pc.role} · visto {pc.last}</p>
-              </div>
-              <Badge tone={pc.role === 'Servidor' ? 'primary' : 'neutral'}>{pc.role}</Badge>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Dialog
-        open={keyOpen}
-        onOpenChange={setKeyOpen}
-        title="Inserir nova chave de licença"
-        description="Cole a chave recebida por WhatsApp ou e-mail. Ela é validada no servidor de licenças."
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setKeyOpen(false)}>Cancelar</Button>
-            <Button
-              disabled={!keyOk}
-              onClick={() => {
-                activateLicense(newKey.trim().toUpperCase())
-                setKeyOpen(false)
-                setNewKey('')
-                toast.success('Licença ativada', { description: 'Plano Pro válido por 30 dias.' })
-              }}
-            >
-              <KeyRound /> Ativar
-            </Button>
-          </>
-        }
-      >
-        <Field label="Chave" hint={newKey && !keyOk ? <span className="text-danger">Formato esperado: ICCH-XXXX-XXXX-XXXX-XXXX</span> : 'Formato: ICCH-XXXX-XXXX-XXXX-XXXX'}>
-          <Input autoFocus value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="ICCH-XXXX-XXXX-XXXX-XXXX" className="font-mono tracking-wider uppercase" />
-        </Field>
-      </Dialog>
-
-      <Card className="border-dashed">
-        <CardHeader title="Pré-visualizar estados da licença" description="Apenas para demonstração do design" />
-        <div className="flex flex-wrap gap-2 px-5 pb-5">
-          {(Object.keys(stateCfg) as LicenseState[]).map((k) => (
-            <Button key={k} size="sm" variant={license.state === k ? 'primary' : 'outline'} onClick={() => simulateLicense(k)}>
-              {stateCfg[k].label}
-            </Button>
-          ))}
-        </div>
-      </Card>
-    </div>
-  )
-}
 
 function AppearanceTab() {
   const { theme, setTheme, density, setDensity } = useTheme()

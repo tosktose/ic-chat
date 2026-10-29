@@ -9,6 +9,7 @@ import { Dialog } from '@/components/ui/overlay'
 import { useSaas, type PlanDef } from '@/lib/saas'
 import { brl, cn } from '@/lib/utils'
 import type { Plan } from '@/data/saas'
+import { isWebApp } from '@/lib/supabase'
 
 export function AdminPlansPage() {
   const { plans, tenants } = useSaas()
@@ -18,7 +19,7 @@ export function AdminPlansPage() {
     <Page
       title="Planos"
       description="O que cada plano libera. Mudanças valem para novas chaves e renovações."
-      actions={<Button onClick={() => setEditing('new')}><Plus /> Novo plano</Button>}
+      actions={isWebApp ? undefined : <Button onClick={() => setEditing('new')}><Plus /> Novo plano</Button>}
     >
       <div className="grid gap-4 lg:grid-cols-3">
         {plans.map((p) => {

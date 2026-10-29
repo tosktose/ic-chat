@@ -7,13 +7,15 @@ import { Avatar, Badge, Card, CardHeader, Switch } from '@/components/ui/misc'
 import { NewUserDialog, UserDetailSheet, UserQuickActions, type DetailUser } from '@/components/UserDetail'
 import { useAppState } from '@/lib/app-state'
 import { cn } from '@/lib/utils'
-import { users, type User } from '@/data/mock'
+import { type User } from '@/data/mock'
+import { useTeam } from '@/lib/team'
+import { isWebApp } from '@/lib/supabase'
 import { useCompany } from '@/lib/company'
 
 const toDetail = (u: User, companyName: string, whatsapp: string): DetailUser => ({
   id: u.id,
   name: u.name,
-  email: `${u.name.split(' ')[0].toLowerCase()}@studiobella.com.br`,
+  email: isWebApp ? '' : `${u.name.split(' ')[0].toLowerCase()}@studiobella.com.br`,
   role: u.role === 'gerente' ? 'gerente' : 'analista',
   active: true,
   lastSeen: u.presence === 'online' ? 'agora' : u.presence === 'away' ? 'há 20 min' : 'há 12 dias',
@@ -25,7 +27,8 @@ const presenceLabel = { online: 'Disponível', away: 'Ausente', busy: 'Ocupado',
 
 /** Gerente administra a própria empresa: cria analistas que atendem pelo WhatsApp único da empresa. */
 export function TeamPage() {
-  const { signature, setSignature, resolveUser } = useAppState()
+  const { signature, setSignature, resolveUser, myDisplayName } = useAppState()
+  const users = useTeam()
   const { info } = useCompany()
   const company = info
   const asDetail = (u: User) => toDetail(u, info.name, info.phone)
@@ -35,13 +38,14 @@ export function TeamPage() {
   return (
     <Page
       title="Equipe"
-      description={`Usuários da ${company.name}. Todos atendem pelo mesmo WhatsApp da empresa.`}
-      actions={<Button onClick={() => setOpen(true)}><UserPlus /> Novo analista</Button>}
+      description={`Usuários ${company.name ? `da ${company.name}` : 'da empresa'}. Todos atendem pelo mesmo WhatsApp da empresa.`}
+      actions={<Button onClick={() => setOpen(true)} disabled={isWebApp} title={isWebApp ? 'Convite de analistas por e-mail chega em breve' : undefined}><UserPlus /> Novo analista</Button>}
     >
-      <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <Card>
           <CardHeader title="Usuários" description="Gerentes administram a empresa · Analistas atendem os clientes" />
           <div className="flex flex-col">
+            {users.length === 0 && <p className="border-t border-border px-5 py-8 text-center text-sm text-muted">Carregando a equipe…</p>}
             {users.map(resolveUser).map((u) => (
               <div
                 key={u.id}
@@ -74,8 +78,8 @@ export function TeamPage() {
                   <WhatsAppIcon className="size-5" />
                 </span>
                 <div>
-                  <p className="font-semibold">{info.phone}</p>
-                  <p className="text-xs text-muted">{company.name} · conectado</p>
+                  <p className="font-semibold">{info.phone || 'Nenhum número informado'}</p>
+                  <p className="text-xs text-muted">{info.phone ? `${company.name || 'Empresa'} · número da empresa` : 'Informe em Configurações → Empresa'}</p>
                 </div>
               </div>
             </div>
@@ -91,14 +95,14 @@ export function TeamPage() {
                 </div>
                 <Switch checked={signature} onCheckedChange={setSignature} />
               </label>
-              <ToggleRow title="Avisar quando um analista assumir" description="“Você está sendo atendido(a) por Juliana”" defaultOn />
+              <ToggleRow title="Avisar quando um analista assumir" description={`“Você está sendo atendido(a) por ${myDisplayName}”`} defaultOn />
               <div>
                 <p className="mb-2 text-xs font-medium text-muted">Como o cliente vê no WhatsApp</p>
                 <div className="chat-pattern rounded-xl p-3">
                   <div className="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-[#d9fdd3] px-3 py-2 text-[13.5px] text-slate-900 shadow-sm">
-                    {signature && <b>Juliana:</b>}
+                    {signature && <b>{myDisplayName}:</b>}
                     {signature && <br />}
-                    Oi Maria! Seu horário de sábado às 10h está confirmado ✅
+                    Olá! Seu horário de sábado às 10h está confirmado ✅
                   </div>
                 </div>
               </div>

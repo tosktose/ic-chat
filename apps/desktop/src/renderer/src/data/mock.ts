@@ -33,6 +33,8 @@ export interface Contact {
   favoriteProfessional?: string
   notes?: string
   birthday?: string
+  source?: string
+  campaign?: string
 }
 
 export type ConversationStatus = 'nova' | 'ia' | 'aguardando' | 'humano' | 'resolvida'

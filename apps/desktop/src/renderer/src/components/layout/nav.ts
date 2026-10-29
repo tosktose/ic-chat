@@ -1,5 +1,6 @@
 import {
   BookUser,
+  CreditCard,
   Building2,
   CalendarDays,
   FileBarChart,
@@ -42,7 +43,7 @@ export const navByRole: Record<Role, NavItem[]> = {
   superadmin: [
     { to: '/admin', label: 'Empresas', icon: Building2, group: 'IC Chat SaaS', mobile: true },
     { to: '/admin/usuarios', label: 'Usuários', icon: Users, group: 'IC Chat SaaS', mobile: true },
-    { to: '/admin/licencas', label: 'Licenças e tokens', short: 'Licenças', icon: KeyRound, group: 'IC Chat SaaS', mobile: true },
+    { to: '/admin/licencas', label: 'Licenças', short: 'Licenças', icon: KeyRound, group: 'IC Chat SaaS', mobile: true },
     { to: '/admin/creditos', label: 'Créditos de IA', short: 'Créditos', icon: Coins, group: 'IC Chat SaaS', mobile: true },
     { to: '/admin/planos', label: 'Planos', icon: Layers, group: 'IC Chat SaaS' },
     { to: '/admin/sistema', label: 'Configurações do sistema', short: 'Sistema', icon: ServerCog, group: 'IC Chat SaaS' }
@@ -59,6 +60,7 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: '/ia', label: 'Assistente IA', short: 'IA', icon: Sparkles, group: 'Configuração' },
     { to: '/canais', label: 'Canais', icon: Plug, group: 'Configuração' },
     { to: '/equipe', label: 'Equipe', icon: Users, group: 'Configuração' },
+    { to: '/assinar', label: 'Assinatura', short: 'Plano', icon: CreditCard, group: 'Configuração' },
     { to: '/config', label: 'Configurações', short: 'Config.', icon: Settings, group: 'Configuração' }
   ],
   analista: [

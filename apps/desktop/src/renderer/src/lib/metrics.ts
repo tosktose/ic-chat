@@ -7,6 +7,7 @@ import { TODAY, type Appointment, type Conversation, type Message } from '@/data
 import { useAppState } from '@/lib/app-state'
 import { useCompany } from '@/lib/company'
 import { APP_MODE, useData } from '@/lib/data'
+import { isWebApp } from '@/lib/supabase'
 
 /** Sem mensagens por este tempo, a próxima mensagem do cliente abre um novo atendimento */
 const SESSION_GAP_MS = 8 * 60 * 60 * 1000
@@ -104,7 +105,7 @@ export function useRecords(): { appts: ApptRecord[]; chats: ChatRecord[]; demo: 
   const { appointmentLog } = useAppState()
   const { services } = useCompany()
   return useMemo(() => {
-    if (!APP_MODE) return { ...demoHistory(), demo: true }
+    if (!APP_MODE && !isWebApp) return { ...demoHistory(), demo: true }
     const byName = (n: string) => services.find((s) => s.name === n)?.id
     return { appts: apptRecords(appointmentLog, byName), chats: chatRecords(conversations, appointmentLog), demo: false }
     // version muda a cada alteração de conversa/mensagem

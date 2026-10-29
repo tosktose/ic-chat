@@ -64,8 +64,8 @@ export function AiPage() {
         </>
       }
     >
-      <div className="grid gap-4 xl:grid-cols-[1fr_400px]">
-        <div className="flex flex-col gap-4">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
+        <div className="flex min-w-0 flex-col gap-4">
           <KeyCard />
 
           {/* Personalidade */}
@@ -336,7 +336,7 @@ function AiPreview() {
   const [busy, setBusy] = useState(false)
   const end = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    end.current?.scrollIntoView({ block: 'end' })
+    end.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [msgs, busy])
 
   const send = async () => {

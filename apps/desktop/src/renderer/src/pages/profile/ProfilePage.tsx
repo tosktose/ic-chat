@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Bell, Camera, Eye, EyeOff, KeyRound, Laptop, LogOut, Mail, Monitor, Moon, Palette, Phone, ShieldCheck, Sun, Trash2, UserRound } from 'lucide-react'
+import { Bell, Camera, KeyRound, Laptop, LogOut, Mail, Monitor, Moon, Palette, Phone, ShieldCheck, Sun, Trash2, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { roleLabel } from '@/components/layout/nav'
 import { Page } from '@/components/layout/Page'
@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { Avatar, Badge, Card, CardHeader, Progress, Segmented, Switch } from '@/components/ui/misc'
 import { useAppState } from '@/lib/app-state'
+import { useAuth } from '@/lib/auth'
+import { isWebApp } from '@/lib/supabase'
 import { useNotifications } from '@/lib/notifications'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
@@ -34,7 +36,8 @@ export function ProfilePage() {
   }
 
   const org = role === 'superadmin' ? 'itaCondo' : company.name
-  const email = role === 'superadmin' ? 'luis@itacondo.com.br' : `${me.name.split(' ')[0].toLowerCase()}@studiobella.com.br`
+  const { session } = useAuth()
+  const email = isWebApp ? (session?.user.email ?? '') : role === 'superadmin' ? 'luis@itacondo.com.br' : `${me.name.split(' ')[0].toLowerCase()}@studiobella.com.br`
 
   return (
     <Page title="Meu perfil" description="Seus dados, senha e preferências. Só você vê e altera esta tela.">
@@ -145,16 +148,9 @@ function SecurityTab() {
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [show, setShow] = useState(false)
   const st = strength(next)
   const mismatch = confirm.length > 0 && confirm !== next
   const canSave = current.length > 0 && next.length >= 8 && next === confirm
-
-  const eye = (
-    <button type="button" onClick={() => setShow((s) => !s)} className="rounded p-1 hover:text-foreground" aria-label={show ? 'Ocultar senha' : 'Mostrar senha'}>
-      {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-    </button>
-  )
 
   return (
     <div className="flex flex-col gap-4">
@@ -162,13 +158,13 @@ function SecurityTab() {
         <CardHeader title={<span className="flex items-center gap-2"><KeyRound className="size-4" /> Alterar senha</span>} />
         <div className="grid gap-4 px-5 pb-5 sm:grid-cols-2">
           <Field label="Senha atual" className="sm:col-span-2">
-            <Input type={show ? 'text' : 'password'} value={current} onChange={(e) => setCurrent(e.target.value)} trailing={eye} />
+            <Input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} />
           </Field>
           <Field label="Nova senha" hint="Mínimo 8 caracteres, com letras, números e símbolo">
-            <Input type={show ? 'text' : 'password'} value={next} onChange={(e) => setNext(e.target.value)} />
+            <Input type="password" value={next} onChange={(e) => setNext(e.target.value)} />
           </Field>
           <Field label="Confirmar nova senha" hint={mismatch ? <span className="text-danger">As senhas não conferem</span> : undefined}>
-            <Input type={show ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)} className={cn(mismatch && 'border-danger')} />
+            <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className={cn(mismatch && 'border-danger')} />
           </Field>
           {next && (
             <div className="sm:col-span-2">

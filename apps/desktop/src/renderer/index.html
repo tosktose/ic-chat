@@ -4,11 +4,49 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0a4fe0" />
-    <link rel="icon" type="image/png" href="./favicon.png" />
-    <title>IC Chat</title>
+    <title>IC Chat — Atendimento que vira venda</title>
+    <meta name="description" content="Atenda pelo WhatsApp e Instagram, organize contatos e acompanhe oportunidades em um CRM simples para pequenas empresas. Experimente o IC Chat por 7 dias grátis." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="%SITE_URL%/" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:site_name" content="IC Chat" />
+    <meta property="og:url" content="%SITE_URL%/" />
+    <meta property="og:title" content="IC Chat — Atendimento que vira venda" />
+    <meta property="og:description" content="WhatsApp, contatos e funil comercial em um só lugar. Comece seu teste grátis de 7 dias." />
+    <meta property="og:image" content="%SITE_URL%/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="IC Chat — Atendimento que vira venda" />
+    <meta name="twitter:description" content="WhatsApp, contatos e funil comercial em um só lugar. Teste grátis por 7 dias." />
+    <meta name="twitter:image" content="%SITE_URL%/og-image.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          { "@type": "Organization", "name": "ItaCondo", "url": "%SITE_URL%/", "logo": "%SITE_URL%/favicon.png" },
+          {
+            "@type": "SoftwareApplication",
+            "name": "IC Chat",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Web, Windows",
+            "inLanguage": "pt-BR",
+            "description": "CRM e atendimento multicanal com funil de vendas, agenda e assistente de IA.",
+            "offers": { "@type": "Offer", "price": "79", "priceCurrency": "BRL" },
+            "publisher": { "@type": "Organization", "name": "ItaCondo" }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>IC Chat — CRM e atendimento multicanal. Ative o JavaScript para usar o sistema.</noscript>
     <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>

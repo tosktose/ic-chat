@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { Badge, Card, CardHeader } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
-import { APP_MODE, useData } from '@/lib/data'
+import { APP_MODE, REMOTE_MODE, useData } from '@/lib/data'
 
 /** Onde os dados ficam, dados de exemplo e limpeza (útil nos testes) */
 export function DataTab() {
@@ -21,7 +21,7 @@ export function DataTab() {
         <CardHeader
           title={<span className="flex items-center gap-2"><Database className="size-4" /> Banco de dados</span>}
           description="Onde ficam contatos, conversas, mensagens e agendamentos"
-          action={<Badge tone={APP_MODE ? 'success' : 'neutral'}>{APP_MODE ? 'SQLite local' : 'Demonstração'}</Badge>}
+          action={<Badge tone={APP_MODE || REMOTE_MODE ? 'success' : 'neutral'}>{APP_MODE ? 'SQLite local' : REMOTE_MODE ? 'Supabase online' : 'Configuração pendente'}</Badge>}
         />
         <div className="grid gap-3 px-5 pb-5 sm:grid-cols-3">
           {[
@@ -37,8 +37,8 @@ export function DataTab() {
           <p className="flex items-start gap-2 text-xs text-muted sm:col-span-3">
             <HardDrive className="mt-0.5 size-3.5 shrink-0" />
             {APP_MODE
-              ? 'Arquivo icchat.db e pasta media em %APPDATA%\\IC Chat. A modalidade Nuvem (Supabase) será configurada pelo Super Admin na licença.'
-              : 'No navegador os dados são de demonstração e não ficam salvos.'}
+              ? 'Arquivo icchat.db e pasta media em %APPDATA%\\IC Chat.'
+              : REMOTE_MODE ? 'Contatos e conversas desta conta ficam no Supabase, isolados por empresa.' : 'Configure o Supabase para armazenar dados online.'}
           </p>
         </div>
       </Card>

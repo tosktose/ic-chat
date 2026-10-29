@@ -62,10 +62,10 @@ const DEFAULT_CONFIG: AiConfig = {
   enabled: false,
   provider: 'anthropic',
   model: 'claude-sonnet-5',
-  name: 'Bella',
+  name: 'Assistente',
   tone: 'amigavel',
   instructions:
-    'Seja simpática e objetiva. Sempre ofereça até 3 horários livres. Nunca invente preços: consulte a tabela. Se o cliente reclamar ou pedir para falar com alguém, transfira para a equipe.',
+    'Seja cordial e objetiva. Quando houver agenda, ofereça até 3 horários livres. Nunca invente preços: consulte a tabela de serviços. Se o cliente reclamar ou pedir para falar com alguém, transfira para a equipe.',
   emojis: true,
   tools: { agenda: true, agendar: true, precos: true, historico: false },
   handoff: { pedido: true, reclamacao: true, incerteza: true, foraAssunto: true },
@@ -222,7 +222,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
     const tone = { formal: 'formal e educado', amigavel: 'amigável e acolhedor', descontraido: 'descontraído e leve' }[cfg.tone]
     const lines: string[] = []
     lines.push(
-      `Você é ${cfg.name}, assistente virtual de atendimento de ${info.name}${info.segment ? ` (${info.segment})` : ''}, conversando com clientes pelo WhatsApp.`,
+      `Você é ${cfg.name}, assistente virtual de atendimento de ${info.name}${co.segmentLabel && co.segmentLabel !== 'Outro' ? ` (segmento: ${co.segmentLabel})` : ''}, conversando com clientes pelo WhatsApp.`,
       `Agora: ${WEEKDAYS[now.getDay()].toLowerCase()}, ${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`,
       `Tom de voz: ${tone}. ${cfg.emojis ? 'Pode usar emojis com moderação.' : 'Não use emojis.'}`,
       'Responda em português do Brasil, em mensagens curtas (até 3 frases), como numa conversa de WhatsApp. Não use markdown com títulos ou listas longas.',
@@ -232,6 +232,7 @@ export function AiProvider({ children }: { children: ReactNode }) {
     if (cfg.instructions.trim()) lines.push('', '## Instruções do dono do negócio', cfg.instructions.trim())
 
     lines.push('', '## Empresa', `Nome: ${info.name}`)
+    if (co.segmentLabel && co.segmentLabel !== 'Outro') lines.push(`Segmento: ${co.segmentLabel}`)
     if (info.address) lines.push(`Endereço: ${info.address}`)
     if (info.phone) lines.push(`Telefone: ${info.phone}`)
     if (info.instagram) lines.push(`Instagram: ${info.instagram}`)

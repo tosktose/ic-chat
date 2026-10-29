@@ -1,12 +1,13 @@
 import {
   forwardRef,
+  useState,
   type InputHTMLAttributes,
   type LabelHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes
 } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const fieldBase =
@@ -18,9 +19,27 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, icon, trailing, ...props }, ref) => {
-    if (!icon && !trailing) {
-      return <input ref={ref} className={cn(fieldBase, 'h-9 px-3', className)} {...props} />
+  ({ className, icon, trailing, type, ...props }, ref) => {
+    // Todo campo de senha ganha o olhinho para mostrar/ocultar o que foi digitado.
+    const [reveal, setReveal] = useState(false)
+    const isPassword = type === 'password'
+    const eye =
+      isPassword && !trailing ? (
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setReveal((v) => !v)}
+          className="grid size-7 cursor-pointer place-items-center rounded-md transition-colors hover:text-foreground [&_svg]:size-4"
+          aria-label={reveal ? 'Ocultar senha' : 'Mostrar senha'}
+          aria-pressed={reveal}
+        >
+          {reveal ? <EyeOff /> : <Eye />}
+        </button>
+      ) : null
+    const end = trailing ?? eye
+    const realType = isPassword && reveal ? 'text' : type
+    if (!icon && !end) {
+      return <input ref={ref} type={realType} className={cn(fieldBase, 'h-9 px-3', className)} {...props} />
     }
     return (
       <div className="relative w-full">
@@ -31,12 +50,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
         <input
           ref={ref}
-          className={cn(fieldBase, 'h-9', icon ? 'pl-9' : 'pl-3', trailing ? 'pr-10' : 'pr-3', className)}
+          type={realType}
+          className={cn(fieldBase, 'h-9', icon ? 'pl-9' : 'pl-3', end ? 'pr-10' : 'pr-3', className)}
           {...props}
         />
-        {trailing && (
-          <span className="absolute top-1/2 right-2 -translate-y-1/2 text-subtle">{trailing}</span>
-        )}
+        {end && <span className="absolute top-1/2 right-1.5 -translate-y-1/2 text-subtle">{end}</span>}
       </div>
     )
   }

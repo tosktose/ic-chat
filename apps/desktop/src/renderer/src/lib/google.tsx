@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { GEventDTO } from '../../../preload/index.d'
 import type { Appointment } from '@/data/mock'
+import { isWebApp } from '@/lib/supabase'
 
 /** Sincronização com o Google Agenda (configuração do gerente). */
 export type SyncDirection = 'duas-vias' | 'para-google' | 'do-google'
@@ -75,7 +76,7 @@ export function GoogleProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
-    return { ...DEFAULT, calendars: api ? {} : DEMO_CALENDARS }
+    return { ...DEFAULT, calendars: api || isWebApp ? {} : DEMO_CALENDARS }
   })
   const [creds, setCreds] = useState({ hasCredentials: false, clientId: '' })
   const [events, setEvents] = useState<Record<string, GEventDTO[]>>({})
