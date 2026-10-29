@@ -10,9 +10,27 @@ interface AuthContextValue {
   signUp: (email: string, password: string, company: string) => Promise<{ error: AuthError | null; needsEmailConfirmation: boolean }>
   signInWithGoogle: () => Promise<AuthError | null>
   signOut: () => Promise<void>
+  /** Envia o e-mail de redefinição (o envio usa o SMTP/Resend configurado no Supabase) */
+  requestPasswordReset: (email: string) => Promise<AuthError | null>
+  updatePassword: (password: string) => Promise<AuthError | null>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+
+/** O banco de usuários é compartilhado entre projetos; o dono do SaaS é identificado pelo e-mail
+ *  (padrão ou lista em VITE_SUPERADMIN_EMAILS) ou por role "superadmin" nos metadados do Supabase.
+ *  Isso só decide o que a interface mostra; o acesso aos dados continua protegido pelas regras do banco. */
+const SUPERADMIN_EMAILS = String(import.meta.env.VITE_SUPERADMIN_EMAILS ?? 'superadmin@itacondo.com.br')
+  .split(',')
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean)
+
+export function isSuperAdmin(session: Session | null): boolean {
+  if (!session?.user) return false
+  const email = session.user.email?.toLowerCase()
+  const role = session.user.app_metadata?.role ?? session.user.user_metadata?.role
+  return role === 'superadmin' || (Boolean(email) && SUPERADMIN_EMAILS.includes(email!))
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
@@ -57,7 +75,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       return error
     },
-    signOut: async () => { if (supabase) await supabase.auth.signOut() }
+    signOut: async () => { if (supabase) await supabase.auth.signOut() },
+    requestPasswordReset: async (email) => {
+      if (!supabase) return new Error('Supabase não configurado') as AuthError
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/redefinir-senha` })
+      return error
+    },
+    updatePassword: async (password) => {
+      if (!supabase) return new Error('Supabase não configurado') as AuthError
+      const { error } = await supabase.auth.updateUser({ password })
+      return error
+    }
   }), [session, loading])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

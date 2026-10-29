@@ -32,3 +32,7 @@ Thumbs.db
 
 # Temporarios do electron-vite
 electron.vite.config.*.mjs
+
+# Testes e2e (relatorios gerados)
+apps/desktop/e2e/report/
+apps/desktop/e2e/results/

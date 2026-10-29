@@ -22,6 +22,7 @@ import { AuthPage } from '@/pages/AuthPage'
 import { LandingPage } from '@/pages/LandingPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { LegalPage } from '@/pages/LegalPage'
+import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/PasswordResetPage'
 import { CookieConsent } from '@/components/CookieConsent'
 
 const Router = isWebApp ? BrowserRouter : HashRouter
@@ -112,6 +113,8 @@ export function App() {
               <Route path="/" element={isWebApp ? <LandingPage /> : <Home />} />
               <Route path="/login" element={isWebApp ? <AuthPage mode="login" /> : <LoginPage />} />
               <Route path="/cadastro" element={isWebApp ? <AuthPage mode="signup" /> : <LoginPage />} />
+              {isWebApp && <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />}
+              {isWebApp && <Route path="/redefinir-senha" element={<ResetPasswordPage />} />}
               <Route path="/privacidade" element={<LegalPage kind="privacidade" />} />
               <Route path="/termos" element={<LegalPage kind="termos" />} />
               <Route element={<AppShell />}>

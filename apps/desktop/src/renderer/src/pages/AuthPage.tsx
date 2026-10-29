@@ -89,6 +89,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
                 {signup && <Field label="Nome da empresa"><Input required minLength={2} maxLength={120} value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Sua empresa" /></Field>}
                 <Field label="E-mail"><Input required type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@empresa.com.br" icon={<Mail />} /></Field>
                 <Field label="Senha"><Input required minLength={8} type="password" autoComplete={signup ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo de 8 caracteres" icon={<LockKeyhole />} /></Field>
+                {!signup && <Link to="/esqueci-senha" className="-mt-2 self-end text-xs font-semibold text-primary hover:underline">Esqueci minha senha</Link>}
                 {signup && <p className="text-xs leading-5 text-muted">Ao criar a conta, você inicia um teste de 7 dias. Depois, escolha um plano para continuar.</p>}
                 {signup && (
                   <label className="flex items-start gap-2.5 text-xs leading-5 text-muted">

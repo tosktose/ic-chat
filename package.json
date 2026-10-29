@@ -11,6 +11,7 @@
     "build": "npm run build -w @icchat/desktop",
     "build:web": "npm run build:web -w @icchat/desktop",
     "dist:win": "npm run dist:win -w @icchat/desktop",
-    "typecheck": "npm run typecheck -w @icchat/desktop"
+    "typecheck": "npm run typecheck -w @icchat/desktop",
+    "test:e2e": "npm run test:e2e -w @icchat/desktop"
   }
 }

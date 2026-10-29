@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { appointments as seedAppointments, sessionUsers, type Appointment, type Role, type User } from '@/data/mock'
-import { useAuth } from '@/lib/auth'
+import { isSuperAdmin, useAuth } from '@/lib/auth'
 import { isWebApp, supabase } from '@/lib/supabase'
 
 /** Estados da licença (seção 5.8 do documento do projeto) */
@@ -172,7 +172,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }
   const [apptDialog, setApptDialog] = useState<{ open: boolean; contactId?: string }>({ open: false })
   const [role, setRole] = useState<Role>(() => {
-    if (isWebApp) return 'gerente'
+    if (isWebApp) return isSuperAdmin(session) ? 'superadmin' : 'gerente'
     try {
       const r = localStorage.getItem('icchat.role') as Role | null
       return r && r in sessionUsers ? r : 'gerente'
@@ -181,14 +181,20 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
   })
 
+  // Na versão web o perfil vem de quem está logado (o banco de usuários é compartilhado)
+  const webRole: Role = isSuperAdmin(session) ? 'superadmin' : 'gerente'
+  useEffect(() => {
+    if (isWebApp) setRole(webRole)
+  }, [webRole])
+
   return (
     <Ctx.Provider
       value={{
-        role,
+        role: isWebApp ? webRole : role,
         me: isWebApp && session?.user ? {
           id: session.user.id,
           name: String(session.user.user_metadata?.full_name ?? session.user.user_metadata?.name ?? session.user.email ?? 'Minha conta'),
-          role: 'gerente', presence: 'online', activeChats: 0
+          role: webRole, presence: 'online', activeChats: 0
         } : resolveUser(sessionUsers[role]),
         myPresence,
         setMyPresence: (p) => {
