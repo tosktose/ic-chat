@@ -314,7 +314,7 @@ export function LandingPage() {
               </div>
               <div className="relative mt-8">
                 <Link to="/download" className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-blue-800 transition hover:bg-cyan-100"><ArrowDownToLine className="size-4" /> Entrar para baixar</Link>
-                <p className="mt-3 text-xs text-blue-100/80">Windows 10 ou superior · versão 0.6.2</p>
+                <p className="mt-3 text-xs text-blue-100/80">Windows 10 ou superior · versão 0.6.3</p>
               </div>
             </article></Reveal>
           </div>

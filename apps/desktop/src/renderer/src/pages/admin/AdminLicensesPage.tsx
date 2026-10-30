@@ -8,7 +8,7 @@ import { Badge, Card, CardHeader, Segmented } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/overlay'
 import { randomKey, tenantById, type LicenseKey } from '@/data/saas'
 import { useSaas } from '@/lib/saas'
-import { isWebApp, supabase } from '@/lib/supabase'
+import { isWebApp } from '@/lib/supabase'
 import { RealLicenses } from './RealLicenses'
 
 const tone: Record<LicenseKey['status'], 'success' | 'danger' | 'neutral' | 'warning'> = {
@@ -166,5 +166,5 @@ function DemoLicenses() {
 
 /** Na versão web usa o banco de verdade; no app de demonstração mantém os dados de exemplo. */
 export function AdminLicensesPage() {
-  return isWebApp && supabase ? <RealLicenses /> : <DemoLicenses />
+  return isWebApp || window.icchat?.isDesktop ? <RealLicenses /> : <DemoLicenses />
 }

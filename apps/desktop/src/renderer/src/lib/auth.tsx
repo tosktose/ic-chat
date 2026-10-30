@@ -30,7 +30,7 @@ const SUPERADMIN_EMAILS = String(import.meta.env.VITE_SUPERADMIN_EMAILS ?? 'supe
 export function isSuperAdmin(session: Session | null): boolean {
   if (!session?.user) return false
   const email = session.user.email?.toLowerCase()
-  const role = session.user.app_metadata?.role ?? session.user.user_metadata?.role
+  const role = String(session.user.app_metadata?.role ?? session.user.user_metadata?.role ?? '').toLowerCase().replace(/[^a-z]/g, '')
   return role === 'superadmin' || (Boolean(email) && SUPERADMIN_EMAILS.includes(email!))
 }
 

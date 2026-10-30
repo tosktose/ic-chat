@@ -4,7 +4,7 @@ import { IcLogo } from '@/components/brand'
 import { useAuth } from '@/lib/auth'
 import { useSeo } from '@/lib/seo'
 
-const downloadUrl = 'https://github.com/tosktose/ic-chat/releases/latest/download/IC-Chat-Setup-0.6.2.exe'
+const downloadUrl = 'https://github.com/tosktose/ic-chat/releases/latest/download/IC-Chat-Setup-0.6.3.exe'
 
 export function DownloadPage() {
   const { session, loading } = useAuth()
@@ -26,7 +26,7 @@ export function DownloadPage() {
         ) : (
           <p className="mt-7 rounded-xl bg-surface-2 p-4 text-sm text-muted">O instalador ainda não está disponível.</p>
         )}
-        <p className="mt-4 text-xs text-muted">Windows 10 ou superior · versão 0.6.2</p>
+        <p className="mt-4 text-xs text-muted">Windows 10 ou superior · versão 0.6.3</p>
       </section>
     </main>
   )

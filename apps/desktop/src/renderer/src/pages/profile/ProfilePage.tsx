@@ -37,7 +37,7 @@ export function ProfilePage() {
 
   const org = role === 'superadmin' ? 'itaCondo' : company.name
   const { session } = useAuth()
-  const email = isWebApp ? (session?.user.email ?? '') : role === 'superadmin' ? 'luis@itacondo.com.br' : `${me.name.split(' ')[0].toLowerCase()}@studiobella.com.br`
+  const email = session?.user.email ?? ''
 
   return (
     <Page title="Meu perfil" description="Seus dados, senha e preferências. Só você vê e altera esta tela.">
@@ -101,10 +101,16 @@ function PersonalTab({ email }: { email: string }) {
   const [displayName, setDisplayName] = useState(myDisplayName)
   const [phone, setPhone] = useState(myPhone ?? '')
   const dirty = name !== me.name || displayName !== myDisplayName || phone !== (myPhone ?? '')
-  const save = () => {
+  const [saving, setSaving] = useState(false)
+  const save = async () => {
     if (!name.trim()) return toast.error('Informe o nome')
-    updateMyProfile({ name: name.trim(), displayName: displayName.trim() || undefined, phone: phone || undefined })
-    toast.success('Dados salvos', { description: 'Seu nome foi atualizado em todo o sistema.' })
+    setSaving(true)
+    try {
+      await updateMyProfile({ name: name.trim(), displayName: displayName.trim() || undefined, phone: phone || undefined })
+      toast.success('Dados salvos', { description: 'Seu nome foi atualizado na conta.' })
+    } catch (error) {
+      toast.error('Não foi possível salvar os dados', { description: error instanceof Error ? error.message : 'Confira sua conexão e tente novamente.' })
+    } finally { setSaving(false) }
   }
   return (
     <Card>
@@ -116,7 +122,7 @@ function PersonalTab({ email }: { email: string }) {
             <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={name.split(' ')[0]} />
           </Field>
         ) : (
-          <Field label="Cargo"><Input defaultValue="Diretor" /></Field>
+          <Field label="Perfil"><Input value={roleLabel[role]} readOnly /></Field>
         )}
         <Field label="E-mail de login" hint="Para trocar o e-mail, fale com o administrador">
           <Input icon={<Mail />} defaultValue={email} readOnly />
@@ -124,7 +130,7 @@ function PersonalTab({ email }: { email: string }) {
         <Field label="Celular"><Input icon={<Phone />} placeholder="(11) 90000-0000" value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
       </div>
       <div className="flex justify-end border-t border-border px-5 py-3">
-        <Button onClick={save} disabled={!dirty}>Salvar alterações</Button>
+        <Button onClick={() => void save()} disabled={!dirty || saving}>{saving ? 'Salvando…' : 'Salvar alterações'}</Button>
       </div>
     </Card>
   )

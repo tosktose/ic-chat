@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { ArrowRight, Bot, CalendarCheck, Eye, EyeOff, Lock, Mail, MessagesSquare } from 'lucide-react'
 import { IcLogo, InstagramIcon, MessengerIcon, WhatsAppIcon } from '@/components/brand'
@@ -11,13 +11,17 @@ import { toast } from 'sonner'
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { signIn, signInWithGoogle, requestPasswordReset, configured } = useAuth()
-  const { signIn: setRole } = useAppState()
+  const { signIn, signInWithGoogle, requestPasswordReset, configured, session, loading: authLoading } = useAuth()
+  const { role } = useAppState()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
   const [loading, setLoading] = useState(false)
   const [keep, setKeep] = useState(true)
+
+  useEffect(() => {
+    if (session && !authLoading) navigate(homeByRole[role], { replace: true })
+  }, [session?.user.id, authLoading, role, navigate])
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -25,7 +29,6 @@ export function LoginPage() {
     try {
       const error = await signIn(email.trim(), password)
       if (error) throw error
-      setRole('gerente')
       try { localStorage.setItem('icchat.keep', keep ? '1' : '0') } catch { /* armazenamento opcional */ }
       navigate(homeByRole.gerente)
     } catch (error) {
@@ -49,6 +52,8 @@ export function LoginPage() {
     try {
       const error = await signInWithGoogle()
       if (error) throw error
+      toast.info('Conclua o acesso na janela do Google. O IC Chat abrirá sua conta ao retornar.')
+      setLoading(false)
     } catch (error) {
       toast.error('Não foi possível entrar com Google', { description: error instanceof Error ? error.message : 'Confira a conexão e tente novamente.' })
       setLoading(false)

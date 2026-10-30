@@ -30,7 +30,7 @@ interface AppState {
   myDisplayName: string
   myPhone?: string
   /** Salva nome, nome exibido e celular do usuário logado — reflete no sistema todo */
-  updateMyProfile: (p: ProfileOverride) => void
+  updateMyProfile: (p: ProfileOverride) => Promise<void>
   /** Aplica as alterações de perfil a qualquer usuário (listas, conversas, painel) */
   resolveUser: <U extends User | undefined>(u: U) => U
   /** Meu status: define se a URA pode me encaminhar clientes */
@@ -76,6 +76,12 @@ export interface ProfileOverride {
 }
 
 const Ctx = createContext<AppState | null>(null)
+
+function roleForSession(session: ReturnType<typeof useAuth>['session']): Role {
+  if (isSuperAdmin(session)) return 'superadmin'
+  const raw = session?.user.app_metadata?.role ?? session?.user.user_metadata?.role
+  return raw === 'agent' || raw === 'analyst' || raw === 'analista' ? 'analista' : 'gerente'
+}
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth()
@@ -197,13 +203,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       return 'online'
     }
   })
-  const resolveUser = <U extends User | undefined>(u: U): U => {
-    if (!u) return u
-    let out: User = u
-    if (profiles[u.id]?.name) out = { ...out, name: profiles[u.id].name! }
-    if (u.id === sessionUsers[role].id) out = { ...out, presence: myPresence }
-    return out as U
-  }
   const [apptDialog, setApptDialog] = useState<{ open: boolean; contactId?: string }>({ open: false })
   const [role, setRole] = useState<Role>(() => {
     if (isWebApp) return isSuperAdmin(session) ? 'superadmin' : 'gerente'
@@ -215,21 +214,26 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
   })
 
-  // Na versão web o perfil vem de quem está logado (o banco de usuários é compartilhado)
-  const webRole: Role = isSuperAdmin(session) ? 'superadmin' : 'gerente'
-  useEffect(() => {
-    if (isWebApp) setRole(webRole)
-  }, [webRole])
+  const activeRole = session?.user ? roleForSession(session) : role
+  const activeUserId = session?.user.id ?? sessionUsers[activeRole].id
+  const resolveUser = <U extends User | undefined>(u: U): U => {
+    if (!u) return u
+    let out: User = u
+    if (profiles[u.id]?.name) out = { ...out, name: profiles[u.id].name! }
+    if (u.id === activeUserId) out = { ...out, presence: myPresence }
+    return out as U
+  }
+  const sessionName = String(session?.user.user_metadata?.full_name ?? session?.user.user_metadata?.name ?? session?.user.email?.split('@')[0] ?? 'Minha conta')
 
   return (
     <Ctx.Provider
       value={{
-        role: isWebApp ? webRole : role,
+        role: activeRole,
         me: session?.user ? {
           id: session.user.id,
-          name: String(session.user.user_metadata?.full_name ?? session.user.user_metadata?.name ?? session.user.email?.split('@')[0] ?? 'Minha conta'),
-          role: webRole, presence: 'online', activeChats: 0
-        } : resolveUser(sessionUsers[role]),
+          name: profiles[activeUserId]?.name ?? sessionName,
+          role: activeRole, presence: myPresence, activeChats: 0
+        } : resolveUser(sessionUsers[activeRole]),
         myPresence,
         setMyPresence: (p) => {
           setPresenceState(p)
@@ -239,13 +243,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             /* ignore */
           }
         },
-        myDisplayName: session?.user
-          ? String(session.user.user_metadata?.full_name ?? session.user.user_metadata?.name ?? session.user.email?.split('@')[0] ?? 'Você').split(' ')[0]
-          : profiles[sessionUsers[role].id]?.displayName || resolveUser(sessionUsers[role]).name.split(' ')[0],
-        myPhone: profiles[sessionUsers[role].id]?.phone,
+        myDisplayName: profiles[activeUserId]?.displayName || String(session?.user.user_metadata?.display_name ?? sessionName).split(' ')[0],
+        myPhone: profiles[activeUserId]?.phone ?? (session?.user.user_metadata?.phone as string | undefined),
         resolveUser,
-        updateMyProfile: (p) => {
-          const id = sessionUsers[role].id
+        updateMyProfile: async (p) => {
+          const id = activeUserId
           setProfiles((all) => {
             const next = { ...all, [id]: { ...all[id], ...p } }
             try {
@@ -255,18 +257,26 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             }
             return next
           })
+          if (session?.user && supabase) {
+            const { error } = await supabase.auth.updateUser({ data: {
+              full_name: p.name ?? sessionName,
+              display_name: p.displayName ?? p.name?.split(' ')[0] ?? sessionName.split(' ')[0],
+              ...(p.phone === undefined ? {} : { phone: p.phone })
+            } })
+            if (error) throw error
+          }
         },
         myPhoto:
-          photos[sessionUsers[role].id] ??
+          photos[activeUserId] ??
           (() => {
             try {
-              return localStorage.getItem(`icchat.photo.${sessionUsers[role].id}`) ?? undefined
+              return localStorage.getItem(`icchat.photo.${activeUserId}`) ?? undefined
             } catch {
               return undefined
             }
           })(),
         setMyPhoto: (url) => {
-          const id = sessionUsers[role].id
+          const id = activeUserId
           setPhotos((p) => ({ ...p, [id]: url }))
           try {
             if (url) localStorage.setItem(`icchat.photo.${id}`, url)
@@ -278,7 +288,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         appointments: activeAppointments,
         appointmentLog: appointments,
         addAppointment: (a) => {
-          const appt: Appointment = { createdAt: Date.now(), createdBy: sessionUsers[role].id, ...a, id: crypto.randomUUID() }
+          const appt: Appointment = { createdAt: Date.now(), createdBy: activeUserId, ...a, id: crypto.randomUUID() }
           setAppointments((list) => [...list, appt])
           saveAppt(appt)
           return appt
