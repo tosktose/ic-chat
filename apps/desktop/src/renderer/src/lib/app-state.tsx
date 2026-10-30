@@ -225,7 +225,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider
       value={{
         role: isWebApp ? webRole : role,
-        me: isWebApp && session?.user ? {
+        me: session?.user ? {
           id: session.user.id,
           name: String(session.user.user_metadata?.full_name ?? session.user.user_metadata?.name ?? session.user.email?.split('@')[0] ?? 'Minha conta'),
           role: webRole, presence: 'online', activeChats: 0
@@ -239,7 +239,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             /* ignore */
           }
         },
-        myDisplayName: isWebApp && session?.user
+        myDisplayName: session?.user
           ? String(session.user.user_metadata?.full_name ?? session.user.user_metadata?.name ?? session.user.email?.split('@')[0] ?? 'Você').split(' ')[0]
           : profiles[sessionUsers[role].id]?.displayName || resolveUser(sessionUsers[role]).name.split(' ')[0],
         myPhone: profiles[sessionUsers[role].id]?.phone,

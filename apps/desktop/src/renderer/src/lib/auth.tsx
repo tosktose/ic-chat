@@ -36,10 +36,10 @@ export function isSuperAdmin(session: Session | null): boolean {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(isWebApp && Boolean(supabase))
+  const [loading, setLoading] = useState(Boolean(supabase))
 
   useEffect(() => {
-    if (!isWebApp || !supabase) return
+    if (!supabase) { setLoading(false); return }
     let mounted = true
     void supabase.auth.getSession().then(({ data }) => {
       if (mounted) { setSession(data.session); setLoading(false) }

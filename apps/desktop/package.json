@@ -1,7 +1,7 @@
 {
   "name": "@icchat/desktop",
   "productName": "IC Chat",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "description": "IC Chat — Powered by itaCondo",
   "author": "ItaCondo",

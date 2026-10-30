@@ -29,6 +29,7 @@ import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/PasswordResetPage
 import { SubscribePage, CheckoutReturnPage } from '@/pages/billing/SubscribePage'
 import { LicenseGate } from '@/components/LicenseGate'
 import { CookieConsent } from '@/components/CookieConsent'
+import { DownloadPage } from '@/pages/DownloadPage'
 
 const Router = isWebApp ? BrowserRouter : HashRouter
 
@@ -67,8 +68,8 @@ function Guard({ children }: { children: ReactNode }) {
   const { role } = useAppState()
   const { pathname } = useLocation()
   const { session, loading } = useAuth()
-  if (isWebApp && loading) return <PageLoading />
-  if (isWebApp && !session) return <Navigate to="/login" replace state={{ from: pathname }} />
+  if (loading) return <PageLoading />
+  if (!session) return <Navigate to="/login" replace state={{ from: pathname }} />
   if (!canAccess(role, pathname)) return <Navigate to={homeByRole[role]} replace />
   // Telas carregadas sob demanda (o app abre mais rápido)
   return (
@@ -94,8 +95,8 @@ function PageLoading() {
 function Home() {
   const { role } = useAppState()
   const { session, loading } = useAuth()
+  if (loading) return <PageLoading />
   if (isWebApp) {
-    if (loading) return <PageLoading />
     return <Navigate to={session ? homeByRole[role] : '/'} replace />
   }
   // Ao abrir o app: entra direto só se a pessoa marcou "Manter conectado"
@@ -105,7 +106,7 @@ function Home() {
   } catch {
     /* ignore */
   }
-  return <Navigate to={keep ? homeByRole[role] : '/login'} replace />
+  return <Navigate to={session && keep ? homeByRole[role] : '/login'} replace />
 }
 
 export function App() {
@@ -128,6 +129,7 @@ export function App() {
               <Route path="/" element={isWebApp ? <LandingPage /> : <Home />} />
               <Route path="/login" element={isWebApp ? <AuthPage mode="login" /> : <LoginPage />} />
               {isWebApp && <Route path="/c/:tenantId" element={<Suspense fallback={<PageLoading />}><LeadFormPage /></Suspense>} />}
+              {isWebApp && <Route path="/download" element={<DownloadPage />} />}
               <Route path="/cadastro" element={isWebApp ? <AuthPage mode="signup" /> : <LoginPage />} />
               {isWebApp && <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />}
               {isWebApp && <Route path="/redefinir-senha" element={<ResetPasswordPage />} />}

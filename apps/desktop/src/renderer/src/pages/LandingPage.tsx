@@ -9,8 +9,6 @@ import { HOME_FAQ, KEYWORD_PAGES, pageByPath } from '@/seo/pages'
 import { usePlans, usePublicSettings } from '@/lib/platform'
 import { discountedPlanPrice } from '@/lib/billing'
 
-const downloadUrl = import.meta.env.VITE_ICCHAT_DESKTOP_DOWNLOAD_URL as string | undefined
-
 const faqs = HOME_FAQ.map((f) => [f.q, f.a] as const)
 
 /** Revela o conteúdo suavemente quando ele entra na tela. */
@@ -315,10 +313,8 @@ export function LandingPage() {
                 <p className="mt-2 text-sm leading-6 text-blue-50/90">Instale no computador, receba notificações e mantenha o atendimento sempre à mão. Entre com a mesma conta da versão online.</p>
               </div>
               <div className="relative mt-8">
-                {downloadUrl
-                  ? <a href={downloadUrl} className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-blue-800 transition hover:bg-cyan-100"><ArrowDownToLine className="size-4" /> Baixar para Windows</a>
-                  : <span className="inline-flex h-12 items-center gap-2 rounded-full bg-white/15 px-6 text-sm font-semibold ring-1 ring-white/30"><ArrowDownToLine className="size-4" /> Download disponível em breve</span>}
-                <p className="mt-3 text-xs text-blue-100/80">Windows 10 ou superior · versão 0.6.0</p>
+                <Link to="/download" className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-blue-800 transition hover:bg-cyan-100"><ArrowDownToLine className="size-4" /> Entrar para baixar</Link>
+                <p className="mt-3 text-xs text-blue-100/80">Windows 10 ou superior · versão 0.6.1</p>
               </div>
             </article></Reveal>
           </div>
