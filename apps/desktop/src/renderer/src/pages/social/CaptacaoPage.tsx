@@ -5,6 +5,7 @@ import { ChannelBadge } from '@/components/brand'
 import { Page } from '@/components/layout/Page'
 import { Button } from '@/components/ui/button'
 import { Badge, Switch } from '@/components/ui/misc'
+import { LeadLinkCard } from '@/components/LeadLinkCard'
 import { StatCard, StatGrid } from '@/components/ui/stats'
 import { cn } from '@/lib/utils'
 import {
@@ -152,6 +153,7 @@ export function CaptacaoPage() {
         </Button>
       }
     >
+      {isWebApp && <LeadLinkCard />}
       <StatGrid className="mb-5">
         <StatCard
           label="Comentários capturados"

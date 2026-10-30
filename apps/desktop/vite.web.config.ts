@@ -86,7 +86,7 @@ function seoFiles(siteUrl: string): Plugin {
         .map((p) => `  <url>\n    <loc>${base}${p.path === '/' ? '/' : p.path}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`)
         .join('\n')
       this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n` })
-      const disallow = ['/dashboard', '/inbox', '/kanban', '/funil', '/captacao', '/ia', '/canais', '/relatorios', '/equipe', '/config', '/agenda', '/contatos', '/perfil', '/meu-painel', '/afiliados', '/admin', '/assinar', '/esqueci-senha', '/redefinir-senha']
+      const disallow = ['/dashboard', '/inbox', '/kanban', '/funil', '/captacao', '/cobrancas', '/disparos', '/c/', '/ia', '/canais', '/relatorios', '/equipe', '/config', '/agenda', '/contatos', '/perfil', '/meu-painel', '/afiliados', '/admin', '/assinar', '/esqueci-senha', '/redefinir-senha', '/download']
       this.emitFile({ type: 'asset', fileName: 'robots.txt', source: `User-agent: *\nAllow: /\n${disallow.map((p) => `Disallow: ${p}`).join('\n')}\n\nSitemap: ${base}/sitemap.xml\n` })
     },
     closeBundle() {

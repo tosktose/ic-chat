@@ -40,6 +40,9 @@ const AdminSystemPage = lazy(() => import('@/pages/admin/AdminSystemPage').then(
 const AdminUsersPage = lazy(() => import('@/pages/admin/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
 const AdminAffiliatesPage = lazy(() => import('@/pages/admin/AdminAffiliatesPage').then((m) => ({ default: m.AdminAffiliatesPage })))
 const MyAffiliatesPage = lazy(() => import('@/pages/affiliate/MyAffiliatesPage').then((m) => ({ default: m.MyAffiliatesPage })))
+const ChargesPage = lazy(() => import('@/pages/billing/ChargesPage').then((m) => ({ default: m.ChargesPage })))
+const BroadcastPage = lazy(() => import('@/pages/social/BroadcastPage').then((m) => ({ default: m.BroadcastPage })))
+const LeadFormPage = lazy(() => import('@/pages/public/LeadFormPage').then((m) => ({ default: m.LeadFormPage })))
 const AgendaPage = lazy(() => import('@/pages/agenda/AgendaPage').then((m) => ({ default: m.AgendaPage })))
 const AiPage = lazy(() => import('@/pages/ai/AiPage').then((m) => ({ default: m.AiPage })))
 const MyPerformancePage = lazy(() => import('@/pages/analyst/MyPerformancePage').then((m) => ({ default: m.MyPerformancePage })))
@@ -124,6 +127,7 @@ export function App() {
             <Routes>
               <Route path="/" element={isWebApp ? <LandingPage /> : <Home />} />
               <Route path="/login" element={isWebApp ? <AuthPage mode="login" /> : <LoginPage />} />
+              {isWebApp && <Route path="/c/:tenantId" element={<Suspense fallback={<PageLoading />}><LeadFormPage /></Suspense>} />}
               <Route path="/cadastro" element={isWebApp ? <AuthPage mode="signup" /> : <LoginPage />} />
               {isWebApp && <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />}
               {isWebApp && <Route path="/redefinir-senha" element={<ResetPasswordPage />} />}
@@ -136,6 +140,8 @@ export function App() {
                 <Route path="/kanban" element={<Guard><KanbanPage /></Guard>} />
                 <Route path="/funil" element={<Guard><FunilPage /></Guard>} />
                 <Route path="/captacao" element={<Guard><CaptacaoPage /></Guard>} />
+                <Route path="/cobrancas" element={<Guard><ChargesPage /></Guard>} />
+                <Route path="/disparos" element={<Guard><BroadcastPage /></Guard>} />
                 <Route path="/ia" element={<Guard><AiPage /></Guard>} />
                 <Route path="/canais" element={<Guard><ChannelsPage /></Guard>} />
                 <Route path="/relatorios" element={<Guard><ReportsPage /></Guard>} />

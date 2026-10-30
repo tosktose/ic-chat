@@ -23,13 +23,16 @@ const STEPS: Step[] = [
   { path: '/funil', title: 'Funil de vendas', what: 'Suas oportunidades de venda, do primeiro contato ao fechamento, com valores.', why: 'Para saber quanto você tem a receber e quais negócios estão esfriando.', how: 'Crie um negócio, vincule ao cliente e arraste conforme a negociação avança.' },
   { path: '/contatos', title: 'Contatos', what: 'A lista dos seus clientes com histórico, etiquetas e dados.', why: 'Seu cadastro de clientes fica organizado e reaproveitado pela IA e pela equipe.', how: 'Cadastre um contato ou importe uma planilha CSV (Excel ou Google Contatos).' },
   { path: '/agenda', title: 'Agenda', what: 'Os horários marcados, por profissional e serviço.', why: 'Evita conflito de horário e permite que a IA marque sozinha só nos horários livres.', how: 'Cadastre profissionais e serviços em Configurações e depois crie ou veja agendamentos aqui.' },
+  { path: '/cobrancas', title: 'Cobranças', what: 'A lista do que seus clientes ainda vão pagar, com valor, vencimento e forma de pagamento.', why: 'Para não esquecer de cobrar e ver de relance quanto entrou e quanto está atrasado.', how: 'Clique em "Nova cobrança", use "Cobrar" para mandar o lembrete pelo WhatsApp e "Recebi" quando cair o pagamento.' },
+  { path: '/disparos', title: 'Disparos', what: 'Envio de uma mesma mensagem para vários contatos, já com o nome de cada um.', why: 'Para avisar promoções e novidades sem digitar um por um.', how: 'Escolha a etiqueta, escreva a mensagem com {nome} e clique em "Enviar" em cada contato. Envie aos poucos para proteger seu número.' },
   { path: '/captacao', title: 'Captação', what: 'Campanhas e origens dos clientes novos.', why: 'Para descobrir de onde vêm os clientes e onde vale investir.', how: 'Crie uma campanha e use o link ou código dela nas suas divulgações.' },
   { path: '/relatorios', title: 'Relatórios', what: 'Números do atendimento por canal, atendente e período.', why: 'Para medir resultado e decidir com dados, não no achismo.', how: 'Escolha o período e exporte em Excel ou PDF para guardar ou mostrar à equipe.' },
   { path: '/equipe', title: 'Equipe', what: 'Os usuários da sua empresa e o que cada um pode ver.', why: 'Cada atendente entra com o próprio acesso e você controla as permissões.', how: 'Convide pelo e-mail e escolha o perfil: gerente ou analista.' },
   { path: '/config', title: 'Configurações', what: 'Dados da empresa, horários, serviços, assinatura e licença.', why: 'É aqui que o sistema aprende como sua empresa funciona e onde você cuida do plano.', how: 'Comece pelos dados da empresa, serviços e horários. Depois veja a aba de licença e assinatura.' }
 ]
 
-const DONE_KEY = 'icchat.guide.done'
+export const GUIDE_EVENT = 'icchat:guide-open'
+const DONE_KEY ='icchat.guide.done'
 const read = () => { try { return localStorage.getItem(DONE_KEY) === '1' } catch { return false } }
 const write = () => { try { localStorage.setItem(DONE_KEY, '1') } catch { /* sem armazenamento */ } }
 
@@ -69,6 +72,13 @@ export function GuideBot() {
     const t = setTimeout(() => setInvite(true), 6000)
     return () => clearTimeout(t)
   }, [role])
+
+  // Botão "?" no cabeçalho de cada tela abre a explicação da tela atual
+  useEffect(() => {
+    const onHelp = () => { setInvite(false); setI(here >= 0 ? here : 0); setOpen(true) }
+    window.addEventListener(GUIDE_EVENT, onHelp)
+    return () => window.removeEventListener(GUIDE_EVENT, onHelp)
+  }, [here])
 
   if (!isWebApp || role === 'superadmin') return null
 
