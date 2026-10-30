@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/auth'
 import { useSeo } from '@/lib/seo'
 
-const downloadUrl = (import.meta.env.VITE_ICCHAT_DESKTOP_DOWNLOAD_URL as string | undefined)
-  || 'https://github.com/tosktose/ic-chat/releases/latest/download/IC-Chat-Setup-0.6.1.exe'
+const downloadUrl = 'https://github.com/tosktose/ic-chat/releases/latest/download/IC-Chat-Setup-0.6.1.exe'
 
 export function DownloadPage() {
   const { session, loading } = useAuth()
