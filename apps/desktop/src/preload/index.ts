@@ -9,6 +9,14 @@ const api = {
   setTitleBarTheme: (theme: 'light' | 'dark') => ipcRenderer.send('titlebar:theme', theme),
   /** Pisca o ícone na barra de tarefas até a janela receber foco */
   flashFrame: () => ipcRenderer.send('window:flash'),
+  auth: {
+    openOAuth: (url: string) => ipcRenderer.invoke('auth:open-oauth', url) as Promise<{ ok: boolean; error?: string }>,
+    takeCallback: () => ipcRenderer.invoke('auth:take-callback') as Promise<{ access_token: string; refresh_token: string } | null>,
+    onCallback: (cb: () => void) => {
+      ipcRenderer.on('auth:callback-ready', cb)
+      return () => ipcRenderer.removeListener('auth:callback-ready', cb)
+    }
+  },
   /** Gera PDF (A4) do HTML, pergunta onde salvar e abre o arquivo */
   saveFile: (content: string, fileName: string, filters: { name: string; extensions: string[] }[]) =>
     ipcRenderer.invoke('file:save', { content, fileName, filters }) as Promise<

@@ -24,6 +24,28 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 let mainWindow: BrowserWindow | null = null
+let pendingAuthSession: { access_token: string; refresh_token: string } | null = null
+
+function receiveAuthUrl(raw?: string) {
+  if (!raw) return
+  try {
+    const url = new URL(raw)
+    if (url.protocol !== 'icchat:' || url.hostname !== 'auth' || url.pathname !== '/callback') return
+    const access_token = url.searchParams.get('access_token')
+    const refresh_token = url.searchParams.get('refresh_token')
+    if (!access_token || !refresh_token || access_token.length > 8192 || refresh_token.length > 4096) return
+    pendingAuthSession = { access_token, refresh_token }
+    mainWindow?.webContents.send('auth:callback-ready')
+    if (mainWindow?.isMinimized()) mainWindow.restore()
+    mainWindow?.focus()
+  } catch { /* link inválido */ }
+}
+
+// O link de retorno é registrado no Windows e no macOS; em Linux também funciona em dev.
+if (process.defaultApp && process.argv[1]) app.setAsDefaultProtocolClient('icchat', process.execPath, [process.argv[1]])
+else app.setAsDefaultProtocolClient('icchat')
+if (process.platform === 'darwin') app.on('open-url', (event, url) => { event.preventDefault(); receiveAuthUrl(url) })
+if (process.platform === 'win32') process.argv.slice(1).forEach(receiveAuthUrl)
 
 /** A interface só pode ter vindo do próprio app (arquivo local ou servidor de desenvolvimento) */
 function isTrustedUrl(url: string | undefined): boolean {
@@ -95,7 +117,8 @@ function createWindow(): BrowserWindow {
   return win
 }
 
-app.on('second-instance', () => {
+app.on('second-instance', (_event, commandLine) => {
+  commandLine.forEach(receiveAuthUrl)
   // Abriu o atalho de novo: traz a janela existente para a frente
   if (!mainWindow) return
   if (mainWindow.isMinimized()) mainWindow.restore()
@@ -138,6 +161,24 @@ app.whenReady().then(() => {
       symbolColor: theme === 'dark' ? '#cbd5e1' : '#475569',
       height: 48
     })
+  })
+
+  ipcMain.handle('auth:open-oauth', async (event, raw: unknown) => {
+    if (!trusted(event) || typeof raw !== 'string') return { ok: false, error: 'Origem não autorizada' }
+    try {
+      const url = new URL(raw)
+      if (url.protocol !== 'https:' || url.hostname !== 'umnoiivuntnvsxkysvrr.supabase.co' || url.pathname !== '/auth/v1/authorize') {
+        return { ok: false, error: 'Endereço de autenticação inválido' }
+      }
+      await shell.openExternal(url.toString())
+      return { ok: true }
+    } catch { return { ok: false, error: 'Não foi possível abrir o navegador' } }
+  })
+  ipcMain.handle('auth:take-callback', (event) => {
+    if (!trusted(event)) return null
+    const session = pendingAuthSession
+    pendingAuthSession = null
+    return session
   })
 
   // Salvar arquivos gerados pelo app (ex.: planilhas CSV dos relatórios)

@@ -44,6 +44,11 @@ declare global {
       platform: NodeJS.Platform | string
       setTitleBarTheme: (theme: 'light' | 'dark') => void
       flashFrame: () => void
+      auth: {
+        openOAuth: (url: string) => Promise<{ ok: boolean; error?: string }>
+        takeCallback: () => Promise<{ access_token: string; refresh_token: string } | null>
+        onCallback: (cb: () => void) => () => void
+      }
       saveFile: (content: string, fileName: string, filters: { name: string; extensions: string[] }[]) => Promise<FileResult>
       exportPdf: (html: string, fileName: string) => Promise<FileResult>
       db: {

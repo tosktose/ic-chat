@@ -1,11 +1,10 @@
-import { Link, Navigate } from 'react-router'
-import { ArrowDownToLine, ArrowLeft } from 'lucide-react'
+import { Navigate } from 'react-router'
+import { ArrowDownToLine } from 'lucide-react'
 import { IcLogo } from '@/components/brand'
-import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/auth'
 import { useSeo } from '@/lib/seo'
 
-const downloadUrl = 'https://github.com/tosktose/ic-chat/releases/latest/download/IC-Chat-Setup-0.6.1.exe'
+const downloadUrl = 'https://github.com/tosktose/ic-chat/releases/latest/download/IC-Chat-Setup-0.6.2.exe'
 
 export function DownloadPage() {
   const { session, loading } = useAuth()
@@ -27,8 +26,7 @@ export function DownloadPage() {
         ) : (
           <p className="mt-7 rounded-xl bg-surface-2 p-4 text-sm text-muted">O instalador ainda não está disponível.</p>
         )}
-        <p className="mt-4 text-xs text-muted">Windows 10 ou superior · versão 0.6.1</p>
-        <Button asChild variant="ghost" className="mt-5"><Link to="/dashboard"><ArrowLeft /> Voltar ao IC Chat</Link></Button>
+        <p className="mt-4 text-xs text-muted">Windows 10 ou superior · versão 0.6.2</p>
       </section>
     </main>
   )

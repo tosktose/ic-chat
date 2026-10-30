@@ -11,8 +11,8 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: icchat-media:",
   "font-src 'self' data:",
-  // A interface não acessa a internet diretamente: WhatsApp e Google passam pelo processo principal
-  "connect-src 'self' icchat-media:",
+  // Auth e licença consultam Supabase diretamente no renderer.
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co icchat-media:",
   "media-src 'self' blob: data: icchat-media:",
   "object-src 'none'",
   "base-uri 'none'",

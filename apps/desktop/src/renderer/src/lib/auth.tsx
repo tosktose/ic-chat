@@ -40,15 +40,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!supabase) { setLoading(false); return }
+    const client = supabase
     let mounted = true
-    void supabase.auth.getSession().then(({ data }) => {
+    const completeOAuth = async () => {
+      const session = await window.icchat?.auth.takeCallback()
+      if (session && mounted) {
+        const { error } = await client.auth.setSession(session)
+        if (error) console.error('Falha ao concluir login do Google:', error.message)
+      }
+    }
+    const unsubscribe = window.icchat?.auth.onCallback(() => { void completeOAuth() })
+    void completeOAuth()
+    void client.auth.getSession().then(({ data }) => {
       if (mounted) { setSession(data.session); setLoading(false) }
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: { subscription } } = client.auth.onAuthStateChange((_event, next) => {
       setSession(next)
       setLoading(false)
     })
-    return () => { mounted = false; subscription.unsubscribe() }
+    return () => { mounted = false; unsubscribe?.(); subscription.unsubscribe() }
   }, [])
 
   // O OAuth não permite anexar metadados personalizados durante a criação do usuário.
@@ -89,6 +99,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInWithGoogle: async (signup = false) => {
       if (!supabase) return new Error('Supabase não configurado') as AuthError
       if (signup) prepareAffiliateOAuthSignup()
+      if (!isWebApp) {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: `${getSiteUrl()}/desktop-auth.html`, skipBrowserRedirect: true, queryParams: { access_type: 'offline', prompt: 'select_account' } }
+        })
+        if (error) return error
+        const opened = await window.icchat?.auth.openOAuth(data.url)
+        return opened?.ok ? null : new Error(opened?.error || 'Não foi possível abrir o navegador') as AuthError
+      }
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: `${getSiteUrl()}/dashboard`, queryParams: { access_type: 'offline', prompt: 'select_account' } }

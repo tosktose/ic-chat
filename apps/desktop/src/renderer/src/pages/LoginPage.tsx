@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowRight, Bot, CalendarCheck, Eye, EyeOff, Lock, LockKeyhole, Mail, MessagesSquare } from 'lucide-react'
+import { ArrowRight, Bot, CalendarCheck, Eye, EyeOff, Lock, Mail, MessagesSquare } from 'lucide-react'
 import { IcLogo, InstagramIcon, MessengerIcon, WhatsAppIcon } from '@/components/brand'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
@@ -11,7 +11,7 @@ import { toast } from 'sonner'
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { signIn, requestPasswordReset, configured } = useAuth()
+  const { signIn, signInWithGoogle, requestPasswordReset, configured } = useAuth()
   const { signIn: setRole } = useAppState()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -42,6 +42,17 @@ export function LoginPage() {
     const error = await requestPasswordReset(email.trim())
     if (error) toast.error('Não foi possível solicitar a redefinição', { description: error.message })
     else toast.success('Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha.')
+  }
+
+  const googleLogin = async () => {
+    setLoading(true)
+    try {
+      const error = await signInWithGoogle()
+      if (error) throw error
+    } catch (error) {
+      toast.error('Não foi possível entrar com Google', { description: error instanceof Error ? error.message : 'Confira a conexão e tente novamente.' })
+      setLoading(false)
+    }
   }
 
   return (
@@ -75,8 +86,9 @@ export function LoginPage() {
               <button type="button" className="font-medium text-primary hover:underline" onClick={() => void forgotPassword()}>Esqueci a senha</button>
             </div>
             <Button type="submit" size="lg" className="mt-2 w-full" disabled={!configured || loading}>{loading ? 'Verificando…' : 'Entrar'} <ArrowRight /></Button>
+            <div className="flex items-center gap-3 text-xs text-muted"><span className="h-px flex-1 bg-border" />ou<span className="h-px flex-1 bg-border" /></div>
+            <Button type="button" variant="outline" size="lg" className="w-full" disabled={!configured || loading} onClick={() => void googleLogin()}><span className="font-bold text-base">G</span> Entrar com Google</Button>
           </div>
-          <div className="mt-6 flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-[13px]"><LockKeyhole className="size-4 text-muted" /><p className="text-muted">Acesso protegido pela conta IC Chat.</p></div>
         </form>
       </div>
     </div>
