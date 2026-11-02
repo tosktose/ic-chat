@@ -29,10 +29,10 @@ const GROUPS: Group[] = [
   },
   {
     title: 'Inteligência artificial (OpenRouter)', icon: Bot,
-    blurb: 'A IA que atende os clientes. Crie a chave em openrouter.ai/keys e escolha um modelo barato em openrouter.ai/models.',
+    blurb: 'A IA que atende os clientes. Crie a chave em openrouter.ai/keys. O sistema usa só modelos gratuitos.',
     fields: [
       { key: 'openrouter_api_key', label: 'Chave da API', hint: 'Começa com sk-or-. Fica guardada só no servidor.', placeholder: 'sk-or-v1-…', secret: true },
-      { key: 'openrouter_model', label: 'Modelo', hint: 'Copie o nome do modelo, ex.: google/gemini-2.0-flash-001', placeholder: 'provedor/modelo' }
+      { key: 'openrouter_model', label: 'Modelo (só gratuitos)', hint: 'Só modelos grátis, terminados em :free. Vazio = o OpenRouter escolhe um grátis sozinho (openrouter/free). Modelo pago é ignorado.', placeholder: 'openrouter/free' }
     ]
   },
   {
