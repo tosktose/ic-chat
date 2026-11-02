@@ -9,6 +9,7 @@
 // evolution_url, evolution_api_key, evolution_instance. Se o campo estiver vazio no painel, vale o Secret
 // do Supabase (Edge Functions → Secrets) com o mesmo nome em maiúsculas e prefixo ICCHAT_
 // (ex.: ICCHAT_RESEND_API_KEY, ICCHAT_EMAIL_FROM, ICCHAT_EVOLUTION_URL, ICCHAT_CRON_SECRET).
+// Resend: sem nada disso, usa o Secret RESEND_API_KEY do projeto e o remetente padrão abaixo.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const SITE = (Deno.env.get('ICCHAT_SITE_URL') ?? 'https://www.icchat.com.br').replace(/\/$/, '')
@@ -20,6 +21,8 @@ const cors = {
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'content-type': 'application/json' } })
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
+// O domínio icchat.com.br precisa estar verificado no Resend para este remetente funcionar
+const DEFAULT_FROM = 'IC Chat <nao-responda@icchat.com.br>'
 const ENV_KEYS = ['resend_api_key', 'email_from', 'evolution_url', 'evolution_api_key', 'evolution_instance', 'cron_secret']
 
 /** Compara segredos sem vazar, pelo tempo de resposta, quantos caracteres batem. */
@@ -129,6 +132,9 @@ Deno.serve(async (req) => {
   const { data: rows } = await admin.from('platform_secrets').select('key, value')
   const cfg: Record<string, string> = Object.fromEntries((rows ?? []).map((r: { key: string; value: string }) => [r.key, r.value]))
   for (const k of ENV_KEYS) if (!cfg[k]) cfg[k] = Deno.env.get(`ICCHAT_${k.toUpperCase()}`) ?? ''
+  // A conta do Resend é a mesma dos outros sistemas: sem chave própria do IC Chat, usa o RESEND_API_KEY já existente
+  if (!cfg.resend_api_key) cfg.resend_api_key = Deno.env.get('RESEND_API_KEY') ?? ''
+  if (!cfg.email_from) cfg.email_from = DEFAULT_FROM
 
   if (action === 'welcome') {
     const supa = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {

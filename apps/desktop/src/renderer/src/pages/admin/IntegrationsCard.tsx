@@ -21,7 +21,7 @@ const GROUPS: Group[] = [
   },
   {
     title: 'E-mails do sistema (Resend)', icon: Mail,
-    blurb: 'Parabéns por ativar e avisos de acesso expirando saem pelo IC Chat. Se a chave já está nos Secrets do Supabase (ICCHAT_RESEND_API_KEY e ICCHAT_EMAIL_FROM), pode deixar vazio aqui.',
+    blurb: 'Parabéns por ativar e avisos de acesso expirando saem pelo IC Chat. Vazio aqui = usa o RESEND_API_KEY que já está nos Secrets do Supabase, com o remetente nao-responda@icchat.com.br (o domínio precisa estar verificado no Resend).',
     fields: [
       { key: 'resend_api_key', label: 'Chave da API do Resend', hint: 'Começa com re_.', placeholder: 're_…', secret: true },
       { key: 'email_from', label: 'Remetente', hint: 'Ex.: IC Chat <nao-responda@icchat.com.br> (o domínio precisa estar verificado no Resend).', placeholder: 'IC Chat <nao-responda@seudominio.com.br>' }
