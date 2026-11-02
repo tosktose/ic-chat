@@ -6,7 +6,9 @@
 //                             Exige o cabeçalho x-icchat-cron igual ao segredo "cron_secret" guardado no banco.
 //
 // Chaves vêm do painel do Super Admin (tabela platform_secrets): resend_api_key, email_from,
-// evolution_url, evolution_api_key, evolution_instance.
+// evolution_url, evolution_api_key, evolution_instance. Se o campo estiver vazio no painel, vale o Secret
+// do Supabase (Edge Functions → Secrets) com o mesmo nome em maiúsculas e prefixo ICCHAT_
+// (ex.: ICCHAT_RESEND_API_KEY, ICCHAT_EMAIL_FROM, ICCHAT_EVOLUTION_URL, ICCHAT_CRON_SECRET).
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const SITE = (Deno.env.get('ICCHAT_SITE_URL') ?? 'https://www.icchat.com.br').replace(/\/$/, '')
@@ -17,6 +19,16 @@ const cors = {
 }
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'content-type': 'application/json' } })
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+const ENV_KEYS = ['resend_api_key', 'email_from', 'evolution_url', 'evolution_api_key', 'evolution_instance', 'cron_secret']
+
+/** Compara segredos sem vazar, pelo tempo de resposta, quantos caracteres batem. */
+function sameSecret(a: string, b: string): boolean {
+  const x = new TextEncoder().encode(a), y = new TextEncoder().encode(b)
+  let diff = x.length ^ y.length
+  for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0)
+  return diff === 0
+}
 
 type Notice = { subject: string; title: string; lines: string[]; button: string; link: string; whatsapp: string }
 
@@ -115,7 +127,8 @@ Deno.serve(async (req) => {
 
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'ic_chat' } })
   const { data: rows } = await admin.from('platform_secrets').select('key, value')
-  const cfg = Object.fromEntries((rows ?? []).map((r: { key: string; value: string }) => [r.key, r.value]))
+  const cfg: Record<string, string> = Object.fromEntries((rows ?? []).map((r: { key: string; value: string }) => [r.key, r.value]))
+  for (const k of ENV_KEYS) if (!cfg[k]) cfg[k] = Deno.env.get(`ICCHAT_${k.toUpperCase()}`) ?? ''
 
   if (action === 'welcome') {
     const supa = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
@@ -132,7 +145,7 @@ Deno.serve(async (req) => {
   }
 
   if (action === 'due') {
-    if (!cfg.cron_secret || req.headers.get('x-icchat-cron') !== cfg.cron_secret) return json({ error: 'forbidden' }, 403)
+    if (!cfg.cron_secret || !sameSecret(req.headers.get('x-icchat-cron') ?? '', cfg.cron_secret)) return json({ error: 'forbidden' }, 403)
     const { data: due, error } = await admin.rpc('pop_due_notices')
     if (error) { console.error('pop_due_notices falhou:', error.message); return json({ error: 'db' }, 500) }
     let emails = 0, whats = 0
