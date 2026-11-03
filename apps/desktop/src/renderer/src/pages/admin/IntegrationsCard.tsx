@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Bot, CalendarDays, Check, Mail, Plug, Wallet, Workflow } from 'lucide-react'
+import { Bot, Check, Mail, Plug, Wallet, Workflow } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,7 +21,7 @@ const GROUPS: Group[] = [
   },
   {
     title: 'E-mails do sistema (Resend)', icon: Mail,
-    blurb: 'Confirmação de conta, parabéns por ativar e aviso de acesso expirando saem pelo IC Chat, sem mexer no Supabase compartilhado. Crie a chave em resend.com e verifique seu domínio.',
+    blurb: 'Parabéns por ativar e avisos de acesso expirando saem pelo IC Chat. Vazio aqui = usa o RESEND_API_KEY que já está nos Secrets do Supabase, com o remetente nao-responda@icchat.com.br (o domínio precisa estar verificado no Resend).',
     fields: [
       { key: 'resend_api_key', label: 'Chave da API do Resend', hint: 'Começa com re_.', placeholder: 're_…', secret: true },
       { key: 'email_from', label: 'Remetente', hint: 'Ex.: IC Chat <nao-responda@icchat.com.br> (o domínio precisa estar verificado no Resend).', placeholder: 'IC Chat <nao-responda@seudominio.com.br>' }
@@ -29,35 +29,27 @@ const GROUPS: Group[] = [
   },
   {
     title: 'Inteligência artificial (OpenRouter)', icon: Bot,
-    blurb: 'A IA que atende os clientes. Crie a chave em openrouter.ai/keys e escolha um modelo barato em openrouter.ai/models.',
+    blurb: 'A IA que atende os clientes. Crie a chave em openrouter.ai/keys. O sistema usa só modelos gratuitos.',
     fields: [
       { key: 'openrouter_api_key', label: 'Chave da API', hint: 'Começa com sk-or-. Fica guardada só no servidor.', placeholder: 'sk-or-v1-…', secret: true },
-      { key: 'openrouter_model', label: 'Modelo', hint: 'Copie o nome do modelo, ex.: google/gemini-2.0-flash-001', placeholder: 'provedor/modelo' }
+      { key: 'openrouter_model', label: 'Modelo (só gratuitos)', hint: 'Só modelos grátis, terminados em :free. Vazio = o OpenRouter escolhe um grátis sozinho (openrouter/free). Modelo pago é ignorado.', placeholder: 'openrouter/free' }
     ]
   },
   {
-    title: 'WhatsApp (Evolution API)', icon: Plug,
-    blurb: 'Servidor que conecta o número de WhatsApp por QR Code. Preencha quando o servidor estiver no ar.',
+    title: 'WhatsApp dos avisos do sistema (Evolution API, opcional)', icon: Plug,
+    blurb: 'Não é o WhatsApp dos clientes: cada cliente conecta o próprio número pelo QR Code dentro do app. Aqui fica só o número do IC Chat que manda avisos (teste acabando, plano vencendo). Vazio = os avisos saem só por e-mail.',
     fields: [
       { key: 'evolution_url', label: 'Endereço do servidor', hint: 'Ex.: https://evolution.seudominio.com.br', placeholder: 'https://…' },
-      { key: 'evolution_instance', label: 'Nome da instância dos avisos', hint: 'Instância da Evolution API usada para enviar os avisos do sistema por WhatsApp.', placeholder: 'icchat-avisos' },
+      { key: 'evolution_instance', label: 'Nome da instância dos avisos', hint: 'Crie a instância no painel da Evolution e escaneie o QR com o número do IC Chat (uma vez só). Depois cole o nome aqui.', placeholder: 'icchat-avisos' },
       { key: 'evolution_api_key', label: 'Chave global (apikey)', hint: 'A chave definida no servidor da Evolution API.', placeholder: 'chave', secret: true }
     ]
   },
   {
     title: 'Automações (n8n)', icon: Workflow,
-    blurb: 'Fluxos automáticos, como lembretes e disparos. Preencha quando o n8n estiver no ar.',
+    blurb: 'Reservado para fluxos futuros: hoje nenhuma parte do sistema usa estes campos. Pode deixar como está.',
     fields: [
       { key: 'n8n_url', label: 'Endereço do n8n', hint: 'Ex.: https://n8n.seudominio.com.br', placeholder: 'https://…' },
       { key: 'n8n_api_key', label: 'Chave da API do n8n', hint: 'Em n8n: Configurações → API.', placeholder: 'chave', secret: true }
-    ]
-  },
-  {
-    title: 'Google Agenda', icon: CalendarDays,
-    blurb: 'Permite que cada usuário conecte a própria agenda. Crie um "ID do cliente OAuth" no Google Cloud (API Google Calendar ativada).',
-    fields: [
-      { key: 'google_client_id', label: 'ID do cliente OAuth', hint: 'Termina em .apps.googleusercontent.com', placeholder: '000000-xxxx.apps.googleusercontent.com' },
-      { key: 'google_client_secret', label: 'Chave secreta do cliente', hint: 'Mostrada uma vez no Google Cloud.', placeholder: 'GOCSPX-…', secret: true }
     ]
   }
 ]
@@ -81,7 +73,7 @@ function FieldRow({ f, state, onSaved }: { f: FieldDef; state?: IntegrationState
     <div>
       <div className="flex items-center justify-between gap-2">
         <label className="text-[13px] font-medium" htmlFor={`int-${f.key}`}>{f.label}</label>
-        {filled ? <Badge tone="success"><Check className="size-3" /> Preenchido</Badge> : <Badge>Vazio</Badge>}
+        {filled ? <Badge tone="success"><Check className="size-3" /> Preenchido</Badge> : <Badge title="Nada gravado aqui. Se existir o Secret ICCHAT_… no Supabase, é ele que vale.">Vazio</Badge>}
       </div>
       <div className="mt-1.5 flex gap-2">
         <Input
