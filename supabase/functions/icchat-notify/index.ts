@@ -155,11 +155,17 @@ Deno.serve(async (req) => {
     const { data: due, error } = await admin.rpc('pop_due_notices')
     if (error) { console.error('pop_due_notices falhou:', error.message); return json({ error: 'db' }, 500) }
     let emails = 0, whats = 0
-    for (const d of (due ?? []) as { kind: string; name: string; email: string; phone: string | null; days_left: number }[]) {
+    for (const d of (due ?? []) as { tenant_id: string; kind: string; period_key: string; name: string; email: string; phone: string | null; days_left: number }[]) {
       const n = notice(d.kind, d.name, d.days_left)
       if (!n) continue
-      if (await sendEmail(cfg, d.email, n)) emails++
-      if (await sendWhatsApp(cfg, d.phone, n)) whats++
+      const okEmail = await sendEmail(cfg, d.email, n)
+      const okWhats = await sendWhatsApp(cfg, d.phone, n)
+      if (okEmail) emails++
+      if (okWhats) whats++
+      // Nada saiu: libera o aviso para a próxima rodada tentar de novo
+      if (!okEmail && !okWhats) {
+        await admin.from('notice_log').delete().match({ tenant_id: d.tenant_id, kind: d.kind, period_key: d.period_key, channel: 'email' })
+      }
     }
     return json({ due: (due ?? []).length, emails, whats })
   }
