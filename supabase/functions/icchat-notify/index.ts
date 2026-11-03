@@ -121,6 +121,47 @@ async function sendWhatsApp(cfg: Record<string, string>, phone: string | null, n
   return res.ok
 }
 
+/** Chamadas à Evolution API (v2) para o painel. A apikey nunca sai do servidor. */
+async function evolutionAdmin(cfg: Record<string, string>, action: string): Promise<Record<string, unknown>> {
+  const base = cfg.evolution_url.replace(/\/$/, '')
+  const name = encodeURIComponent(cfg.evolution_instance)
+  const call = async (method: string, path: string, body?: unknown) => {
+    const res = await fetch(`${base}${path}`, {
+      method,
+      headers: { apikey: cfg.evolution_api_key, 'content-type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    })
+    const data = await res.json().catch(() => ({}))
+    return { ok: res.ok, status: res.status, data: data as Record<string, any> }
+  }
+  const state = async () => {
+    const r = await call('GET', `/instance/connectionState/${name}`)
+    if (r.status === 404) return 'nao_existe'
+    return String(r.data?.instance?.state ?? r.data?.state ?? 'desconhecido')
+  }
+
+  if (action === 'evo_logout') {
+    await call('DELETE', `/instance/logout/${name}`)
+    return { state: await state() }
+  }
+  let st = await state()
+  if (action === 'evo_status' || st === 'open') return { state: st }
+
+  // evo_connect: cria a instância se faltar e devolve o QR
+  if (st === 'nao_existe') {
+    const created = await call('POST', '/instance/create', { instanceName: cfg.evolution_instance, integration: 'WHATSAPP-BAILEYS', qrcode: true })
+    if (!created.ok) {
+      console.error('Evolution não criou a instância:', created.status, JSON.stringify(created.data).slice(0, 200))
+      return { state: st, error: 'nao_criou' }
+    }
+    const qr = created.data?.qrcode?.base64
+    if (qr) return { state: 'connecting', qr }
+    st = await state()
+  }
+  const conn = await call('GET', `/instance/connect/${name}`)
+  return { state: st, qr: conn.data?.base64 ?? null, pairingCode: conn.data?.pairingCode ?? null }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
@@ -155,13 +196,31 @@ Deno.serve(async (req) => {
     const { data: due, error } = await admin.rpc('pop_due_notices')
     if (error) { console.error('pop_due_notices falhou:', error.message); return json({ error: 'db' }, 500) }
     let emails = 0, whats = 0
-    for (const d of (due ?? []) as { kind: string; name: string; email: string; phone: string | null; days_left: number }[]) {
+    for (const d of (due ?? []) as { tenant_id: string; kind: string; period_key: string; name: string; email: string; phone: string | null; days_left: number }[]) {
       const n = notice(d.kind, d.name, d.days_left)
       if (!n) continue
-      if (await sendEmail(cfg, d.email, n)) emails++
-      if (await sendWhatsApp(cfg, d.phone, n)) whats++
+      const okEmail = await sendEmail(cfg, d.email, n)
+      const okWhats = await sendWhatsApp(cfg, d.phone, n)
+      if (okEmail) emails++
+      if (okWhats) whats++
+      // Nada saiu: libera o aviso para a próxima rodada tentar de novo
+      if (!okEmail && !okWhats) {
+        await admin.from('notice_log').delete().match({ tenant_id: d.tenant_id, kind: d.kind, period_key: d.period_key, channel: 'email' })
+      }
     }
     return json({ due: (due ?? []).length, emails, whats })
+  }
+
+  // Painel do Super Admin: conectar o WhatsApp dos avisos (cria a instância na Evolution e devolve o QR)
+  if (action === 'evo_status' || action === 'evo_connect' || action === 'evo_logout') {
+    const supa = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+      db: { schema: 'ic_chat' }
+    })
+    const { data: isAdmin } = await supa.rpc('is_platform_admin')
+    if (isAdmin !== true) return json({ error: 'forbidden' }, 403)
+    if (!cfg.evolution_url || !cfg.evolution_api_key || !cfg.evolution_instance) return json({ error: 'evolution_incompleta' }, 400)
+    return json(await evolutionAdmin(cfg, action))
   }
 
   return json({ error: 'acao_invalida' }, 400)
