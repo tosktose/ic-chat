@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge, Card, CardHeader } from '@/components/ui/misc'
-import { adminError, listIntegrations, setIntegration, type IntegrationState } from '@/lib/admin-api'
+import { adminError, listIntegrations, noticeWhatsApp, setIntegration, type IntegrationState, type NoticeWaState } from '@/lib/admin-api'
 
 interface FieldDef { key: string; label: string; hint: string; placeholder: string; secret?: boolean }
 interface Group { title: string; icon: typeof Bot; blurb: string; fields: FieldDef[] }
@@ -40,7 +40,7 @@ const GROUPS: Group[] = [
     blurb: 'Não é o WhatsApp dos clientes: cada cliente conecta o próprio número pelo QR Code dentro do app. Aqui fica só o número do IC Chat que manda avisos (teste acabando, plano vencendo). Vazio = os avisos saem só por e-mail.',
     fields: [
       { key: 'evolution_url', label: 'Endereço do servidor', hint: 'Ex.: https://evolution.seudominio.com.br', placeholder: 'https://…' },
-      { key: 'evolution_instance', label: 'Nome da instância dos avisos', hint: 'Crie a instância no painel da Evolution e escaneie o QR com o número do IC Chat (uma vez só). Depois cole o nome aqui.', placeholder: 'icchat-avisos' },
+      { key: 'evolution_instance', label: 'Nome da instância dos avisos', hint: 'Qualquer nome, ex.: icchat. Depois use o botão abaixo para criar a instância e escanear o QR.', placeholder: 'icchat-avisos' },
       { key: 'evolution_api_key', label: 'Chave global (apikey)', hint: 'A chave definida no servidor da Evolution API.', placeholder: 'chave', secret: true }
     ]
   },
@@ -92,6 +92,49 @@ function FieldRow({ f, state, onSaved }: { f: FieldDef; state?: IntegrationState
   )
 }
 
+const WA_LABEL: Record<string, string> = { open: 'Conectado', connecting: 'Aguardando leitura do QR', close: 'Desconectado', nao_existe: 'Instância ainda não criada' }
+
+/** Conecta o número do IC Chat que manda os avisos: cria a instância na Evolution e mostra o QR aqui mesmo. */
+function NoticeWhatsApp({ ready }: { ready: boolean }) {
+  const [wa, setWa] = useState<NoticeWaState | null>(null)
+  const [busy, setBusy] = useState(false)
+  const run = async (action: 'status' | 'connect' | 'logout') => {
+    setBusy(true)
+    try { setWa(await noticeWhatsApp(action)) } catch (e) { toast.error('Evolution não respondeu', { description: adminError(e) }) } finally { setBusy(false) }
+  }
+  useEffect(() => { if (ready) void run('status') }, [ready])
+  // Enquanto o QR está na tela, confere a cada 4 s se já foi escaneado
+  useEffect(() => {
+    if (!wa?.qr || wa.state === 'open') return
+    const t = window.setInterval(() => {
+      noticeWhatsApp('status').then((s) => { if (s.state === 'open') { setWa(s); toast.success('WhatsApp dos avisos conectado') } }).catch(() => undefined)
+    }, 4000)
+    return () => window.clearInterval(t)
+  }, [wa?.qr, wa?.state])
+  if (!ready) return <p className="text-xs text-muted">Preencha os 3 campos acima para conectar o número dos avisos.</p>
+  const connected = wa?.state === 'open'
+  return (
+    <div className="rounded-xl border border-border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[13px] font-medium">Número dos avisos</span>
+        <Badge tone={connected ? 'success' : 'warning'}>{wa ? (WA_LABEL[wa.state] ?? wa.state) : 'Verificando…'}</Badge>
+      </div>
+      {wa?.error === 'nao_criou' && <p className="mt-2 text-xs text-danger">A Evolution não aceitou criar a instância. Confira o endereço e a chave global.</p>}
+      {wa?.qr && !connected && (
+        <div className="mt-3 flex flex-col items-center gap-2">
+          <img src={wa.qr.startsWith('data:') ? wa.qr : `data:image/png;base64,${wa.qr}`} alt="QR Code do WhatsApp" className="size-56 rounded-lg bg-white p-2" />
+          <p className="text-center text-xs text-muted">No celular do IC Chat: WhatsApp → Aparelhos conectados → Conectar aparelho.</p>
+        </div>
+      )}
+      <div className="mt-3 flex gap-2">
+        {!connected && <Button size="sm" disabled={busy} onClick={() => void run('connect')}>{wa?.qr ? 'Gerar novo QR' : 'Conectar e mostrar QR'}</Button>}
+        {connected && <Button size="sm" variant="outline" disabled={busy} onClick={() => { if (window.confirm('Desconectar o número dos avisos?')) void run('logout') }}>Desconectar</Button>}
+        <Button size="sm" variant="outline" disabled={busy} onClick={() => void run('status')}>Atualizar</Button>
+      </div>
+    </div>
+  )
+}
+
 /** Campos das integrações externas. Os valores secretos nunca voltam para a tela: só o final mascarado. */
 export function IntegrationsCard() {
   const [state, setState] = useState<Record<string, IntegrationState>>({})
@@ -106,6 +149,9 @@ export function IntegrationsCard() {
           <CardHeader title={<span className="flex items-center gap-2"><g.icon className="size-4" /> {g.title}</span>} description={g.blurb} />
           <div className="flex flex-col gap-4 px-5 pb-5">
             {g.fields.map((f) => <FieldRow key={f.key} f={f} state={state[f.key]} onSaved={load} />)}
+            {g.fields.some((f) => f.key === 'evolution_instance') && (
+              <NoticeWhatsApp ready={['evolution_url', 'evolution_api_key', 'evolution_instance'].every((k) => state[k])} />
+            )}
           </div>
         </Card>
       ))}
