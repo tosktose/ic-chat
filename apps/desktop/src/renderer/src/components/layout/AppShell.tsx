@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AutomationRunner, WhatsAppDownBanner } from '@/components/AutomationRunner'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import {
   ChevronsUpDown,
@@ -66,6 +67,7 @@ export function AppShell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
         <LicenseBanner />
+        <WhatsAppDownBanner />
         <main className="relative min-h-0 flex-1 overflow-hidden">
           <Outlet />
         </main>
@@ -77,6 +79,7 @@ export function AppShell() {
       <GuideBot />
       <LeadWatcher />
       <WelcomeActivated />
+      <AutomationRunner />
     </div>
   )
 }

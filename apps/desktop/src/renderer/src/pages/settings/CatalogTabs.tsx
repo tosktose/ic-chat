@@ -261,7 +261,7 @@ function ServiceDialog({ item, onClose }: { item: Service | 'new' | null; onClos
   useEffect(() => {
     if (item) setF(item === 'new' ? { id: crypto.randomUUID(), name: '', minutes: 60, price: 0 } : item)
   }, [item])
-  const valid = f.name.trim() && f.minutes >= 5 && f.price >= 0
+  const valid = f.name.trim() && f.minutes >= 5 && f.price >= 0 && (f.deposit ?? 0) <= Math.max(f.price, 0)
   return (
     <Dialog
       open={Boolean(item)}
@@ -290,6 +290,9 @@ function ServiceDialog({ item, onClose }: { item: Service | 'new' | null; onClos
         </Field>
         <Field label="Preço (R$)" hint={brl.format(f.price || 0)}>
           <Input type="number" min={0} step={5} value={f.price} onChange={(e) => setF({ ...f, price: Number(e.target.value) })} />
+        </Field>
+        <Field label="Sinal por PIX (R$, opcional)" className="sm:col-span-2" hint={f.deposit ? `O cliente paga ${brl.format(f.deposit)} para garantir o horário` : 'Deixe vazio para não cobrar sinal neste serviço'}>
+          <Input type="number" min={0} step={5} value={f.deposit ?? ''} onChange={(e) => setF({ ...f, deposit: e.target.value === '' ? undefined : Math.max(0, Number(e.target.value)) })} />
         </Field>
       </div>
     </Dialog>

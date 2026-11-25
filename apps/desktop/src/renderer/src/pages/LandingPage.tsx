@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowRight, CalendarDays, Check, ChevronDown, Globe, Menu, MessageSquare, Monitor, ShieldCheck, Sparkles, Target, Users, X } from 'lucide-react'
+import { ArrowDownToLine, ArrowRight, BarChart3, BellRing, CalendarCheck, CalendarDays, Check, HeartHandshake, Minus, QrCode, ChevronDown, Globe, Menu, MessageSquare, Monitor, ShieldCheck, Sparkles, Target, Users, X } from 'lucide-react'
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { InstagramIcon, WhatsAppIcon } from '@/components/brand'
@@ -8,6 +8,9 @@ import { useSeo } from '@/lib/seo'
 import { HOME_FAQ, KEYWORD_PAGES, pageByPath } from '@/seo/pages'
 import { usePlans, usePublicSettings } from '@/lib/platform'
 import { discountedPlanPrice } from '@/lib/billing'
+import { NEW_FEATURES, PLAN_FIT } from '@/data/plan-fit'
+
+const NEW_ICONS = { lembretes: BellRing, pix: QrCode, agendar: CalendarCheck, retorno: HeartHandshake, resumo: BarChart3 } as const
 
 const faqs = HOME_FAQ.map((f) => [f.q, f.a] as const)
 
@@ -152,7 +155,7 @@ export function LandingPage() {
         <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 sm:px-8">
           <Link to="/" aria-label="IC Chat, início"><img src={logo} alt="IC Chat" className="h-9 w-auto sm:h-10" /></Link>
           <nav className="hidden items-center gap-9 text-[13px] font-medium text-slate-600 md:flex">
-            {[['#funcionalidades', 'Funcionalidades'], ['#como-funciona', 'Como funciona'], ['#planos', 'Planos'], ['#baixar', 'Aplicativo'], ['#duvidas', 'Dúvidas']].map(([h, l]) => <a key={h} href={h} className="transition hover:text-blue-700">{l}</a>)}
+            {[['#funcionalidades', 'Funcionalidades'], ['#novidades', 'Novidades'], ['#como-funciona', 'Como funciona'], ['#planos', 'Planos'], ['#baixar', 'Aplicativo'], ['#duvidas', 'Dúvidas']].map(([h, l]) => <a key={h} href={h} className="transition hover:text-blue-700">{l}</a>)}
           </nav>
           <div className="hidden items-center gap-2 md:flex">
             <Link to="/login" className="rounded-lg px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:text-blue-700">Entrar</Link>
@@ -162,7 +165,7 @@ export function LandingPage() {
         </div>
         {menuOpen && (
           <nav className="grid gap-1 border-t border-slate-100 bg-white px-5 py-3 text-sm md:hidden">
-            {[['#funcionalidades', 'Funcionalidades'], ['#como-funciona', 'Como funciona'], ['#planos', 'Planos'], ['#baixar', 'Aplicativo'], ['#duvidas', 'Dúvidas']].map(([h, l]) => <a key={h} onClick={() => setMenuOpen(false)} href={h} className="rounded-lg px-3 py-2.5">{l}</a>)}
+            {[['#funcionalidades', 'Funcionalidades'], ['#novidades', 'Novidades'], ['#como-funciona', 'Como funciona'], ['#planos', 'Planos'], ['#baixar', 'Aplicativo'], ['#duvidas', 'Dúvidas']].map(([h, l]) => <a key={h} onClick={() => setMenuOpen(false)} href={h} className="rounded-lg px-3 py-2.5">{l}</a>)}
             <Link to="/login" className="rounded-lg px-3 py-2.5">Entrar</Link>
             <Link to="/cadastro" className="mt-1 rounded-full bg-slate-950 px-3 py-3 text-center font-semibold text-white">Testar grátis por 7 dias</Link>
           </nav>
@@ -246,6 +249,28 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* NOVIDADES: menos faltas, mais retorno */}
+      <section id="novidades" className="px-5 pb-24 sm:px-8 sm:pb-32">
+        <div className="mx-auto max-w-7xl">
+          <SectionTitle eyebrow="Novidades em todos os planos" title="Menos faltas, mais clientes voltando." copy="Ferramentas que trabalham por você entre um atendimento e outro, sem depender de nenhum serviço pago à parte." />
+          <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {NEW_FEATURES.map((f, i) => {
+              const Icon = NEW_ICONS[f.key]
+              return (
+                <Reveal key={f.key} delay={i * 70}><article className="flex h-full flex-col rounded-[24px] bg-white p-6 ring-1 ring-slate-200/80 transition duration-500 hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-900/5">
+                  <span className="grid size-11 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><Icon className="size-5" /></span>
+                  <h3 className="mt-5 font-semibold tracking-tight">{f.title}</h3>
+                  <p className="mt-1.5 text-sm leading-6 text-slate-600">{f.copy}</p>
+                </article></Reveal>
+              )
+            })}
+          </div>
+          <Reveal><div className="mx-auto mt-8 max-w-3xl rounded-2xl bg-slate-50 p-5 text-center text-sm leading-6 text-slate-600 ring-1 ring-slate-200/80">
+            <strong className="text-slate-900">Como o lembrete chega ao cliente:</strong> com o aplicativo para Windows e o seu WhatsApp conectado, os lembretes saem sozinhos. Na versão online, eles ficam numa lista e cada envio é um clique.
+          </div></Reveal>
+        </div>
+      </section>
+
       {/* COMO FUNCIONA */}
       <section id="como-funciona" className="relative overflow-hidden bg-slate-950 px-5 py-24 text-white sm:px-8 sm:py-32">
         <div className="pointer-events-none absolute -top-40 right-0 size-[520px] rounded-full bg-blue-600/25 blur-[130px]" />
@@ -271,7 +296,7 @@ export function LandingPage() {
       {/* PLANOS */}
       <section id="planos" className="px-5 py-24 sm:px-8 sm:py-32">
         <div className="mx-auto max-w-7xl">
-          <SectionTitle eyebrow="Planos" title="Comece no seu ritmo." copy="Teste todas as funcionalidades por 7 dias, sem cartão de crédito." />
+          <SectionTitle eyebrow="Planos" title="Comece no seu ritmo." copy="Teste todas as funcionalidades por 7 dias, sem cartão de crédito. Veja os prós e contras de cada plano para escolher sem erro." />
           <div className="mt-16 grid items-stretch gap-5 lg:grid-cols-3">
             {plans.map((plan, i) => (
               <Reveal key={plan.name} delay={i * 90}><article className={`relative flex h-full flex-col rounded-[28px] p-8 transition duration-500 hover:-translate-y-1 ${plan.recommended ? 'bg-slate-950 text-white shadow-2xl shadow-blue-900/25' : 'bg-white ring-1 ring-slate-200/80 hover:shadow-xl hover:shadow-blue-900/5'}`}>
@@ -285,6 +310,16 @@ export function LandingPage() {
                 <ul className={`mt-8 flex flex-col gap-3 border-t pt-7 ${plan.recommended ? 'border-white/10' : 'border-slate-100'}`}>
                   {plan.features.map((f) => <li key={f} className={`flex items-start gap-2.5 text-sm ${plan.recommended ? 'text-slate-200' : 'text-slate-700'}`}><Check className={`mt-0.5 size-4 shrink-0 ${plan.recommended ? 'text-cyan-300' : 'text-emerald-600'}`} />{f}</li>)}
                 </ul>
+                {PLAN_FIT[plan.id] && (
+                  <div data-testid={`plan-fit-${plan.id}`} className={`mt-7 rounded-2xl p-4 text-[13px] leading-5 ${plan.recommended ? 'bg-white/[.06] ring-1 ring-white/10' : 'bg-slate-50 ring-1 ring-slate-200/70'}`}>
+                    <p className={`font-semibold ${plan.recommended ? 'text-white' : 'text-slate-900'}`}>Para quem é</p>
+                    <p className={`mt-1 ${plan.recommended ? 'text-slate-300' : 'text-slate-600'}`}>{PLAN_FIT[plan.id].ideal}</p>
+                    <p className={`mt-3 text-[11px] font-bold tracking-wider uppercase ${plan.recommended ? 'text-cyan-300' : 'text-emerald-700'}`}>Prós</p>
+                    <ul className="mt-1 flex flex-col gap-1.5">{PLAN_FIT[plan.id].pros.map((p) => <li key={p} className={`flex gap-2 ${plan.recommended ? 'text-slate-200' : 'text-slate-700'}`}><Check className="mt-0.5 size-3.5 shrink-0" />{p}</li>)}</ul>
+                    <p className={`mt-3 text-[11px] font-bold tracking-wider uppercase ${plan.recommended ? 'text-amber-300' : 'text-amber-700'}`}>Contras</p>
+                    <ul className="mt-1 flex flex-col gap-1.5">{PLAN_FIT[plan.id].cons.map((c) => <li key={c} className={`flex gap-2 ${plan.recommended ? 'text-slate-300' : 'text-slate-600'}`}><Minus className="mt-0.5 size-3.5 shrink-0" />{c}</li>)}</ul>
+                  </div>
+                )}
               </article></Reveal>
             ))}
           </div>

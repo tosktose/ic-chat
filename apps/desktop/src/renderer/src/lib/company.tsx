@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { isSuperAdmin, useAuth } from '@/lib/auth'
 import { isWebApp, supabase } from '@/lib/supabase'
 import type { Professional, Service } from '@/data/mock'
+import { DEFAULT_REMINDERS, type ReminderSettings } from '@/lib/reminders'
+import { DEFAULT_WINBACK, type WinbackSettings } from '@/lib/winback'
 
 /* ------------------------------------------------------------------ */
 /* Cores dos profissionais na agenda                                     */
@@ -77,11 +79,39 @@ export interface CompanyInfo {
   hours: DayHours[]
 }
 
+/** Automações da empresa: lembretes, retorno de clientes, PIX do sinal e agendamento online */
+export interface Automations {
+  reminders: ReminderSettings
+  winback: WinbackSettings
+  /** Recebedor do PIX (sinal de agendamento e cobranças) */
+  pix: { key: string; name: string; city: string }
+  /** Página pública de agendamento (/agendar/:empresa) */
+  booking: { enabled: boolean; note: string; daysAhead: number }
+}
+
+export const DEFAULT_AUTOMATIONS: Automations = {
+  reminders: DEFAULT_REMINDERS,
+  winback: DEFAULT_WINBACK,
+  pix: { key: '', name: '', city: '' },
+  booking: { enabled: false, note: '', daysAhead: 30 }
+}
+
+/** Junta o que foi salvo com os padrões (campos novos aparecem sem apagar o que a empresa já configurou) */
+export function mergeAutomations(saved?: Partial<Automations>): Automations {
+  return {
+    reminders: { ...DEFAULT_AUTOMATIONS.reminders, ...saved?.reminders },
+    winback: { ...DEFAULT_AUTOMATIONS.winback, ...saved?.winback, steps: saved?.winback?.steps?.length ? saved.winback.steps : DEFAULT_AUTOMATIONS.winback.steps },
+    pix: { ...DEFAULT_AUTOMATIONS.pix, ...saved?.pix },
+    booking: { ...DEFAULT_AUTOMATIONS.booking, ...saved?.booking }
+  }
+}
+
 interface Store {
   info: CompanyInfo
   professionals: ProfessionalItem[]
   services: Service[]
   quickReplies: QuickReply[]
+  automations: Automations
 }
 
 const KEY = 'icchat.company.v1'
@@ -93,7 +123,8 @@ const EMPTY_STORE: Store = {
   info: { name: '', segment: 'outro', document: '', phone: '', email: '', address: '', instagram: '', hours: defaultHours() },
   professionals: [],
   services: [],
-  quickReplies: []
+  quickReplies: [],
+  automations: DEFAULT_AUTOMATIONS
 }
 
 function load(): Store {
@@ -113,7 +144,8 @@ function load(): Store {
       info: { ...EMPTY_STORE.info, ...s.info },
       professionals: s.professionals ?? [],
       services: s.services ?? [],
-      quickReplies: s.quickReplies ?? []
+      quickReplies: s.quickReplies ?? [],
+      automations: mergeAutomations(s.automations)
     }
   } catch {
     return EMPTY_STORE
@@ -147,6 +179,11 @@ interface Ctx extends Store {
   removeService: (id: string) => void
   saveQuickReply: (r: QuickReply) => void
   removeQuickReply: (id: string) => void
+  updateAutomations: <K extends keyof Automations>(key: K, patch: Partial<Automations[K]>) => void
+  /** id da empresa no banco (link público de agendamento e de captação) */
+  tenantId?: string
+  /** false enquanto as configurações da empresa carregam do banco (evita editar e ser sobrescrito) */
+  ready: boolean
   resetAll: () => void
 }
 
@@ -208,7 +245,8 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
             info: { ...info, name: info.name || t?.name || cur.info.name },
             professionals: saved.professionals ?? [],
             services: saved.services ?? [],
-            quickReplies: saved.quickReplies ?? []
+            quickReplies: saved.quickReplies ?? [],
+            automations: mergeAutomations(saved.automations)
           }
         })
       } catch (e) {
@@ -266,9 +304,12 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         })),
       saveQuickReply: (r) => setStore((s) => ({ ...s, quickReplies: upsert(s.quickReplies, r) })),
       removeQuickReply: (id) => setStore((s) => ({ ...s, quickReplies: s.quickReplies.filter((r) => r.id !== id) })),
+      updateAutomations: (key, patch) => setStore((s) => ({ ...s, automations: { ...s.automations, [key]: { ...s.automations[key], ...patch } } })),
+      tenantId,
+      ready: hydrated,
       resetAll: () => setStore(EMPTY_STORE)
     }),
-    [store, professionalById]
+    [store, professionalById, tenantId, hydrated]
   )
 
   return <CompanyCtx.Provider value={value}>{children}</CompanyCtx.Provider>

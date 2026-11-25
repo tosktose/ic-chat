@@ -57,6 +57,9 @@ const KanbanPage = lazy(() => import('@/pages/kanban/KanbanPage').then((m) => ({
 const ProfilePage = lazy(() => import('@/pages/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const ReportsPage = lazy(() => import('@/pages/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })))
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+const RemindersPage = lazy(() => import('@/pages/automations/RemindersPage').then((m) => ({ default: m.RemindersPage })))
+const WinbackPage = lazy(() => import('@/pages/automations/WinbackPage').then((m) => ({ default: m.WinbackPage })))
+const BookingPage = lazy(() => import('@/pages/public/BookingPage').then((m) => ({ default: m.BookingPage })))
 const TeamPage = lazy(() => import('@/pages/team/TeamPage').then((m) => ({ default: m.TeamPage })))
 function ThemedToaster() {
   const { resolved } = useTheme()
@@ -129,6 +132,7 @@ export function App() {
               <Route path="/" element={isWebApp ? <LandingPage /> : <Home />} />
               <Route path="/login" element={isWebApp ? <AuthPage mode="login" /> : <LoginPage />} />
               {isWebApp && <Route path="/c/:tenantId" element={<Suspense fallback={<PageLoading />}><LeadFormPage /></Suspense>} />}
+              {isWebApp && <Route path="/agendar/:tenantId" element={<Suspense fallback={<PageLoading />}><BookingPage /></Suspense>} />}
               {isWebApp && <Route path="/download" element={<DownloadPage />} />}
               <Route path="/cadastro" element={isWebApp ? <AuthPage mode="signup" /> : <LoginPage />} />
               {isWebApp && <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />}
@@ -142,6 +146,8 @@ export function App() {
                 <Route path="/kanban" element={<Guard><KanbanPage /></Guard>} />
                 <Route path="/funil" element={<Guard><FunilPage /></Guard>} />
                 <Route path="/captacao" element={<Guard><CaptacaoPage /></Guard>} />
+                <Route path="/lembretes" element={<Guard><RemindersPage /></Guard>} />
+                <Route path="/retorno" element={<Guard><WinbackPage /></Guard>} />
                 <Route path="/cobrancas" element={<Guard><ChargesPage /></Guard>} />
                 <Route path="/disparos" element={<Guard><BroadcastPage /></Guard>} />
                 <Route path="/ia" element={<Guard><AiPage /></Guard>} />
