@@ -39,6 +39,7 @@ export default defineConfig({
   },
   renderer: {
     resolve: { alias: { '@': resolve('src/renderer/src') } },
-    plugins: [react(), tailwindcss(), cspPlugin]
+    plugins: [react(), tailwindcss(), cspPlugin],
+    define: { __ON_VERCEL__: 'false' }
   }
 })
