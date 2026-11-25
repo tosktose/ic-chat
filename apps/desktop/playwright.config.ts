@@ -13,7 +13,8 @@ export default defineConfig({
   outputDir: 'e2e/results',
   use: {
     baseURL: external ?? 'http://localhost:4173',
-    channel: 'chrome',
+    // Sem Chrome instalado (ex.: servidor de CI), use PW_CHROMIUM_PATH=/caminho/do/chromium
+    ...(process.env.PW_CHROMIUM_PATH ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } } : { channel: 'chrome' }),
     locale: 'pt-BR',
     // O convite de notificações cobre a tela até o usuário decidir; nos testes a permissão já vem concedida
     permissions: ['notifications'],

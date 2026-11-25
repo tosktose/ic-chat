@@ -1,4 +1,4 @@
-import { Copy, ExternalLink } from 'lucide-react'
+import { Copy, ExternalLink, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/input'
@@ -25,10 +25,12 @@ const VARS = 'Use {nome}, {servico}, {quando}, {hora}, {data}, {profissional} e 
 
 /** Lembretes, PIX, retorno de clientes e agendamento online */
 export function AutomationsTab() {
-  const { automations, updateAutomations, tenantId } = useCompany()
+  const { automations, updateAutomations, tenantId, ready } = useCompany()
   const { reminders, winback, pix, booking } = automations
   const pixKey = pix.key ? normalizePixKey(pix.key) : null
   const bookingUrl = tenantId ? `${getSiteUrl()}/agendar/${tenantId}` : ''
+
+  if (!ready) return <Card className="grid place-items-center p-10" role="status" aria-label="Carregando"><Loader2 className="size-5 animate-spin text-muted" /></Card>
 
   return (
     <div className="flex flex-col gap-5">

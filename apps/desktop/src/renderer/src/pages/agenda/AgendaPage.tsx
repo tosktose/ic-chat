@@ -16,7 +16,7 @@ import { brl, cn } from '@/lib/utils'
 import { contactById, services as seedServices, TODAY, type Appointment } from '@/data/mock'
 import { formatLongDate, toMinutes, useCompany, weekdayOf, type ProfessionalItem } from '@/lib/company'
 import { useAppState } from '@/lib/app-state'
-import { APP_MODE } from '@/lib/data'
+import { APP_MODE, useData } from '@/lib/data'
 import { PixDialog, pixMessage } from '@/components/PixDialog'
 import { useSendToContact } from '@/lib/outbox'
 
@@ -42,6 +42,8 @@ const toMin = (t: string) => {
 
 export function AgendaPage() {
   const [params, setParams] = useSearchParams()
+  // Assina os contatos: os nomes aparecem assim que carregam do banco (antes ficava "Contato")
+  useData()
   const isMdUp = useMediaQuery('(min-width: 768px)')
   const [view, setView] = useState<'dia' | 'lista'>('dia')
   const [hiddenPros, setHiddenPros] = useState<string[]>([])
@@ -50,7 +52,8 @@ export function AgendaPage() {
   const { professionals: allPros, info } = useCompany()
   const professionals = allPros.filter((p) => p.active)
   const selectedPros = professionals.map((p) => p.id).filter((id) => !hiddenPros.includes(id))
-  const [day, setDay] = useState(TODAY)
+  // ?d=AAAA-MM-DD abre a agenda nesse dia (links dos lembretes e notificações)
+  const [day, setDay] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(params.get('d') ?? '') ? params.get('d')! : TODAY))
   const google = useGoogle()
   const navigate = useNavigate()
   useEffect(() => {

@@ -18,14 +18,15 @@ const dm = (iso: string) => iso.split('-').reverse().slice(0, 2).join('/')
 /** Resumo da semana fechada com 3 sugestões; dá para mandar no WhatsApp do dono */
 export function WeeklySummaryCard() {
   const { appointmentLog, myPhone } = useAppState()
-  const { contacts } = useData()
+  const { contacts, version } = useData()
   const { automations, info } = useCompany()
   const navigate = useNavigate()
   const today = todayISO()
   const summary = useMemo(() => {
     const lapsed = winbackQueue(contacts, appointmentLog, automations.winback, { today, company: info.name }).length
     return weeklySummary(appointmentLog, contacts, today, lapsed)
-  }, [appointmentLog, contacts, automations.winback, today, info.name])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appointmentLog, contacts, version, automations.winback, today, info.name])
   const reminders = useMemo(() => confirmationStats(appointmentLog), [appointmentLog])
   const text = summaryText(summary, info.name)
   const ownerPhone = myPhone || info.phone

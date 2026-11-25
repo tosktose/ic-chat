@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils'
 import { addDays, dateFromIso, type ApptOrigin, type ApptStatus } from '@/data/history'
 import { avgFirstResponse, fmtSec, useRecords } from '@/lib/metrics'
 import { contactById, services as seedServices, TODAY, users } from '@/data/mock'
+import { useData } from '@/lib/data'
 
 type Kind = 'agendamentos' | 'conversas' | 'profissionais' | 'analistas'
 type Preset = 'hoje' | '7d' | '15d' | '30d' | 'mes' | 'custom'
@@ -61,6 +62,7 @@ interface Built {
 }
 
 export function ReportsPage() {
+  useData() // nomes dos clientes atualizam quando os contatos carregam
   const { me, resolveUser } = useAppState()
   const { info, professionals, services, professionalById } = useCompany()
   const [kind, setKind] = useState<Kind>('agendamentos')

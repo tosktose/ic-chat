@@ -94,7 +94,8 @@ export function AutomationRunner() {
         latest.current.updateAppointment(a.id, { contactId: local.id })
       }
     })
-  }, [appointments, data.contacts])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appointments, data.contacts, data.version])
 
   // Resposta do cliente ao lembrete
   useEffect(() => {

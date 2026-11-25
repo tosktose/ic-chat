@@ -182,6 +182,8 @@ interface Ctx extends Store {
   updateAutomations: <K extends keyof Automations>(key: K, patch: Partial<Automations[K]>) => void
   /** id da empresa no banco (link público de agendamento e de captação) */
   tenantId?: string
+  /** false enquanto as configurações da empresa carregam do banco (evita editar e ser sobrescrito) */
+  ready: boolean
   resetAll: () => void
 }
 
@@ -304,9 +306,10 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       removeQuickReply: (id) => setStore((s) => ({ ...s, quickReplies: s.quickReplies.filter((r) => r.id !== id) })),
       updateAutomations: (key, patch) => setStore((s) => ({ ...s, automations: { ...s.automations, [key]: { ...s.automations[key], ...patch } } })),
       tenantId,
+      ready: hydrated,
       resetAll: () => setStore(EMPTY_STORE)
     }),
-    [store, professionalById, tenantId]
+    [store, professionalById, tenantId, hydrated]
   )
 
   return <CompanyCtx.Provider value={value}>{children}</CompanyCtx.Provider>

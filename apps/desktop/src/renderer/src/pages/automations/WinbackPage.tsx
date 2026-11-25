@@ -15,14 +15,15 @@ import { winbackQueue, type WinbackItem } from '@/lib/winback'
 export function WinbackPage() {
   const { appointmentLog } = useAppState()
   const { automations, info } = useCompany()
-  const { contacts, updateContact } = useData()
+  const { contacts, updateContact, version } = useData()
   const { send } = useSendToContact()
   const navigate = useNavigate()
   const settings = automations.winback
   const today = todayISO()
   const queue = useMemo(
     () => winbackQueue(contacts, appointmentLog, settings, { today, company: info.name }),
-    [contacts, appointmentLog, settings, today, info.name]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [contacts, version, appointmentLog, settings, today, info.name]
   )
   const lapsed = queue.filter((q) => q.stage === 'sumido')
   const followups = queue.filter((q) => q.stage !== 'sumido')
