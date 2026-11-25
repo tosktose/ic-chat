@@ -105,7 +105,7 @@ test.describe('Perfil', () => {
 test.describe('Agenda: criar agendamento de ponta a ponta', () => {
   test('com profissional e serviço cadastrados, o agendamento é criado e gravado no banco', async ({ page }) => {
     const errs = trackPageErrors(page)
-    const hours = Array.from({ length: 7 }, () => ({ open: true, start: '08:00', end: '20:00' })) // aberto todos os dias
+    const hours = Array.from({ length: 7 }, () => ({ open: true, start: '00:00', end: '23:59' })) // aberto o dia todo (o teste não depende da hora em que roda)
     const settings = [{
       tenant_id: 't-1',
       data: {
