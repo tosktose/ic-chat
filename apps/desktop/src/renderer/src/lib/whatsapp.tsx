@@ -83,6 +83,9 @@ export function WhatsAppProvider({ children }: { children: ReactNode }) {
         }
       }
       d.updateConversation(convId, patch)
+      // Automações (ex.: resposta "1"/"2" ao lembrete) escutam este evento
+      if (!m.fromMe && m.kind === 'text')
+        window.dispatchEvent(new CustomEvent('icchat:wa-incoming', { detail: { contactId: contact.id, conversationId: convId, text: m.text } }))
     },
     [notify]
   )

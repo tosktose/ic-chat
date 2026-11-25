@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useContactStats } from '@/lib/metrics'
 import { useNavigate, useSearchParams } from 'react-router'
 import { isWebApp } from '@/lib/supabase'
-import { Bot, CalendarPlus, ChevronLeft, ChevronRight, Clock, Link2, UserRound } from 'lucide-react'
+import { BellRing, Bot, CalendarPlus, QrCode, ChevronLeft, ChevronRight, Clock, Link2, UserRound } from 'lucide-react'
 import { GoogleSyncButton } from '@/components/GoogleCalendarDialog'
 import { useGoogle } from '@/lib/google'
 import { addDays, demoHistory } from '@/data/history'
@@ -17,6 +17,8 @@ import { contactById, services as seedServices, TODAY, type Appointment } from '
 import { formatLongDate, toMinutes, useCompany, weekdayOf, type ProfessionalItem } from '@/lib/company'
 import { useAppState } from '@/lib/app-state'
 import { APP_MODE } from '@/lib/data'
+import { PixDialog, pixMessage } from '@/components/PixDialog'
+import { useSendToContact } from '@/lib/outbox'
 
 const HOUR_PX = 72
 const HISTORY_SERVICES = Object.fromEntries(seedServices.map((sv) => [sv.id, sv]))
@@ -297,6 +299,8 @@ function DayGrid({
                     >
                       <div className="flex items-center gap-1.5">
                         <p className="flex-1 truncate text-[12.5px] font-semibold text-foreground">{c.name}</p>
+                        {a.reply === 'confirmar' && <BellRing aria-label="Confirmou pelo lembrete" className="size-3.5 shrink-0 text-success" />}
+                        {a.reply === 'remarcar' && <BellRing aria-label="Pediu para remarcar" className="size-3.5 shrink-0 text-danger" />}
                         <OriginIcon className="size-3.5 shrink-0 opacity-70" />
                       </div>
                       {height > 44 && (
@@ -361,6 +365,8 @@ function ListView({ appts, onOpen }: { appts: Appointment[]; onOpen: (a: Appoint
               </div>
               <div className="flex flex-col items-end gap-1.5">
                 <Badge tone={statusMeta[a.status].tone}>{statusMeta[a.status].label}</Badge>
+                {a.reply === 'remarcar' && <Badge tone="danger">Pediu remarcar</Badge>}
+                {a.deposit && <Badge tone={a.deposit.status === 'pago' ? 'success' : 'warning'}>Sinal {a.deposit.status === 'pago' ? 'pago' : 'pendente'}</Badge>}
                 <OriginIcon className="size-3.5 text-subtle" />
               </div>
             </button>
@@ -373,10 +379,12 @@ function ListView({ appts, onOpen }: { appts: Appointment[]; onOpen: (a: Appoint
 
 
 function AppointmentDialog({ appt, onClose }: { appt: Appointment | null; onClose: () => void }) {
-  const { professionalById } = useCompany()
-  const { setAppointmentStatus, openNewAppointment } = useAppState()
+  const { professionalById, services } = useCompany()
+  const { setAppointmentStatus, openNewAppointment, updateAppointment } = useAppState()
+  const { send } = useSendToContact()
   const google = useGoogle()
   const stats = useContactStats()
+  const [pixOpen, setPixOpen] = useState(false)
   if (!appt) return null
   const dropFromGoogle = () =>
     google.removeAppointment(appt).catch((e: Error) => toast.error('Não foi possível remover do Google Agenda', { description: e.message }))
@@ -387,8 +395,13 @@ function AppointmentDialog({ appt, onClose }: { appt: Appointment | null; onClos
     toast.success(msg)
   }
   const c = contactById(appt.contactId)
-  const p = professionalById(appt.professionalId)!
+  const p = professionalById(appt.professionalId)
   const OriginIcon = originIcon[appt.origin]
+  const service = services.find((s) => s.name === appt.service)
+  const depositAmount = appt.deposit?.amount ?? service?.deposit ?? 0
+  const dayLabel = appt.date ? formatLongDate(appt.date) : 'Hoje'
+  const reminderInfo = reminderLabel(appt)
+  const open = appt.status === 'agendado' || appt.status === 'confirmado'
   return (
     <Dialog
       open={Boolean(appt)}
@@ -396,7 +409,7 @@ function AppointmentDialog({ appt, onClose }: { appt: Appointment | null; onClos
       title={appt.service}
       footer={
         <>
-          <Button variant="outline" className="text-danger" onClick={act('cancelado', 'Horário cancelado e cliente avisado')}>Cancelar horário</Button>
+          <Button variant="outline" className="text-danger" onClick={act('cancelado', 'Horário cancelado')}>Cancelar horário</Button>
           <Button
             variant="outline"
             onClick={() => {
@@ -408,6 +421,8 @@ function AppointmentDialog({ appt, onClose }: { appt: Appointment | null; onClos
           >
             Remarcar
           </Button>
+          {open && <Button variant="outline" onClick={act('faltou', 'Falta registrada')}>Faltou</Button>}
+          {appt.status === 'agendado' && <Button variant="outline" onClick={act('confirmado', 'Horário confirmado')}>Confirmar</Button>}
           {appt.status !== 'concluido' && (
             <Button variant="success" onClick={act('concluido', 'Atendimento concluído')}>Concluir atendimento</Button>
           )}
@@ -423,17 +438,63 @@ function AppointmentDialog({ appt, onClose }: { appt: Appointment | null; onClos
         <Badge tone={statusMeta[appt.status].tone} size="md">{statusMeta[appt.status].label}</Badge>
       </div>
       <div className="mt-4 grid gap-3 text-[13.5px] sm:grid-cols-2">
-        <Info icon={<Clock />} label="Horário" value={`Hoje, ${appt.start} – ${appt.end}`} />
-        <Info icon={<UserRound />} label="Profissional" value={p.name} />
+        <Info icon={<Clock />} label="Horário" value={`${dayLabel}, ${appt.start} – ${appt.end}`} />
+        <Info icon={<UserRound />} label="Profissional" value={p?.name ?? 'Profissional removido'} />
         <Info icon={<OriginIcon />} label="Origem" value={originLabel[appt.origin]} />
-        <Info icon={<GoogleIcon />} label="Google Agenda" value="Sincronizado" />
+        <Info icon={<BellRing />} label="Lembrete" value={reminderInfo.text} />
+        {appt.googleEventId && <Info icon={<GoogleIcon />} label="Google Agenda" value="Sincronizado" />}
       </div>
       <div className="mt-4 flex items-center justify-between rounded-xl border border-border p-3">
         <span className="text-[13px] text-muted">Valor</span>
         <span className="text-lg font-bold">{brl.format(appt.price)}</span>
       </div>
+      {open && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3">
+          <div className="text-[13px]">
+            <p className="font-medium">Sinal por PIX</p>
+            <p className="text-muted">
+              {appt.deposit?.status === 'pago'
+                ? `Pago: ${brl.format(appt.deposit.amount)}`
+                : appt.deposit
+                  ? `Aguardando pagamento de ${brl.format(appt.deposit.amount)}`
+                  : depositAmount > 0
+                    ? `Sugerido: ${brl.format(depositAmount)}`
+                    : 'Garante o horário e reduz faltas'}
+            </p>
+          </div>
+          <Button size="sm" variant={appt.deposit?.status === 'pago' ? 'outline' : 'primary'} onClick={() => setPixOpen(true)}><QrCode /> {appt.deposit ? 'Ver PIX' : 'Cobrar sinal'}</Button>
+        </div>
+      )}
+      <PixDialog
+        open={pixOpen}
+        onClose={() => setPixOpen(false)}
+        amount={depositAmount || Math.round(appt.price * 0.3)}
+        description={`Sinal ${appt.service} ${appt.date ? appt.date.split('-').reverse().slice(0, 2).join('/') : ''} ${appt.start}`.trim()}
+        txid={`SINAL${appt.id.replace(/[^A-Za-z0-9]/g, '').slice(0, 20)}`}
+        paid={appt.deposit?.status === 'pago'}
+        onSend={(code, amount) => {
+          updateAppointment(appt.id, { deposit: { amount, status: appt.deposit?.status ?? 'pendente', code } })
+          void send(c.id, pixMessage(c.name, `seu horário de ${appt.service} (${dayLabel.toLowerCase()} às ${appt.start})`, amount, code))
+            .then((how) => toast.success(how === 'app' ? 'PIX enviado pelo WhatsApp' : 'WhatsApp aberto com o PIX'))
+            .catch((e: Error) => toast.error('Não foi possível enviar', { description: e.message }))
+        }}
+        onPaid={(amount, code) => {
+          updateAppointment(appt.id, { deposit: { amount, status: 'pago', code, paidAt: Date.now() }, status: appt.status === 'agendado' ? 'confirmado' : appt.status })
+          setPixOpen(false)
+          toast.success('Sinal registrado como pago')
+        }}
+      />
     </Dialog>
   )
+}
+
+/** Situação do lembrete e da resposta do cliente */
+export function reminderLabel(a: Appointment): { text: string; tone: 'primary' | 'success' | 'warning' | 'danger' | 'neutral' } {
+  if (a.reply === 'confirmar') return { text: 'Cliente confirmou', tone: 'success' }
+  if (a.reply === 'remarcar') return { text: 'Pediu para remarcar', tone: 'danger' }
+  const at = Math.max(a.reminders?.['24h'] ?? 0, a.reminders?.['2h'] ?? 0)
+  if (at) return { text: `Enviado ${new Date(at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}, sem resposta`, tone: 'warning' }
+  return { text: 'Ainda não enviado', tone: 'neutral' }
 }
 
 function Info({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {

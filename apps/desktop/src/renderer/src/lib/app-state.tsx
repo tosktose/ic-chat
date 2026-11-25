@@ -77,6 +77,30 @@ export interface ProfileOverride {
 
 const Ctx = createContext<AppState | null>(null)
 
+const localDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const hhmm = (d: Date) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+/** Linha do banco → agendamento da tela (data e hora no fuso do computador; profissional fica em extra) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function rowToAppointment(row: any): Appointment {
+  const start = new Date(row.starts_at)
+  const end = new Date(row.ends_at)
+  const extra = (row.extra ?? {}) as Partial<Appointment>
+  return {
+    ...extra,
+    id: String(row.id),
+    contactId: String(row.contact_id ?? extra.contactId ?? ''),
+    professionalId: String(extra.professionalId ?? row.professional_id ?? ''),
+    service: row.service_name ?? extra.service ?? '',
+    start: hhmm(start),
+    end: hhmm(end),
+    date: localDay(start),
+    status: row.status,
+    origin: row.origin,
+    price: Number(row.amount ?? 0)
+  } as Appointment
+}
+
 function roleForSession(session: ReturnType<typeof useAuth>['session']): Role {
   if (isSuperAdmin(session)) return 'superadmin'
   const raw = session?.user.app_metadata?.role ?? session?.user.user_metadata?.role
@@ -153,24 +177,34 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true
     if (appMode) {
-      void window.icchat!.db.load().then((r) => r.ok && active && setAppointments(r.data.appointments as Appointment[]))
+      void window.icchat!.db.load().then(async (r) => {
+        if (!r.ok || !active) return
+        const local = r.data.appointments as Appointment[]
+        setAppointments(local)
+        // Agendamentos feitos pelo link público ficam no banco online: traz para o app instalado
+        if (!session || !supabase) return
+        const { data } = await supabase.schema('ic_chat').from('appointments').select('*').eq('origin', 'link').gte('starts_at', new Date(Date.now() - 30 * 86_400_000).toISOString())
+        if (!active || !data?.length) return
+        const known = new Set(local.map((a) => a.id))
+        const fresh = data.map(rowToAppointment).filter((a) => !known.has(a.id))
+        if (!fresh.length) return
+        for (const a of fresh) void window.icchat?.db.upsert('appointment', a.id, a)
+        setAppointments((list) => [...list, ...fresh.filter((a) => !list.some((x) => x.id === a.id))])
+      }).catch((e: unknown) => console.error('IC Chat appointments:', e))
     } else if (isWebApp && session && supabase) {
       void (async () => {
         const { data, error } = await supabase.schema('ic_chat').from('appointments').select('*').order('starts_at')
         if (error) throw error
         if (!active) return
-        setAppointments((data ?? []).map((row) => {
-          const start = new Date(row.starts_at)
-          const end = new Date(row.ends_at)
-          return { ...(row.extra ?? {}), id: String(row.id), contactId: String(row.contact_id ?? ''), professionalId: String(row.professional_id ?? ''), service: row.service_name ?? '', start: start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), end: end.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }), date: start.toISOString().slice(0, 10), status: row.status, origin: row.origin, price: Number(row.amount ?? 0) } as Appointment
-        }))
+        setAppointments((data ?? []).map(rowToAppointment))
       })().catch((error: unknown) => console.error('IC Chat appointments:', error))
     } else if (isWebApp) setAppointments([])
     return () => { active = false }
   }, [appMode, session?.user.id])
   const saveAppt = (a: Appointment) => {
-    if (appMode) { void window.icchat?.db.upsert('appointment', a.id, a); return }
-    if (!isWebApp || !session || !supabase) return
+    if (appMode) void window.icchat?.db.upsert('appointment', a.id, a)
+    // Também grava online (quando há conta): a página pública de agendamento enxerga o horário ocupado
+    if (!session || !supabase) return
     void (async () => {
       if (!tenantIdRef.current) {
         const { data, error } = await supabase.schema('ic_chat').from('tenant_members').select('tenant_id').eq('user_id', session.user.id).maybeSingle()
@@ -178,10 +212,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         tenantIdRef.current = data?.tenant_id
       }
       if (!tenantIdRef.current) throw new Error('Empresa não encontrada para esta conta.')
-      const date = a.date ?? new Date().toISOString().slice(0, 10)
+      const now = new Date()
+      const date = a.date ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
       const startsAt = new Date(`${date}T${a.start}:00`).toISOString()
       const endsAt = new Date(`${date}T${a.end}:00`).toISOString()
-      const { error } = await supabase.schema('ic_chat').from('appointments').upsert({ id: a.id, tenant_id: tenantIdRef.current, contact_id: a.contactId || null, professional_id: null, service_name: a.service, starts_at: startsAt, ends_at: endsAt, status: a.status, origin: a.origin, amount: a.price, extra: { ...a, professionalId: a.professionalId } }, { onConflict: 'id' })
+      const { error } = await supabase.schema('ic_chat').from('appointments').upsert({ id: a.id, tenant_id: tenantIdRef.current, contact_id: appMode ? null : a.contactId || null, professional_id: null, service_name: a.service, starts_at: startsAt, ends_at: endsAt, status: a.status, origin: a.origin, amount: a.price, extra: { ...a, professionalId: a.professionalId } }, { onConflict: 'id' })
       if (error) throw error
     })().catch((error: unknown) => console.error('IC Chat appointments:', error))
   }

@@ -7,8 +7,9 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/(dashboard|inbox|agenda|kanban|funil|contatos|relatorios|captacao|cobrancas|disparos|ia|canais|equipe|config|perfil|meu-painel|afiliados|esqueci-senha|redefinir-senha|download)", "destination": "/app" },
+    { "source": "/(dashboard|inbox|agenda|kanban|funil|contatos|relatorios|captacao|cobrancas|disparos|ia|canais|equipe|config|perfil|meu-painel|afiliados|esqueci-senha|redefinir-senha|download|lembretes|retorno)", "destination": "/app" },
     { "source": "/c/:tenantId", "destination": "/app" },
+    { "source": "/agendar/:tenantId", "destination": "/app" },
     { "source": "/(admin|assinar)/:path*", "destination": "/app" },
     { "source": "/(admin|assinar)", "destination": "/app" }
   ],

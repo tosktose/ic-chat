@@ -1,4 +1,6 @@
 import {
+  BellRing,
+  HeartHandshake,
   BookUser,
   CreditCard,
   Building2,
@@ -58,6 +60,8 @@ export const navByRole: Record<Role, NavItem[]> = {
     { to: '/agenda', label: 'Agenda', icon: CalendarDays, group: 'Gestão', mobile: true },
     { to: '/kanban', label: 'Kanban IA', short: 'Kanban', icon: SquareKanban, group: 'Gestão', mobile: true },
     { to: '/funil', label: 'Funil de vendas', short: 'Funil', icon: Target, group: 'Gestão', mobile: true },
+    { to: '/lembretes', label: 'Lembretes', icon: BellRing, group: 'Gestão' },
+    { to: '/retorno', label: 'Clientes de volta', short: 'Retorno', icon: HeartHandshake, group: 'Gestão' },
     { to: '/contatos', label: 'Contatos', icon: BookUser, group: 'Gestão' },
     { to: '/relatorios', label: 'Relatórios', icon: FileBarChart, group: 'Gestão' },
     { to: '/cobrancas', label: 'Cobranças', icon: Receipt, group: 'Gestão' },

@@ -20,6 +20,9 @@
 /redefinir-senha /app 200
 /download /app 200
 /c/:tenantId /app 200
+/agendar/:tenantId /app 200
+/lembretes /app 200
+/retorno /app 200
 /admin /app 200
 /admin/* /app 200
 /assinar /app 200
