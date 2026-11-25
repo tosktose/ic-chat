@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 
 const url = import.meta.env.VITE_SUPABASE_URL || 'https://umnoiivuntnvsxkysvrr.supabase.co'
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+// Chave publishable: pública por desenho (vai no JavaScript do site); quem protege os dados é o RLS.
+// O padrão permite publicar em qualquer host (Cloudflare, Vercel) sem configurar variável.
+const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_i2MLYsd9Ac-JP9KaBo2BsQ_qwbAfp9S'
 
 export const supabase = key ? createClient(url, key, {
   // OAuth do desktop abre o navegador do sistema; o retorno com token é encaminhado pelo protocolo icchat://.

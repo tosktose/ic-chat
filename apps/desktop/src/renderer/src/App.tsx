@@ -186,7 +186,7 @@ export function App() {
       </AppStateProvider>
     </ThemeProvider>
     </ErrorBoundary>
-    {isWebApp && <Analytics />}
+    {isWebApp && __ON_VERCEL__ && <Analytics />}
     </AuthProvider>
   )
 }

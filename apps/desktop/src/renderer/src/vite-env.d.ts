@@ -9,3 +9,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+/** true quando o build roda na Vercel (liga o Vercel Analytics) */
+declare const __ON_VERCEL__: boolean

@@ -115,6 +115,8 @@ export default defineConfig(({ mode }) => {
     envDir: resolve(__dirname),
     resolve: { alias: { '@': resolve(__dirname, 'src/renderer/src') } },
     plugins: [react(), tailwindcss(), seoFiles(siteUrl)],
+    // Vercel Analytics só existe na Vercel; em outro host (Cloudflare Pages) o script daria 404
+    define: { __ON_VERCEL__: JSON.stringify(Boolean(process.env.VERCEL)) },
     server: { port: 5173, strictPort: true },
     build: { outDir, emptyOutDir: true }
   }
