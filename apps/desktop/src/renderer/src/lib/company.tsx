@@ -1,14 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useAuth } from '@/lib/auth'
+import { isSuperAdmin, useAuth } from '@/lib/auth'
 import { isWebApp, supabase } from '@/lib/supabase'
-import {
-  company as seedCompany,
-  professionals as seedProfessionals,
-  quickReplies as seedReplies,
-  services as seedServices,
-  type Professional,
-  type Service
-} from '@/data/mock'
+import type { Professional, Service } from '@/data/mock'
+import { DEFAULT_REMINDERS, type ReminderSettings } from '@/lib/reminders'
+import { DEFAULT_WINBACK, type WinbackSettings } from '@/lib/winback'
 
 /* ------------------------------------------------------------------ */
 /* Cores dos profissionais na agenda                                     */
@@ -84,43 +79,39 @@ export interface CompanyInfo {
   hours: DayHours[]
 }
 
+/** Automações da empresa: lembretes, retorno de clientes, PIX do sinal e agendamento online */
+export interface Automations {
+  reminders: ReminderSettings
+  winback: WinbackSettings
+  /** Recebedor do PIX (sinal de agendamento e cobranças) */
+  pix: { key: string; name: string; city: string }
+  /** Página pública de agendamento (/agendar/:empresa) */
+  booking: { enabled: boolean; note: string; daysAhead: number }
+}
+
+export const DEFAULT_AUTOMATIONS: Automations = {
+  reminders: DEFAULT_REMINDERS,
+  winback: DEFAULT_WINBACK,
+  pix: { key: '', name: '', city: '' },
+  booking: { enabled: false, note: '', daysAhead: 30 }
+}
+
+/** Junta o que foi salvo com os padrões (campos novos aparecem sem apagar o que a empresa já configurou) */
+export function mergeAutomations(saved?: Partial<Automations>): Automations {
+  return {
+    reminders: { ...DEFAULT_AUTOMATIONS.reminders, ...saved?.reminders },
+    winback: { ...DEFAULT_AUTOMATIONS.winback, ...saved?.winback, steps: saved?.winback?.steps?.length ? saved.winback.steps : DEFAULT_AUTOMATIONS.winback.steps },
+    pix: { ...DEFAULT_AUTOMATIONS.pix, ...saved?.pix },
+    booking: { ...DEFAULT_AUTOMATIONS.booking, ...saved?.booking }
+  }
+}
+
 interface Store {
   info: CompanyInfo
   professionals: ProfessionalItem[]
   services: Service[]
   quickReplies: QuickReply[]
-}
-
-const workday = (): DayHours => ({ open: true, start: '09:00', end: '20:00', lunchStart: '12:00', lunchEnd: '13:00' })
-
-const SEED: Store = {
-  info: {
-    name: seedCompany.name,
-    segment: 'salao',
-    document: '',
-    phone: '(11) 98765-4321',
-    email: 'contato@studiobella.com.br',
-    address: 'Rua das Flores, 123 — Centro, São Paulo/SP',
-    instagram: '@studiobella',
-    hours: [
-      { open: true, start: '09:00', end: '19:00', lunchStart: '12:00', lunchEnd: '13:00' },
-      { open: false, start: '09:00', end: '18:00' },
-      workday(),
-      workday(),
-      workday(),
-      workday(),
-      { open: true, start: '08:00', end: '18:00', lunchStart: '12:00', lunchEnd: '13:00' }
-    ]
-  },
-  professionals: seedProfessionals.map((p, i) => ({
-    ...p,
-    colorKey: (['blue', 'emerald', 'violet', 'amber'] as ProColor[])[i % 4],
-    serviceIds: [],
-    active: true,
-    commission: 40
-  })),
-  services: seedServices,
-  quickReplies: seedReplies.map((r, i) => ({ id: `qr${i}`, ...r }))
+  automations: Automations
 }
 
 const KEY = 'icchat.company.v1'
@@ -132,18 +123,32 @@ const EMPTY_STORE: Store = {
   info: { name: '', segment: 'outro', document: '', phone: '', email: '', address: '', instagram: '', hours: defaultHours() },
   professionals: [],
   services: [],
-  quickReplies: []
+  quickReplies: [],
+  automations: DEFAULT_AUTOMATIONS
 }
 
 function load(): Store {
   if (isWebApp) return EMPTY_STORE
   try {
     const raw = localStorage.getItem(KEY)
-    if (!raw) return SEED
+    if (!raw) return EMPTY_STORE
     const s = JSON.parse(raw) as Partial<Store>
-    return { ...SEED, ...s, info: { ...SEED.info, ...s.info } }
+    // Remove os dados de demonstração que versões antigas gravaram como se fossem da empresa.
+    if (s.info?.name === 'Studio Bella' && (s.info.email === 'contato@studiobella.com.br' || s.info.instagram === '@studiobella')) {
+      localStorage.removeItem(KEY)
+      return EMPTY_STORE
+    }
+    return {
+      ...EMPTY_STORE,
+      ...s,
+      info: { ...EMPTY_STORE.info, ...s.info },
+      professionals: s.professionals ?? [],
+      services: s.services ?? [],
+      quickReplies: s.quickReplies ?? [],
+      automations: mergeAutomations(s.automations)
+    }
   } catch {
-    return SEED
+    return EMPTY_STORE
   }
 }
 
@@ -174,6 +179,11 @@ interface Ctx extends Store {
   removeService: (id: string) => void
   saveQuickReply: (r: QuickReply) => void
   removeQuickReply: (id: string) => void
+  updateAutomations: <K extends keyof Automations>(key: K, patch: Partial<Automations[K]>) => void
+  /** id da empresa no banco (link público de agendamento e de captação) */
+  tenantId?: string
+  /** false enquanto as configurações da empresa carregam do banco (evita editar e ser sobrescrito) */
+  ready: boolean
   resetAll: () => void
 }
 
@@ -207,15 +217,22 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const [tenantId, setTenantId] = useState<string>()
   const [hydrated, setHydrated] = useState(!isWebApp)
 
-  // Web: traz o nome da empresa e as configurações salvas no banco (valem em qualquer computador)
+  // Busca as configurações reais da empresa para web e desktop quando há sessão autenticada.
   useEffect(() => {
-    if (!isWebApp || !supabase || !session) { setHydrated(!isWebApp); return }
+    if (!supabase || !session) { setHydrated(!isWebApp); return }
     let alive = true
     void (async () => {
       try {
+        if (isSuperAdmin(session)) { setHydrated(true); return }
         const api = supabase.schema('ic_chat')
         const { data: member } = await api.from('tenant_members').select('tenant_id, tenants(name)').eq('user_id', session.user.id).maybeSingle()
-        if (!alive || !member) { setHydrated(true); return }
+        if (!alive) return
+        if (!member) {
+          const accountCompany = String(session.user.user_metadata?.company_name ?? '')
+          setStore({ ...EMPTY_STORE, info: { ...EMPTY_STORE.info, name: accountCompany } })
+          setHydrated(true)
+          return
+        }
         const id = String(member.tenant_id)
         const t = Array.isArray(member.tenants) ? member.tenants[0] : member.tenants
         const { data: row } = await api.from('company_settings').select('data').eq('tenant_id', id).maybeSingle()
@@ -226,9 +243,10 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
           const info = { ...EMPTY_STORE.info, ...saved.info }
           return {
             info: { ...info, name: info.name || t?.name || cur.info.name },
-            professionals: saved.professionals ?? cur.professionals,
-            services: saved.services ?? cur.services,
-            quickReplies: saved.quickReplies ?? cur.quickReplies
+            professionals: saved.professionals ?? [],
+            services: saved.services ?? [],
+            quickReplies: saved.quickReplies ?? [],
+            automations: mergeAutomations(saved.automations)
           }
         })
       } catch (e) {
@@ -238,7 +256,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       }
     })()
     return () => { alive = false }
-  }, [session])
+  }, [session?.user.id])
 
   // Web: grava no banco (espera 800 ms sem novas alterações)
   useEffect(() => {
@@ -286,9 +304,12 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         })),
       saveQuickReply: (r) => setStore((s) => ({ ...s, quickReplies: upsert(s.quickReplies, r) })),
       removeQuickReply: (id) => setStore((s) => ({ ...s, quickReplies: s.quickReplies.filter((r) => r.id !== id) })),
-      resetAll: () => setStore(SEED)
+      updateAutomations: (key, patch) => setStore((s) => ({ ...s, automations: { ...s.automations, [key]: { ...s.automations[key], ...patch } } })),
+      tenantId,
+      ready: hydrated,
+      resetAll: () => setStore(EMPTY_STORE)
     }),
-    [store, professionalById]
+    [store, professionalById, tenantId, hydrated]
   )
 
   return <CompanyCtx.Provider value={value}>{children}</CompanyCtx.Provider>

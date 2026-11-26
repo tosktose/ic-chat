@@ -1,4 +1,8 @@
+import { CircleHelp } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { GUIDE_EVENT } from '@/components/GuideBot'
+import { useAppState } from '@/lib/app-state'
+import { isWebApp } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
 /** Página rolável padrão com cabeçalho (título, descrição e ações). */
@@ -17,6 +21,7 @@ export function Page({
   className?: string
   wide?: boolean
 }) {
+  const { role } = useAppState()
   return (
     <div className="scroll-thin h-full overflow-y-auto">
       <div className={cn('mx-auto w-full px-4 py-5 md:px-6 md:py-6', wide ? 'max-w-[1600px]' : 'max-w-6xl', className)}>
@@ -26,7 +31,20 @@ export function Page({
               {title && <h2 className="hidden text-2xl font-bold tracking-tight md:block">{title}</h2>}
               {description && <p className="mt-1 text-sm text-muted">{description}</p>}
             </div>
-            {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+            <div className="flex flex-wrap items-center gap-2">
+              {actions}
+              {isWebApp && role !== 'superadmin' && (
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new Event(GUIDE_EVENT))}
+                  aria-label="Ajuda sobre esta tela"
+                  title="Ajuda sobre esta tela"
+                  className="grid size-8 place-items-center rounded-full border border-border bg-surface text-muted transition hover:border-primary hover:text-primary"
+                >
+                  <CircleHelp className="size-4" />
+                </button>
+              )}
+            </div>
           </div>
         )}
         {children}

@@ -9,7 +9,7 @@ import { Field, Input } from '@/components/ui/input'
 import { Avatar, Badge, Card, CardHeader, Progress, Segmented, Switch } from '@/components/ui/misc'
 import { useAppState } from '@/lib/app-state'
 import { useAuth } from '@/lib/auth'
-import { isWebApp } from '@/lib/supabase'
+import { isWebApp, supabase } from '@/lib/supabase'
 import { useNotifications } from '@/lib/notifications'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
@@ -37,7 +37,7 @@ export function ProfilePage() {
 
   const org = role === 'superadmin' ? 'itaCondo' : company.name
   const { session } = useAuth()
-  const email = isWebApp ? (session?.user.email ?? '') : role === 'superadmin' ? 'luis@itacondo.com.br' : `${me.name.split(' ')[0].toLowerCase()}@studiobella.com.br`
+  const email = session?.user.email ?? ''
 
   return (
     <Page title="Meu perfil" description="Seus dados, senha e preferências. Só você vê e altera esta tela.">
@@ -88,6 +88,7 @@ export function ProfilePage() {
       </div>
 
       {tab === 'dados' && <PersonalTab email={email} />}
+      {tab === 'dados' && isWebApp && role !== 'superadmin' && <PrivacyCard />}
       {tab === 'seguranca' && <SecurityTab />}
       {tab === 'preferencias' && <PreferencesTab />}
     </Page>
@@ -100,10 +101,16 @@ function PersonalTab({ email }: { email: string }) {
   const [displayName, setDisplayName] = useState(myDisplayName)
   const [phone, setPhone] = useState(myPhone ?? '')
   const dirty = name !== me.name || displayName !== myDisplayName || phone !== (myPhone ?? '')
-  const save = () => {
+  const [saving, setSaving] = useState(false)
+  const save = async () => {
     if (!name.trim()) return toast.error('Informe o nome')
-    updateMyProfile({ name: name.trim(), displayName: displayName.trim() || undefined, phone: phone || undefined })
-    toast.success('Dados salvos', { description: 'Seu nome foi atualizado em todo o sistema.' })
+    setSaving(true)
+    try {
+      await updateMyProfile({ name: name.trim(), displayName: displayName.trim() || undefined, phone: phone || undefined })
+      toast.success('Dados salvos', { description: 'Seu nome foi atualizado na conta.' })
+    } catch (error) {
+      toast.error('Não foi possível salvar os dados', { description: error instanceof Error ? error.message : 'Confira sua conexão e tente novamente.' })
+    } finally { setSaving(false) }
   }
   return (
     <Card>
@@ -115,7 +122,7 @@ function PersonalTab({ email }: { email: string }) {
             <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={name.split(' ')[0]} />
           </Field>
         ) : (
-          <Field label="Cargo"><Input defaultValue="Diretor" /></Field>
+          <Field label="Perfil"><Input value={roleLabel[role]} readOnly /></Field>
         )}
         <Field label="E-mail de login" hint="Para trocar o e-mail, fale com o administrador">
           <Input icon={<Mail />} defaultValue={email} readOnly />
@@ -123,7 +130,41 @@ function PersonalTab({ email }: { email: string }) {
         <Field label="Celular"><Input icon={<Phone />} placeholder="(11) 90000-0000" value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
       </div>
       <div className="flex justify-end border-t border-border px-5 py-3">
-        <Button onClick={save} disabled={!dirty}>Salvar alterações</Button>
+        <Button onClick={() => void save()} disabled={!dirty || saving}>{saving ? 'Salvando…' : 'Salvar alterações'}</Button>
+      </div>
+    </Card>
+  )
+}
+
+/** LGPD: a pessoa pode apagar a empresa dela e todos os dados do IC Chat. */
+export function PrivacyCard() {
+  const { signOut } = useAuth()
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+  const remove = async () => {
+    if (!supabase) return
+    setBusy(true)
+    const { error } = await supabase.schema('ic_chat').rpc('delete_my_company', { p_confirm: typed })
+    setBusy(false)
+    if (error) {
+      const msg = /only_owner/.test(error.message) ? 'Só o dono da conta pode excluir a empresa.' : /platform_admin/.test(error.message) ? 'A conta do administrador da plataforma não pode ser excluída por aqui.' : error.message
+      return toast.error('Não foi possível excluir', { description: msg })
+    }
+    toast.success('Sua empresa e todos os dados no IC Chat foram excluídos')
+    await signOut()
+  }
+  return (
+    <Card>
+      <CardHeader title={<span className="flex items-center gap-2"><ShieldCheck className="size-4" /> Privacidade e seus dados (LGPD)</span>} description="Você controla seus dados. Pode pedir a exclusão completa a qualquer momento." />
+      <div className="flex flex-col gap-3 px-5 pb-5 text-sm leading-6 text-muted">
+        <p>Ao excluir, apagamos <b className="text-foreground">a empresa, contatos, conversas, mensagens, agenda, funil, configurações, licenças e créditos</b> ligados à sua conta no IC Chat. A exclusão é imediata e <b className="text-foreground">não pode ser desfeita</b>. Pagamentos já feitos podem ser mantidos pelo prazo exigido pela lei fiscal, sem dados de uso.</p>
+        <p>Seu login (e-mail e senha) pode ser compartilhado com outros sistemas da ItaCondo e por isso não é removido por aqui; para apagá-lo também, peça ao suporte.</p>
+        <Field label='Para confirmar, digite "excluir"'>
+          <Input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="excluir" autoComplete="off" />
+        </Field>
+        <div className="flex justify-end">
+          <Button variant="danger" disabled={busy || typed.trim().toLowerCase() !== 'excluir'} onClick={() => void remove()}><Trash2 /> Excluir minha empresa e meus dados</Button>
+        </div>
       </div>
     </Card>
   )
@@ -188,37 +229,42 @@ function SecurityTab() {
         </div>
       </Card>
 
-      <Card>
-        <CardHeader title={<span className="flex items-center gap-2"><ShieldCheck className="size-4" /> Proteção da conta</span>} />
-        <div className="flex flex-col gap-2 px-5 pb-5">
-          <ToggleRow title="Verificação em 2 etapas" description="Código por e-mail ao entrar em um computador novo" defaultOn />
-          <ToggleRow title="Avisar por e-mail em novo acesso" description="Receba um alerta quando sua conta for usada em outro PC" defaultOn />
-        </div>
-      </Card>
-
-      <Card>
-        <CardHeader
-          title={<span className="flex items-center gap-2"><Laptop className="size-4" /> Sessões ativas</span>}
-          action={<Button variant="outline" size="sm" onClick={() => toast.success('Outras sessões encerradas')}><LogOut /> Sair das outras</Button>}
-        />
-        <div className="flex flex-col">
-          {[
-            { pc: 'RECEPCAO-01', info: 'Windows 11 · IC Chat 0.1.0', when: 'Este computador', me: true },
-            { pc: 'NOTEBOOK-CASA', info: 'Windows 10 · IC Chat 0.1.0', when: 'há 2 dias' }
-          ].map((s) => (
-            <div key={s.pc} className="flex items-center gap-3 border-t border-border px-5 py-3">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-surface-2 text-muted"><Laptop className="size-4" /></span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13.5px] font-medium">{s.pc}</p>
-                <p className="truncate text-xs text-muted">{s.info} · {s.when}</p>
-              </div>
-              {s.me ? <Badge tone="success">Atual</Badge> : (
-                <Button variant="ghost" size="icon-sm" aria-label="Encerrar sessão" onClick={() => toast.success('Sessão encerrada')}><LogOut /></Button>
-              )}
+      {/* Itens de demonstração (2 etapas, sessões) só existem no app instalado: na web não mostram nada falso */}
+      {!isWebApp && (
+        <>
+          <Card>
+            <CardHeader title={<span className="flex items-center gap-2"><ShieldCheck className="size-4" /> Proteção da conta</span>} />
+            <div className="flex flex-col gap-2 px-5 pb-5">
+              <ToggleRow title="Verificação em 2 etapas" description="Código por e-mail ao entrar em um computador novo" defaultOn />
+              <ToggleRow title="Avisar por e-mail em novo acesso" description="Receba um alerta quando sua conta for usada em outro PC" defaultOn />
             </div>
-          ))}
-        </div>
-      </Card>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title={<span className="flex items-center gap-2"><Laptop className="size-4" /> Sessões ativas</span>}
+              action={<Button variant="outline" size="sm" onClick={() => toast.success('Outras sessões encerradas')}><LogOut /> Sair das outras</Button>}
+            />
+            <div className="flex flex-col">
+              {[
+                { pc: 'RECEPCAO-01', info: 'Windows 11 · IC Chat 0.1.0', when: 'Este computador', me: true },
+                { pc: 'NOTEBOOK-CASA', info: 'Windows 10 · IC Chat 0.1.0', when: 'há 2 dias' }
+              ].map((s) => (
+                <div key={s.pc} className="flex items-center gap-3 border-t border-border px-5 py-3">
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-surface-2 text-muted"><Laptop className="size-4" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13.5px] font-medium">{s.pc}</p>
+                    <p className="truncate text-xs text-muted">{s.info} · {s.when}</p>
+                  </div>
+                  {s.me ? <Badge tone="success">Atual</Badge> : (
+                    <Button variant="ghost" size="icon-sm" aria-label="Encerrar sessão" onClick={() => toast.success('Sessão encerrada')}><LogOut /></Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        </>
+      )}
     </div>
   )
 }

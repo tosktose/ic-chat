@@ -11,6 +11,7 @@ import { useCompany } from '@/lib/company'
 import { useData } from '@/lib/data'
 import { avgFirstResponse, daysOf, deltaPct, fmtSec, inRange, lastDays, useRecords } from '@/lib/metrics'
 import { useNavigate } from 'react-router'
+import { WeeklySummaryCard } from '@/components/WeeklySummaryCard'
 
 type Period = 'semana' | 'quinzena' | 'mes'
 const DAYS: Record<Period, number> = { semana: 7, quinzena: 15, mes: 30 }
@@ -119,6 +120,8 @@ export function DashboardPage() {
           tip="Faltas sobre os horários que já passaram."
         />
       </div>
+
+      <WeeklySummaryCard />
 
       <Card className="mt-4">
         <CardHeader

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { adminError, listMembers, listPlans, listTenants, savePlanRow, type AdminTenant } from '@/lib/admin-api'
+import { adminError, listMembers, listPlans, listTenants, savePlanRow, setTenantBlocked, setTenantHidden, type AdminTenant } from '@/lib/admin-api'
 import { isSuperAdmin, useAuth } from '@/lib/auth'
 import { isWebApp, supabase } from '@/lib/supabase'
 import {
@@ -15,6 +15,8 @@ import {
   type TenantStatus,
   type TenantUser
 } from '@/data/saas'
+
+const useRemoteAdminData = isWebApp || Boolean(window.icchat?.isDesktop)
 
 /** Planos editáveis pelo Super Admin */
 export interface PlanDef {
@@ -31,7 +33,7 @@ export interface PlanDef {
   discount_ends_at?: string | null
 }
 
-const plans: PlanDef[] = [
+const plans: PlanDef[] = useRemoteAdminData ? [] : [
   { name: 'Start', price: 149, mode: 'Local (SQLite)', pcs: 3, users: 3, features: ['1 WhatsApp (QR Code)', 'Atendimento multiusuário', 'Agenda + Google Agenda', 'Lembretes automáticos'] },
   { name: 'Pro', price: 299, mode: 'Local ou Nuvem', pcs: 10, users: 10, highlight: true, features: ['Tudo do Start', 'WhatsApp Oficial (API Meta)', 'Assistente IA (chave do cliente)', 'Kanban IA', 'Painel do gerente e relatórios'] },
   { name: 'Business', price: 599, mode: 'Nuvem (Supabase)', pcs: null, users: null, features: ['Tudo do Pro', 'Instagram e Messenger', 'Várias unidades', 'API e webhooks', 'Suporte prioritário'] }
@@ -64,7 +66,7 @@ export interface NewTenantInput {
 
 interface Ctx {
   version: number
-  /** Recarrega empresas, usuários e planos do banco (versão web) */
+  /** Recarrega empresas, usuários e planos reais do Supabase. */
   reload: () => void
   tenants: Tenant[]
   users: TenantUser[]
@@ -84,8 +86,8 @@ interface Ctx {
 
 const SaasCtx = createContext<Ctx | null>(null)
 
-// Na versão web não existe empresa de exemplo: o Super Admin vê só o que está no banco.
-if (isWebApp) {
+// Em instalações de produção não exibimos empresas, chaves ou usuários de demonstração.
+if (useRemoteAdminData) {
   tenantList.splice(0)
   userList.splice(0)
   keyList.splice(0)
@@ -111,9 +113,9 @@ export function SaasProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth()
   const [tick, setTick] = useState(0)
 
-  // Super Admin (web): empresas reais do banco
+  // Super Admin: empresas, usuários e planos do banco real em web e desktop.
   useEffect(() => {
-    if (!isWebApp || !supabase || !isSuperAdmin(session)) return
+    if (!useRemoteAdminData || !supabase || !isSuperAdmin(session)) return
     let alive = true
     void Promise.all([listTenants(), listMembers(), listPlans()]).then(([rows, members, planRows]) => {
       if (!alive) return
@@ -216,12 +218,29 @@ export function SaasProvider({ children }: { children: ReactNode }) {
       },
       updateUser: (id, patch) => {
         const u = userList.find((x) => x.id === id)
-        if (u) Object.assign(u, patch)
+        if (!u) return
+        const before = u.active
+        Object.assign(u, patch)
         bump()
+        // Na versão web, bloquear/liberar grava de verdade: corta ou devolve o acesso da empresa dessa pessoa
+        if (isWebApp && patch.active !== undefined && patch.active !== before) {
+          setTenantBlocked(u.tenantId, !patch.active)
+            .then(() => setTick((n) => n + 1))
+            .catch((e) => { u.active = before; bump(); toast.error('Não foi possível alterar o acesso', { description: adminError(e) }) })
+        }
       },
       removeUser: (id) => {
         const i = userList.findIndex((x) => x.id === id)
-        if (i >= 0) userList.splice(i, 1)
+        if (i < 0) return
+        const u = userList[i]
+        // Na versão web nada é apagado do banco compartilhado: a empresa só deixa de aparecer no IC Chat (dá para desfazer)
+        if (isWebApp) {
+          setTenantHidden(u.tenantId, true)
+            .then(() => setTick((n) => n + 1))
+            .catch((e) => toast.error('Não foi possível ocultar', { description: adminError(e) }))
+          return
+        }
+        userList.splice(i, 1)
         bump()
       },
       savePlan: (p, originalName) => {
@@ -229,7 +248,7 @@ export function SaasProvider({ children }: { children: ReactNode }) {
         if (i >= 0) plans[i] = p
         else plans.push(p)
         bump()
-        if (isWebApp && supabase) {
+        if (useRemoteAdminData && supabase) {
           const id = p.name.toLowerCase() as 'start' | 'pro' | 'business'
           void savePlanRow({ id, name: p.name, price: p.price, days: 30, max_users: p.users, max_devices: p.pcs ?? 50, summary: '', features: p.features, highlight: Boolean(p.highlight), active: true, sort: ['start', 'pro', 'business'].indexOf(id) + 1, discount_type: p.discount_type ?? null, discount_value: p.discount_value ?? 0, discount_label: p.discount_label ?? '', discount_ends_at: p.discount_ends_at ?? null })
             .then(() => toast.success('Plano salvo no banco'))

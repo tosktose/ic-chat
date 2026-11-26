@@ -16,11 +16,20 @@ const cors = {
 }
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'content-type': 'application/json' } })
 
+
+// Chaves do Mercado Pago: o que o Super Admin gravou no painel vale mais; os Secrets do Supabase são o reserva
+async function integrationConfig(admin: ReturnType<typeof createClient>, keys: string[]): Promise<Record<string, string>> {
+  const { data } = await admin.from('platform_secrets').select('key, value').in('key', keys)
+  return Object.fromEntries((data ?? []).map((r: { key: string; value: string }) => [r.key, r.value]))
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
 
-  const mpToken = Deno.env.get('ICCHAT_MP_ACCESS_TOKEN')
+  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'ic_chat' } })
+  const cfg = await integrationConfig(admin, ['mp_access_token'])
+  const mpToken = cfg.mp_access_token || Deno.env.get('ICCHAT_MP_ACCESS_TOKEN')
   if (!mpToken) return json({ error: 'pagamento_nao_configurado' }, 503)
 
   // Quem está pedindo? (o JWT do usuário logado)
@@ -36,7 +45,6 @@ Deno.serve(async (req) => {
   let pack = ''
   try { const b = await req.json(); plan = String(b.plan ?? ''); pack = String(b.pack ?? '') } catch { /* corpo vazio */ }
   // Preço e prazo vêm da tabela ic_chat.plans (editada pelo Super Admin), lida com a chave de serviço
-  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'ic_chat' } })
   let chosen: { title: string; price: number; days: number }
   let refKey = plan
   if (pack) {

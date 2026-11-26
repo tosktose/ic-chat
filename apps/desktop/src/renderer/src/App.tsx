@@ -29,6 +29,7 @@ import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/PasswordResetPage
 import { SubscribePage, CheckoutReturnPage } from '@/pages/billing/SubscribePage'
 import { LicenseGate } from '@/components/LicenseGate'
 import { CookieConsent } from '@/components/CookieConsent'
+import { DownloadPage } from '@/pages/DownloadPage'
 
 const Router = isWebApp ? BrowserRouter : HashRouter
 
@@ -40,6 +41,9 @@ const AdminSystemPage = lazy(() => import('@/pages/admin/AdminSystemPage').then(
 const AdminUsersPage = lazy(() => import('@/pages/admin/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
 const AdminAffiliatesPage = lazy(() => import('@/pages/admin/AdminAffiliatesPage').then((m) => ({ default: m.AdminAffiliatesPage })))
 const MyAffiliatesPage = lazy(() => import('@/pages/affiliate/MyAffiliatesPage').then((m) => ({ default: m.MyAffiliatesPage })))
+const ChargesPage = lazy(() => import('@/pages/billing/ChargesPage').then((m) => ({ default: m.ChargesPage })))
+const BroadcastPage = lazy(() => import('@/pages/social/BroadcastPage').then((m) => ({ default: m.BroadcastPage })))
+const LeadFormPage = lazy(() => import('@/pages/public/LeadFormPage').then((m) => ({ default: m.LeadFormPage })))
 const AgendaPage = lazy(() => import('@/pages/agenda/AgendaPage').then((m) => ({ default: m.AgendaPage })))
 const AiPage = lazy(() => import('@/pages/ai/AiPage').then((m) => ({ default: m.AiPage })))
 const MyPerformancePage = lazy(() => import('@/pages/analyst/MyPerformancePage').then((m) => ({ default: m.MyPerformancePage })))
@@ -53,6 +57,9 @@ const KanbanPage = lazy(() => import('@/pages/kanban/KanbanPage').then((m) => ({
 const ProfilePage = lazy(() => import('@/pages/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const ReportsPage = lazy(() => import('@/pages/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })))
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+const RemindersPage = lazy(() => import('@/pages/automations/RemindersPage').then((m) => ({ default: m.RemindersPage })))
+const WinbackPage = lazy(() => import('@/pages/automations/WinbackPage').then((m) => ({ default: m.WinbackPage })))
+const BookingPage = lazy(() => import('@/pages/public/BookingPage').then((m) => ({ default: m.BookingPage })))
 const TeamPage = lazy(() => import('@/pages/team/TeamPage').then((m) => ({ default: m.TeamPage })))
 function ThemedToaster() {
   const { resolved } = useTheme()
@@ -64,8 +71,8 @@ function Guard({ children }: { children: ReactNode }) {
   const { role } = useAppState()
   const { pathname } = useLocation()
   const { session, loading } = useAuth()
-  if (isWebApp && loading) return <PageLoading />
-  if (isWebApp && !session) return <Navigate to="/login" replace state={{ from: pathname }} />
+  if (loading) return <PageLoading />
+  if (!session) return <Navigate to="/login" replace state={{ from: pathname }} />
   if (!canAccess(role, pathname)) return <Navigate to={homeByRole[role]} replace />
   // Telas carregadas sob demanda (o app abre mais rápido)
   return (
@@ -91,8 +98,8 @@ function PageLoading() {
 function Home() {
   const { role } = useAppState()
   const { session, loading } = useAuth()
+  if (loading) return <PageLoading />
   if (isWebApp) {
-    if (loading) return <PageLoading />
     return <Navigate to={session ? homeByRole[role] : '/'} replace />
   }
   // Ao abrir o app: entra direto só se a pessoa marcou "Manter conectado"
@@ -102,7 +109,7 @@ function Home() {
   } catch {
     /* ignore */
   }
-  return <Navigate to={keep ? homeByRole[role] : '/login'} replace />
+  return <Navigate to={session && keep ? homeByRole[role] : '/login'} replace />
 }
 
 export function App() {
@@ -124,6 +131,9 @@ export function App() {
             <Routes>
               <Route path="/" element={isWebApp ? <LandingPage /> : <Home />} />
               <Route path="/login" element={isWebApp ? <AuthPage mode="login" /> : <LoginPage />} />
+              {isWebApp && <Route path="/c/:tenantId" element={<Suspense fallback={<PageLoading />}><LeadFormPage /></Suspense>} />}
+              {isWebApp && <Route path="/agendar/:tenantId" element={<Suspense fallback={<PageLoading />}><BookingPage /></Suspense>} />}
+              {isWebApp && <Route path="/download" element={<DownloadPage />} />}
               <Route path="/cadastro" element={isWebApp ? <AuthPage mode="signup" /> : <LoginPage />} />
               {isWebApp && <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />}
               {isWebApp && <Route path="/redefinir-senha" element={<ResetPasswordPage />} />}
@@ -136,6 +146,10 @@ export function App() {
                 <Route path="/kanban" element={<Guard><KanbanPage /></Guard>} />
                 <Route path="/funil" element={<Guard><FunilPage /></Guard>} />
                 <Route path="/captacao" element={<Guard><CaptacaoPage /></Guard>} />
+                <Route path="/lembretes" element={<Guard><RemindersPage /></Guard>} />
+                <Route path="/retorno" element={<Guard><WinbackPage /></Guard>} />
+                <Route path="/cobrancas" element={<Guard><ChargesPage /></Guard>} />
+                <Route path="/disparos" element={<Guard><BroadcastPage /></Guard>} />
                 <Route path="/ia" element={<Guard><AiPage /></Guard>} />
                 <Route path="/canais" element={<Guard><ChannelsPage /></Guard>} />
                 <Route path="/relatorios" element={<Guard><ReportsPage /></Guard>} />
@@ -178,7 +192,7 @@ export function App() {
       </AppStateProvider>
     </ThemeProvider>
     </ErrorBoundary>
-    {isWebApp && <Analytics />}
+    {isWebApp && __ON_VERCEL__ && <Analytics />}
     </AuthProvider>
   )
 }

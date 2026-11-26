@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AutomationRunner, WhatsAppDownBanner } from '@/components/AutomationRunner'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import {
   ChevronsUpDown,
@@ -21,6 +22,8 @@ import { CommandPalette } from '@/components/layout/CommandPalette'
 import { NewAppointmentDialog } from '@/components/NewAppointmentDialog'
 import { NotificationPrompt } from '@/components/NotificationPrompt'
 import { GuideBot } from '@/components/GuideBot'
+import { LeadWatcher } from '@/components/LeadWatcher'
+import { WelcomeActivated } from '@/components/WelcomeActivated'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { navByPath, navFor, roleLabel, type NavItem } from '@/components/layout/nav'
 import { useAppState } from '@/lib/app-state'
@@ -64,6 +67,7 @@ export function AppShell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
         <LicenseBanner />
+        <WhatsAppDownBanner />
         <main className="relative min-h-0 flex-1 overflow-hidden">
           <Outlet />
         </main>
@@ -73,6 +77,9 @@ export function AppShell() {
       <NewAppointmentDialog />
       <NotificationPrompt />
       <GuideBot />
+      <LeadWatcher />
+      <WelcomeActivated />
+      <AutomationRunner />
     </div>
   )
 }

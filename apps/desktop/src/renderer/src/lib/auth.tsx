@@ -30,25 +30,35 @@ const SUPERADMIN_EMAILS = String(import.meta.env.VITE_SUPERADMIN_EMAILS ?? 'supe
 export function isSuperAdmin(session: Session | null): boolean {
   if (!session?.user) return false
   const email = session.user.email?.toLowerCase()
-  const role = session.user.app_metadata?.role ?? session.user.user_metadata?.role
+  const role = String(session.user.app_metadata?.role ?? session.user.user_metadata?.role ?? '').toLowerCase().replace(/[^a-z]/g, '')
   return role === 'superadmin' || (Boolean(email) && SUPERADMIN_EMAILS.includes(email!))
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(isWebApp && Boolean(supabase))
+  const [loading, setLoading] = useState(Boolean(supabase))
 
   useEffect(() => {
-    if (!isWebApp || !supabase) return
+    if (!supabase) { setLoading(false); return }
+    const client = supabase
     let mounted = true
-    void supabase.auth.getSession().then(({ data }) => {
+    const completeOAuth = async () => {
+      const session = await window.icchat?.auth.takeCallback()
+      if (session && mounted) {
+        const { error } = await client.auth.setSession(session)
+        if (error) console.error('Falha ao concluir login do Google:', error.message)
+      }
+    }
+    const unsubscribe = window.icchat?.auth.onCallback(() => { void completeOAuth() })
+    void completeOAuth()
+    void client.auth.getSession().then(({ data }) => {
       if (mounted) { setSession(data.session); setLoading(false) }
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: { subscription } } = client.auth.onAuthStateChange((_event, next) => {
       setSession(next)
       setLoading(false)
     })
-    return () => { mounted = false; subscription.unsubscribe() }
+    return () => { mounted = false; unsubscribe?.(); subscription.unsubscribe() }
   }, [])
 
   // O OAuth não permite anexar metadados personalizados durante a criação do usuário.
@@ -89,6 +99,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInWithGoogle: async (signup = false) => {
       if (!supabase) return new Error('Supabase não configurado') as AuthError
       if (signup) prepareAffiliateOAuthSignup()
+      if (!isWebApp) {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: `${getSiteUrl()}/desktop-auth.html`, skipBrowserRedirect: true, queryParams: { access_type: 'offline', prompt: 'select_account' } }
+        })
+        if (error) return error
+        const opened = await window.icchat?.auth.openOAuth(data.url)
+        return opened?.ok ? null : new Error(opened?.error || 'Não foi possível abrir o navegador') as AuthError
+      }
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: `${getSiteUrl()}/dashboard`, queryParams: { access_type: 'offline', prompt: 'select_account' } }

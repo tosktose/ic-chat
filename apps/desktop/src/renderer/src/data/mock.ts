@@ -35,6 +35,8 @@ export interface Contact {
   birthday?: string
   source?: string
   campaign?: string
+  /** Mensagens de retorno já enviadas (etapa → ms do envio) */
+  followups?: Record<string, number>
 }
 
 export type ConversationStatus = 'nova' | 'ia' | 'aguardando' | 'humano' | 'resolvida'
@@ -106,6 +108,12 @@ export interface Appointment {
   /** Quando foi marcado (ms) e por quem (id do usuário) */
   createdAt?: number
   createdBy?: string
+  /** Lembretes já enviados (ms de quando saiu cada um) */
+  reminders?: { '24h'?: number; '2h'?: number }
+  /** Resposta do cliente ao lembrete */
+  reply?: 'confirmar' | 'remarcar'
+  /** Sinal cobrado por PIX para garantir o horário */
+  deposit?: { amount: number; status: 'pendente' | 'pago'; code?: string; paidAt?: number }
 }
 
 export interface Service {
@@ -113,6 +121,8 @@ export interface Service {
   name: string
   minutes: number
   price: number
+  /** Sinal cobrado por PIX ao agendar (R$). 0 ou vazio = sem sinal */
+  deposit?: number
 }
 
 export const services: Service[] = [

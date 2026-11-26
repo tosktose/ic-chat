@@ -16,6 +16,7 @@ import {
   Sun,
   Tags,
   Trash2,
+  Zap
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Page } from '@/components/layout/Page'
@@ -32,12 +33,14 @@ import { CompanyTab } from './CompanyTab'
 import { LicenseTab } from './LicenseTab'
 import { GoogleTab } from './GoogleTab'
 import { DataTab } from './DataTab'
+import { AutomationsTab } from './AutomationsTab'
 import { ProfessionalsTab, QuickRepliesTab, ServicesTab } from './CatalogTabs'
 
 const TABS = [
   { id: 'empresa', label: 'Empresa', icon: Building2 },
   { id: 'profissionais', label: 'Profissionais', icon: Scissors },
   { id: 'servicos', label: 'Serviços', icon: Clock },
+  { id: 'automacoes', label: 'Automações', icon: Zap },
   { id: 'etiquetas', label: 'Etiquetas', icon: Tags },
   { id: 'respostas', label: 'Respostas rápidas', icon: MessageSquareText },
   { id: 'google', label: 'Google Agenda', icon: CalendarDays },
@@ -75,6 +78,7 @@ export function SettingsPage() {
           {tab === 'empresa' && <CompanyTab />}
           {tab === 'profissionais' && <ProfessionalsTab />}
           {tab === 'servicos' && <ServicesTab />}
+          {tab === 'automacoes' && <AutomationsTab />}
           {tab === 'etiquetas' && <TagsTab />}
           {tab === 'respostas' && <QuickRepliesTab />}
           {tab === 'google' && <GoogleTab />}

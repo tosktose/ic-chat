@@ -4,9 +4,18 @@
 // Secrets (nomes com prefixo ICCHAT_ porque o projeto é compartilhado com outros sistemas):
 //   ICCHAT_AI_API_KEY    chave do provedor de IA (obrigatório)
 //   ICCHAT_AI_BASE_URL   endereço da API compatível com OpenAI (padrão https://openrouter.ai/api/v1)
-//   ICCHAT_AI_MODEL      modelo (padrão openai/gpt-4o-mini)
+//   ICCHAT_AI_MODEL      modelo; só modelos GRATUITOS do OpenRouter (terminados em :free). Padrão openrouter/free
 //   ICCHAT_SITE_URL      opcional, padrão https://www.icchat.com.br
 import { createClient } from 'npm:@supabase/supabase-js@2'
+
+/** Modelos gratuitos de reserva do OpenRouter (se um sair do ar, o próximo responde). */
+const FREE_FALLBACK = ['openrouter/free', 'meta-llama/llama-3.3-70b-instruct:free', 'google/gemma-3-27b-it:free']
+const isFree = (m: string) => m === 'openrouter/free' || m.endsWith(':free')
+function freeModels(configured: string): string[] {
+  const m = configured.trim()
+  if (m && !isFree(m)) console.warn('Modelo pago ignorado (só gratuitos são permitidos):', m)
+  return [...new Set([...(m && isFree(m) ? [m] : []), ...FREE_FALLBACK])].slice(0, 3)
+}
 
 const SITE = (Deno.env.get('ICCHAT_SITE_URL') ?? 'https://www.icchat.com.br').replace(/\/$/, '')
 const cors = {
@@ -64,7 +73,8 @@ Deno.serve(async (req) => {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
     body: JSON.stringify({
-      model: cfg.openrouter_model || Deno.env.get('ICCHAT_AI_MODEL') || 'openai/gpt-4o-mini',
+      // Só modelos gratuitos: se o configurado for pago, é trocado pelo roteador grátis. A lista é a ordem de reserva.
+      models: freeModels(cfg.openrouter_model || Deno.env.get('ICCHAT_AI_MODEL') || ''),
       max_tokens: 500,
       messages: [...(system ? [{ role: 'system', content: system }] : []), ...messages]
     })

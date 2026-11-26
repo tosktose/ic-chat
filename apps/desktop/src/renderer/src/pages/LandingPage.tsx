@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowRight, Check, Globe, Menu, Monitor, Plus, ShieldCheck, X } from 'lucide-react'
+import { ArrowDownToLine, ArrowRight, BarChart3, BellRing, CalendarCheck, Check, Globe, HeartHandshake, Menu, Minus, Monitor, Plus, QrCode, ShieldCheck, X } from 'lucide-react'
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import logo from '@/assets/logo-transparent.png'
@@ -7,14 +7,15 @@ import { useSeo } from '@/lib/seo'
 import { HOME_FAQ, KEYWORD_PAGES, pageByPath } from '@/seo/pages'
 import { usePlans, usePublicSettings } from '@/lib/platform'
 import { discountedPlanPrice } from '@/lib/billing'
+import { NEW_FEATURES, PLAN_FIT } from '@/data/plan-fit'
 import { HeroProduct } from './landing/HeroProduct'
 import { FeatureStory } from './landing/FeatureStory'
 
-const downloadUrl = import.meta.env.VITE_ICCHAT_DESKTOP_DOWNLOAD_URL as string | undefined
+const NEW_ICONS = { lembretes: BellRing, pix: QrCode, agendar: CalendarCheck, retorno: HeartHandshake, resumo: BarChart3 } as const
 
 const faqs = HOME_FAQ.map((f) => [f.q, f.a] as const)
 
-const navLinks = [['#funcionalidades', 'Funcionalidades'], ['#como-funciona', 'Como funciona'], ['#planos', 'Planos'], ['#baixar', 'Aplicativo'], ['#duvidas', 'Dúvidas']] as const
+const navLinks = [['#funcionalidades', 'Funcionalidades'], ['#novidades', 'Novidades'], ['#como-funciona', 'Como funciona'], ['#planos', 'Planos'], ['#baixar', 'Aplicativo'], ['#duvidas', 'Dúvidas']] as const
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -146,11 +147,33 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* NOVIDADES: menos faltas, mais retorno */}
+      <section id="novidades" className="px-5 pt-12 pb-24 sm:px-8 sm:pb-36">
+        <div className="mx-auto max-w-[1320px]">
+          <SectionHead index="02" label="Novidades em todos os planos" title={<>Menos faltas, <span className="lp-serif">mais clientes voltando.</span></>} copy="Ferramentas que trabalham por você entre um atendimento e outro, sem depender de nenhum serviço pago à parte." />
+          <ul className="mt-16 grid border-t border-[var(--lp-line)] sm:mt-20 sm:grid-cols-2 lg:grid-cols-5">
+            {NEW_FEATURES.map((f, i) => {
+              const Icon = NEW_ICONS[f.key]
+              return (
+                <li key={f.key} className={`flex flex-col gap-4 border-b border-[var(--lp-line)] py-8 sm:px-6 lg:border-b-0 lg:py-10 ${i % 2 ? 'sm:border-l' : ''} ${i > 0 ? 'lg:border-l' : ''} lg:first:pl-0`}>
+                  <span className="grid size-10 place-items-center rounded-xl bg-white text-[var(--lp-ink)] shadow-[0_0_0_1px_var(--lp-line)]"><Icon className="size-[18px]" /></span>
+                  <h3 className="text-[18px] leading-tight font-semibold tracking-[-0.02em]">{f.title}</h3>
+                  <p className="text-[14px] leading-6 text-[var(--lp-ink-2)]">{f.copy}</p>
+                </li>
+              )
+            })}
+          </ul>
+          <p className="mt-8 max-w-3xl rounded-2xl bg-[var(--lp-paper-2)] px-5 py-4 text-[14px] leading-6 text-[var(--lp-ink-2)]">
+            <strong className="font-semibold text-[var(--lp-ink)]">Como o lembrete chega ao cliente:</strong> com o aplicativo para Windows e o seu WhatsApp conectado, os lembretes saem sozinhos. Na versão online, eles ficam numa lista e cada envio é um clique.
+          </p>
+        </div>
+      </section>
+
       {/* COMO FUNCIONA */}
       <section id="como-funciona" className="lp-night relative isolate overflow-hidden px-5 py-24 sm:px-8 sm:py-36">
         <div className="lp-night-glow pointer-events-none absolute inset-0 -z-10" aria-hidden />
         <div className="mx-auto max-w-[1320px]">
-          <SectionHead tone="night" index="02" label="Como funciona" title={<>Do primeiro oi a uma <span className="lp-serif text-[var(--lp-cyan)]">visão clara</span> do negócio.</>} copy="Sem planilhas espalhadas e sem conversa perdida: três passos simples para organizar o atendimento." />
+          <SectionHead tone="night" index="03" label="Como funciona" title={<>Do primeiro oi a uma <span className="lp-serif text-[var(--lp-cyan)]">visão clara</span> do negócio.</>} copy="Sem planilhas espalhadas e sem conversa perdida: três passos simples para organizar o atendimento." />
           <ol className="mt-16 grid border-t border-[var(--lp-night-line)] sm:mt-24 md:grid-cols-3">
             {[['Centralize', 'Reúna contatos e organize as conversas por canal e responsável.'], ['Acompanhe', 'Registre origem, interesse e o próximo passo de cada oportunidade.'], ['Melhore', 'Use o funil e os indicadores para priorizar retornos e entender resultados.']].map(([t, c], i) => (
               <li key={t} className={`flex flex-col gap-4 border-[var(--lp-night-line)] py-10 md:min-h-[320px] md:px-8 md:py-12 ${i > 0 ? 'border-t md:border-t-0 md:border-l' : ''} md:first:pl-0`}>
@@ -169,7 +192,7 @@ export function LandingPage() {
       {/* PLANOS */}
       <section id="planos" className="px-5 py-24 sm:px-8 sm:py-36">
         <div className="mx-auto max-w-[1320px]">
-          <SectionHead index="03" label="Planos" title={<>Comece no seu <span className="lp-serif">ritmo.</span></>} copy="Teste todas as funcionalidades por 7 dias, sem cartão de crédito." />
+          <SectionHead index="04" label="Planos" title={<>Comece no seu <span className="lp-serif">ritmo.</span></>} copy="Teste todas as funcionalidades por 7 dias, sem cartão de crédito. Veja os prós e contras de cada plano para escolher sem erro." />
           <div className="mt-16 grid items-stretch gap-3 sm:mt-20 lg:grid-cols-3">
             {plans.map((plan) => {
               const dark = plan.recommended
@@ -197,6 +220,16 @@ export function LandingPage() {
                   <ul className={`mt-8 flex flex-col gap-3 border-t pt-7 ${dark ? 'border-white/10' : 'border-[var(--lp-line)]'}`}>
                     {plan.features.map((f) => <li key={f} className={`flex items-start gap-2.5 text-[14px] ${dark ? 'text-white/80' : 'text-[var(--lp-ink-2)]'}`}><Check className={`mt-0.5 size-4 shrink-0 ${dark ? 'text-[var(--lp-cyan)]' : 'text-[var(--lp-live)]'}`} />{f}</li>)}
                   </ul>
+                  {PLAN_FIT[plan.id] && (
+                    <div data-testid={`plan-fit-${plan.id}`} className={`mt-7 rounded-2xl p-5 text-[13px] leading-5 ${dark ? 'bg-white/[.06] shadow-[inset_0_0_0_1px_rgb(255_255_255/.08)]' : 'bg-[var(--lp-paper)] shadow-[inset_0_0_0_1px_var(--lp-line)]'}`}>
+                      <p className="font-semibold">Para quem é</p>
+                      <p className={`mt-1 ${dark ? 'text-white/65' : 'text-[var(--lp-ink-2)]'}`}>{PLAN_FIT[plan.id].ideal}</p>
+                      <p className={`lp-label mt-4 ${dark ? 'text-[var(--lp-cyan)]' : 'text-[var(--lp-live)]'}`}>Prós</p>
+                      <ul className="mt-2 flex flex-col gap-1.5">{PLAN_FIT[plan.id].pros.map((p) => <li key={p} className={`flex gap-2 ${dark ? 'text-white/80' : 'text-[var(--lp-ink-2)]'}`}><Check className="mt-0.5 size-3.5 shrink-0" />{p}</li>)}</ul>
+                      <p className={`lp-label mt-4 ${dark ? 'text-amber-300' : 'text-amber-700'}`}>Contras</p>
+                      <ul className="mt-2 flex flex-col gap-1.5">{PLAN_FIT[plan.id].cons.map((c) => <li key={c} className={`flex gap-2 ${dark ? 'text-white/65' : 'text-[var(--lp-mute)]'}`}><Minus className="mt-0.5 size-3.5 shrink-0" />{c}</li>)}</ul>
+                    </div>
+                  )}
                 </article>
               )
             })}
@@ -208,7 +241,7 @@ export function LandingPage() {
       {/* DUAS FORMAS DE USAR / DOWNLOAD */}
       <section id="baixar" className="px-5 pb-24 sm:px-8 sm:pb-36">
         <div className="mx-auto max-w-[1320px]">
-          <SectionHead index="04" label="Duas formas de usar" title={<>No navegador ou no seu <span className="lp-serif">computador.</span></>} copy="Mesma conta, mesmos dados. Escolha o que combina com a rotina da sua equipe." />
+          <SectionHead index="05" label="Duas formas de usar" title={<>No navegador ou no seu <span className="lp-serif">computador.</span></>} copy="Mesma conta, mesmos dados. Escolha o que combina com a rotina da sua equipe." />
           <div className="mt-16 grid gap-3 sm:mt-20 md:grid-cols-2">
             <article className="flex min-h-[340px] flex-col justify-between rounded-[28px] bg-[var(--lp-card)] p-8 shadow-[0_0_0_1px_var(--lp-line)] sm:p-10">
               <div>
@@ -226,10 +259,8 @@ export function LandingPage() {
                 <p className="mt-2 max-w-sm text-[15px] leading-7 text-white/65">Instale no computador, receba notificações e mantenha o atendimento sempre à mão. Entre com a mesma conta da versão online.</p>
               </div>
               <div className="mt-10">
-                {downloadUrl
-                  ? <a href={downloadUrl} className="lp-btn lp-btn-paper h-12 px-6 text-sm"><ArrowDownToLine className="size-4" /> Baixar para Windows</a>
-                  : <span className="inline-flex h-12 items-center gap-2 rounded-full px-6 text-sm font-semibold text-white/80 shadow-[inset_0_0_0_1px_rgb(255_255_255/.2)]"><ArrowDownToLine className="size-4" /> Download disponível em breve</span>}
-                <p className="lp-num mt-3 text-xs text-white/45">Windows 10 ou superior · versão 0.6.0</p>
+                <Link to="/download" className="lp-btn lp-btn-paper h-12 px-6 text-sm"><ArrowDownToLine className="size-4" /> Entrar para baixar</Link>
+                <p className="lp-num mt-3 text-xs text-white/45">Windows 10 ou superior · versão 0.6.3</p>
               </div>
             </article>
           </div>
@@ -240,7 +271,7 @@ export function LandingPage() {
       <section id="duvidas" className="border-t border-[var(--lp-line)] px-5 py-24 sm:px-8 sm:py-36">
         <div className="mx-auto grid max-w-[1320px] gap-12 lg:grid-cols-12">
           <div className="lg:col-span-5">
-            <span className="lp-label flex items-center gap-3 text-[var(--lp-mute)]"><span className="text-[var(--lp-ink)]">05</span><span className="h-px w-8 bg-[var(--lp-line-strong)]" />Perguntas frequentes</span>
+            <span className="lp-label flex items-center gap-3 text-[var(--lp-mute)]"><span className="text-[var(--lp-ink)]">06</span><span className="h-px w-8 bg-[var(--lp-line-strong)]" />Perguntas frequentes</span>
             <h2 className="lp-h2 mt-6">Ficou com alguma <span className="lp-serif">dúvida?</span></h2>
             {contact.support_email && <p className="mt-6 text-[15px] leading-7 text-[var(--lp-ink-2)]">Fale com a gente em <a href={`mailto:${contact.support_email}`} className="lp-link font-medium text-[var(--lp-ink)] underline decoration-[var(--lp-line-strong)] underline-offset-4">{contact.support_email}</a></p>}
           </div>

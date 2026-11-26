@@ -438,3 +438,14 @@ export async function setIntegration(key: string, value: string): Promise<void> 
   const { error } = await db().rpc('admin_set_integration', { p_key: key, p_value: value })
   if (error) throw error
 }
+
+/* ---------------- WhatsApp dos avisos (Evolution API, pelo servidor) ---------------- */
+export interface NoticeWaState { state: string; qr?: string | null; pairingCode?: string | null; error?: string }
+
+/** status: só consulta · connect: cria a instância se faltar e traz o QR · logout: desconecta o número */
+export async function noticeWhatsApp(action: 'status' | 'connect' | 'logout'): Promise<NoticeWaState> {
+  if (!supabase) throw new Error('Supabase não configurado.')
+  const { data, error } = await supabase.functions.invoke('icchat-notify', { body: { action: `evo_${action}` } })
+  if (error) throw error
+  return data as NoticeWaState
+}

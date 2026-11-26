@@ -1,6 +1,12 @@
 // Horários livres da agenda (usado pela IA para oferecer e marcar horários)
-import { TODAY, type Appointment } from '@/data/mock'
+import type { Appointment } from '@/data/mock'
 import { toMinutes, weekdayOf, type DayHours, type ProfessionalItem } from '@/lib/company'
+
+/** Hoje no fuso do computador, calculado na hora (o app pode ficar aberto de um dia para o outro) */
+const localToday = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 export const toHHMM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 
@@ -16,7 +22,7 @@ interface SlotInput {
 
 function busyOf({ date, pro, appointments, extraBusy = [] }: SlotInput) {
   return appointments
-    .filter((a) => a.professionalId === pro.id && (a.date ?? TODAY) === date && a.status !== 'faltou' && a.status !== 'cancelado')
+    .filter((a) => a.professionalId === pro.id && (a.date ?? localToday()) === date && a.status !== 'faltou' && a.status !== 'cancelado')
     .map((a) => [toMinutes(a.start), toMinutes(a.end)] as const)
     .concat(extraBusy)
 }
@@ -30,8 +36,9 @@ export function freeSlots(input: SlotInput): string[] {
   const lunch = day.lunchStart && day.lunchEnd ? [toMinutes(day.lunchStart), toMinutes(day.lunchEnd)] : null
   const busy = busyOf(input)
   const now = new Date()
-  const nowMin = input.date === TODAY ? now.getHours() * 60 + now.getMinutes() : -1
-  if (input.date < TODAY) return []
+  const today = localToday()
+  const nowMin = input.date === today ? now.getHours() * 60 + now.getMinutes() : -1
+  if (input.date < today) return []
   const out: string[] = []
   for (let m = open; m + input.minutes <= close; m += 30) {
     const e = m + input.minutes

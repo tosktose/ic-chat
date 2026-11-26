@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { ArrowLeft, ArrowRight, Check, Globe2, LockKeyhole, Mail } from 'lucide-react'
 import { IcLogo } from '@/components/brand'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,8 @@ import { pageByPath } from '@/seo/pages'
 export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const { configured, session, signIn, signUp, signInWithGoogle, signOut } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = (location.state as { from?: string } | null)?.from
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -29,11 +31,11 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
         const result = await signUp(email.trim(), password, company)
         if (result.error) throw result.error
         if (result.needsEmailConfirmation) setConfirmation(true)
-        else navigate('/dashboard', { replace: true })
+        else navigate(returnTo || '/dashboard', { replace: true })
       } else {
         const error = await signIn(email.trim(), password)
         if (error) throw error
-        navigate('/dashboard', { replace: true })
+        navigate(returnTo || '/dashboard', { replace: true })
       }
     } catch (error) {
       const raw = error instanceof Error ? error.message : ''

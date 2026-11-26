@@ -1,0 +1,31 @@
+# Cloudflare Pages: rotas do app (SPA) servem app.html. Equivale aos "rewrites" do vercel.json.
+/dashboard /app 200
+/inbox /app 200
+/agenda /app 200
+/kanban /app 200
+/funil /app 200
+/contatos /app 200
+/relatorios /app 200
+/captacao /app 200
+/cobrancas /app 200
+/disparos /app 200
+/ia /app 200
+/canais /app 200
+/equipe /app 200
+/config /app 200
+/perfil /app 200
+/meu-painel /app 200
+/afiliados /app 200
+/esqueci-senha /app 200
+/redefinir-senha /app 200
+/download /app 200
+/c/:tenantId /app 200
+/agendar/:tenantId /app 200
+/lembretes /app 200
+/retorno /app 200
+/admin /app 200
+/admin/* /app 200
+/assinar /app 200
+/assinar/* /app 200
+# O domínio sem www vai para o www (como na Vercel)
+https://icchat.com.br/* https://www.icchat.com.br/:splat 301

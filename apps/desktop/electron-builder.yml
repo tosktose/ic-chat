@@ -1,6 +1,10 @@
 appId: br.com.itacondo.icchat
 electronVersion: 44.4.5
 productName: IC Chat
+protocols:
+  - name: IC Chat Authentication
+    schemes:
+      - icchat
 copyright: Copyright © 2026 ItaCondo
 directories:
   buildResources: build
